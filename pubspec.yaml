@@ -1,0 +1,37 @@
+name: my_first_app
+description: "A new Flutter project for TUTR app."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  smooth_page_indicator: ^1.1.0
+  intl: ^0.19.0
+  file_picker: ^10.3.10
+  dotted_border: ^2.1.0
+  image_picker: ^1.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.0
+
+# DO NOT PUT FLUTTER OR ASSETS INSIDE DEV_DEPENDENCIES
+
+flutter:
+  uses-material-design: true
+
+  # This is the ONLY place assets should be listed
+  assets:
+    - assets/images/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"

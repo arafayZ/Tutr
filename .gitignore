@@ -1,17 +1,29 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.buildlog/
-.history
-
-
-
-# Flutter/Dart/Pub related
-**/doc/api/
+# Flutter
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
+.packages
+.pub-cache/
 .pub/
+build/
 
-app.*.symbols
+# Android
+android/.gradle/
+android/app/build/
+android/local.properties
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Misc
+*.log
+*.tmp
+.DS_Store

@@ -215,8 +215,23 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   // Link to Login if they already have an account
                   GestureDetector(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginScreen())),
-                    child: const Text("Already a member? Login"),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    ),
+                    child: const Text.rich(
+                      TextSpan(
+                        text: "Already a member? ",
+                        children: [
+                          TextSpan(
+                            text: "Login",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 30),
                 ],

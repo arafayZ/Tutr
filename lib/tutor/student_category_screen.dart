@@ -93,7 +93,7 @@ class StudentCategoryScreen extends StatelessWidget {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
-      bottomNavigationBar: const CustomBottomNav(),
+      bottomNavigationBar: const CustomBottomNav(currentIndex: -1),
     );
   }
 }

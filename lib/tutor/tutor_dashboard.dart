@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 import 'student_category_screen.dart';
 import 'my_bids_screen.dart';
 import 'add_course_screen.dart';
-import 'search_screen.dart'; // Import the new search screen
+import 'search_screen.dart';
 import '../widgets/custom_bottom_nav.dart';
+import 'reviews_screen.dart';
 
 // --- 1. DATA MODEL ---
 // Define a Course class to represent course data structure
@@ -129,7 +130,7 @@ class _TutorDashboardState extends State<TutorDashboard> {
           ],
         ),
       ),
-      bottomNavigationBar: const CustomBottomNav(), // Custom bottom navigation bar
+      bottomNavigationBar: const CustomBottomNav(currentIndex: 0), // Custom bottom navigation bar
     );
   }
 
@@ -385,20 +386,29 @@ class _ActivityCenterRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        //students
         _ActIcon(
           icon: Icons.person_outline,
           label: "Students",
           color: Colors.black,
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const StudentCategoryScreen())),
         ),
+        //Courses
         const _ActIcon(icon: Icons.book_outlined, label: "Courses", color: Colors.black),
+        //Bids
         _ActIcon(
           icon: Icons.gavel,
           label: "Bids",
           color: Colors.black,
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MyBidsScreen())),
         ),
-        const _ActIcon(icon: Icons.star_border, label: "Reviews", color: Colors.black),
+        //Reviews
+        _ActIcon(
+          icon: Icons.star_border,
+          label: "Reviews",
+          color: Colors.black,
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ReviewsScreen())),
+        ),
       ],
     );
   }

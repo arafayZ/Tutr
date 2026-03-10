@@ -1,8 +1,13 @@
+// Import Flutter material package for widgets
 import 'package:flutter/material.dart';
+
+// Import custom widgets for bottom navigation and tab header
 import '../widgets/custom_bottom_nav.dart';
 import '../widgets/custom_tab_header.dart';
 
-// --- MAIN BIDS LIST SCREEN ---
+// ===================
+// 1. MAIN BIDS SCREEN
+// ===================
 class MyBidsScreen extends StatefulWidget {
   const MyBidsScreen({super.key});
 
@@ -11,55 +16,63 @@ class MyBidsScreen extends StatefulWidget {
 }
 
 class _MyBidsScreenState extends State<MyBidsScreen> {
+  // List of all students (dummy data)
   final List<String> _allStudents = [
     "Bilal Raza", "Sara Ali", "Zayan Khan", "Ayesha Malik",
     "Hamza Sheikh", "Dua Fatima", "Mustafa Ali", "Zainab Junaid",
     "Omer Farooq", "Hania Amir"
   ];
 
+  // Filtered list to show search results
   List<String> _filteredStudents = [];
   final TextEditingController _searchController = TextEditingController();
 
+  // Initialize filtered list with all students
   @override
   void initState() {
     super.initState();
     _filteredStudents = _allStudents;
   }
 
+  // Filter students based on search input
   void _runFilter(String enteredKeyword) {
     List<String> results = [];
     if (enteredKeyword.isEmpty) {
-      results = _allStudents;
+      results = _allStudents; // No keyword -> show all
     } else {
       results = _allStudents
           .where((user) => user.toLowerCase().contains(enteredKeyword.toLowerCase()))
-          .toList();
+          .toList(); // Filter list
     }
     setState(() {
       _filteredStudents = results;
     });
   }
 
+  // ----------------- BUILD -----------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB),
-      extendBody: true,
-      resizeToAvoidBottomInset: false,
+      backgroundColor: const Color(0xFFF8F9FB), // Background color
+      extendBody: true, // For floating button overlap
+      resizeToAvoidBottomInset: false, // Avoid resize on keyboard
       body: Column(
         children: [
-          // FIX: Wrapped String in a Text widget to match your CustomTabHeader parameter type
+
+          // --- CUSTOM HEADER ---
           const CustomTabHeader(
             title: Text(
               "My Bids",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
           ),
+
+          // --- SEARCH FIELD ---
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               controller: _searchController,
-              onChanged: (value) => _runFilter(value),
+              onChanged: (value) => _runFilter(value), // Run filter on typing
               decoration: InputDecoration(
                 hintText: "Search Here...",
                 prefixIcon: const Icon(Icons.search),
@@ -68,7 +81,7 @@ class _MyBidsScreenState extends State<MyBidsScreen> {
                   icon: const Icon(Icons.clear),
                   onPressed: () {
                     _searchController.clear();
-                    _runFilter("");
+                    _runFilter(""); // Clear search
                   },
                 )
                     : null,
@@ -81,6 +94,8 @@ class _MyBidsScreenState extends State<MyBidsScreen> {
               ),
             ),
           ),
+
+          // --- STUDENTS LIST ---
           Expanded(
             child: _filteredStudents.isNotEmpty
                 ? ListView.builder(
@@ -100,19 +115,25 @@ class _MyBidsScreenState extends State<MyBidsScreen> {
           ),
         ],
       ),
+
+      // --- FLOATING ACTION BUTTON ---
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {}, // Add new bid (currently empty)
         backgroundColor: Colors.black,
         shape: const CircleBorder(),
         child: const Icon(Icons.add, color: Colors.white, size: 30),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+
+      // --- CUSTOM BOTTOM NAVIGATION ---
       bottomNavigationBar: const CustomBottomNav(currentIndex: -1),
     );
   }
 }
 
-// --- BID DETAILS SCREEN ---
+// =====================
+// 2. BID DETAILS SCREEN
+// =====================
 class BidDetailsScreen extends StatefulWidget {
   const BidDetailsScreen({super.key});
 
@@ -121,21 +142,24 @@ class BidDetailsScreen extends StatefulWidget {
 }
 
 class _BidDetailsScreenState extends State<BidDetailsScreen> {
-  String _selectedButtonLabel = "";
+  String _selectedButtonLabel = ""; // Track which button was clicked
 
+  // Show a generic popup
   void _showPopup(BuildContext context, Widget content) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        backgroundColor: Colors.white, // Pure white background per your instructions
+        backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
         child: Padding(padding: const EdgeInsets.all(24), child: content),
       ),
     );
   }
 
+  // Handle Accept / Counter / Reject button logic
   void _onButtonPressed(String label, Widget popup) async {
     if (label == "Reject Offer") {
+      // Show confirmation dialog for reject
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => Dialog(
@@ -149,10 +173,11 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
       }
     } else {
       setState(() => _selectedButtonLabel = label);
-      _showPopup(context, popup);
+      _showPopup(context, popup); // Show corresponding popup
     }
   }
 
+  // ----------------- BUILD -----------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -161,7 +186,6 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
       resizeToAvoidBottomInset: false,
       body: Column(
         children: [
-          // FIX: Wrapped String in Text widget
           const CustomTabHeader(
             title: Text(
               "Bid Details",
@@ -173,8 +197,12 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
+
+                  // --- BID INFO CARD ---
                   const _BidInfoCard(),
                   const SizedBox(height: 40),
+
+                  // --- STATUS BUTTONS ---
                   if (_selectedButtonLabel != "Rejected") ...[
                     _StatusButton(
                       label: "Accept Offer",
@@ -195,6 +223,7 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
                       onTap: () => _onButtonPressed("Reject Offer", const _RejectPopup()),
                     ),
                   ] else ...[
+                    // Show rejected status if rejected
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
                       decoration: BoxDecoration(
@@ -219,6 +248,8 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
           ),
         ],
       ),
+
+      // Floating action button
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
         backgroundColor: Colors.black,
@@ -231,8 +262,11 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
   }
 }
 
-// --- POPUP COMPONENTS ---
+// ===================
+// 3. POPUPS & COMPONENTS
+// ===================
 
+// Success popup after accepting offer
 class _SuccessPopup extends StatelessWidget {
   const _SuccessPopup();
   @override
@@ -252,6 +286,7 @@ class _SuccessPopup extends StatelessWidget {
   }
 }
 
+// Counter Offer popup
 class _CounterPopup extends StatelessWidget {
   const _CounterPopup();
   @override
@@ -287,6 +322,7 @@ class _CounterPopup extends StatelessWidget {
   }
 }
 
+// Reject popup confirmation
 class _RejectPopup extends StatelessWidget {
   const _RejectPopup();
   @override
@@ -308,6 +344,7 @@ class _RejectPopup extends StatelessWidget {
   }
 }
 
+// Single bid tile in the list
 class _BidListTile extends StatelessWidget {
   final String name;
   final VoidCallback onTap;
@@ -336,6 +373,7 @@ class _BidListTile extends StatelessWidget {
   }
 }
 
+// Bid info card in details screen
 class _BidInfoCard extends StatelessWidget {
   const _BidInfoCard();
   @override
@@ -347,7 +385,6 @@ class _BidInfoCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              // FIX: withOpacity is deprecated, replaced with withValues()
                 color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10
             )
@@ -382,6 +419,7 @@ class _BidInfoCard extends StatelessWidget {
   }
 }
 
+// Status buttons for Accept / Counter / Reject
 class _StatusButton extends StatelessWidget {
   final String label;
   final Color color;

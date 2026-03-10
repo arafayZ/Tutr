@@ -139,7 +139,7 @@ class CustomBottomNav extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildNavItem(context, 0, Icons.home_outlined, "HOME", '/tutor_dashboard'),
-              _buildNavItem(context, 1, Icons.people_outline, "CONNECTION", '/connections'),
+              _buildNavItem(context, 1, Icons.people_outline, "CONNECTION", '/connection'),
 
               const SizedBox(width: 45), // FAB space
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../widgets/custom_bottom_nav.dart';
-import '../widgets/custom_tab_header.dart';
-import 'add_course_screen.dart'; // Import ensures the FAB can navigate here
+import '../widgets/custom_bottom_nav.dart'; // Custom navigation bar widget
+import '../widgets/custom_tab_header.dart'; // Custom header widget for the screen
+import 'add_course_screen.dart'; // Navigation target for the FAB
 
 class ReviewsScreen extends StatelessWidget {
   const ReviewsScreen({super.key});
@@ -9,12 +9,12 @@ class ReviewsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB),
-      // Setting to true allows the list content to scroll behind the notched bottom bar
+      backgroundColor: const Color(0xFFF8F9FB), // Light grey/blue background for contrast
+      // Extends the body under the BottomNavigationBar for a seamless look
       extendBody: true,
       body: Column(
         children: [
-          // Header using the cleaned CustomTabHeader widget
+          // Screen Header: Displays the "Reviews" title
           const CustomTabHeader(
             title: Text(
               "Reviews",
@@ -22,16 +22,18 @@ class ReviewsScreen extends StatelessWidget {
             ),
           ),
 
+          // Main content area for the scrollable list
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.only(
                 left: 20,
                 right: 20,
                 top: 15,
-                bottom: 120, // Extra bottom padding so the last review clears the FAB
+                bottom: 120, // High bottom padding ensures the last item isn't hidden by the FAB
               ),
-              itemCount: 8, // Placeholder count
+              itemCount: 8, // Fixed count for UI testing/placeholder
               itemBuilder: (context, index) {
+                // Returns the private helper widget defined below
                 return const _ReviewBox();
               },
             ),
@@ -39,59 +41,62 @@ class ReviewsScreen extends StatelessWidget {
         ],
       ),
 
-      // --- UPDATED FLOATING ACTION BUTTON ---
+      // Floating Action Button (FAB) for adding a new course
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Navigates directly to the Add Course Screen
+          // Standard push navigation to the AddCourseScreen
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AddCourseScreen()),
           );
         },
-        backgroundColor: Colors.black, // Consistent black color for all screens
-        shape: const CircleBorder(),
-        elevation: 4,
-        child: const Icon(Icons.add, color: Colors.white, size: 32),
+        backgroundColor: Colors.black, // High contrast black button
+        shape: const CircleBorder(), // Forces a perfectly circular shape
+        elevation: 4, // Subtle shadow for depth
+        child: const Icon(Icons.add, color: Colors.white, size: 32), // Add icon
       ),
+      // Centers the FAB and docks it into the bottom navigation bar notch
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
+      // Custom bottom navigation bar widget
       bottomNavigationBar: const CustomBottomNav(currentIndex: -1),
     );
   }
 }
 
-// Reusable Review Card Component
+// Internal reusable widget for an individual review card
 class _ReviewBox extends StatelessWidget {
   const _ReviewBox();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16), // Spacing between cards
+      padding: const EdgeInsets.all(16), // Internal padding for content
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white, // Card background
+        borderRadius: BorderRadius.circular(20), // Rounded corners
         boxShadow: [
           BoxShadow(
-            // Modern syntax to avoid 'withOpacity' deprecation
+            // Modern syntax for transparency (replaces withOpacity)
             color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 4), // Shadow positioned slightly below the card
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start, // Align text to the left
         children: [
           Row(
             children: [
+              // User Avatar with a light blue background
               const CircleAvatar(
                 radius: 22,
                 backgroundColor: Color(0xFFEDF2FF),
                 child: Icon(Icons.person, color: Color(0xFF0961F5)),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 12), // Gap between avatar and text
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,16 +118,17 @@ class _ReviewBox extends StatelessWidget {
                   ],
                 ),
               ),
-              _buildStarRating(4), // Example 4-star rating
+              // Star rating display aligned to the right of the row
+              _buildStarRating(4),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 12), // Gap between header row and review text
           const Text(
             "This is where the review text from your database will be displayed. The box will expand automatically based on the length of the comment provided by the student.",
             style: TextStyle(
               fontSize: 13,
               color: Colors.black87,
-              height: 1.4,
+              height: 1.4, // Increased line height for better readability
             ),
           ),
         ],
@@ -130,13 +136,14 @@ class _ReviewBox extends StatelessWidget {
     );
   }
 
-  // Helper to draw stars based on rating value
+  // Helper method to generate a 5-star rating widget
   Widget _buildStarRating(int rating) {
     return Row(
       children: List.generate(5, (index) {
         return Icon(
           Icons.star,
           size: 16,
+          // Colors the star blue if the index is within the rating, otherwise grey
           color: index < rating ? const Color(0xFF0961F5) : Colors.grey[300],
         );
       }),

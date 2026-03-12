@@ -1,6 +1,5 @@
 // Importing Flutter material design package
 import 'package:flutter/material.dart';
-// This imports the core Flutter Material UI components, like Scaffold, Text, Buttons, etc.
 
 // Importing different TUTOR screens
 import 'signup/splash_screen.dart';
@@ -18,43 +17,35 @@ import 'tutor/connection_screen.dart';
 import 'tutor/inbox_screen.dart';
 import 'tutor/chat_details_screen.dart';
 import 'tutor/security_screen.dart';
-import 'tutor/unavailable_courses_screen.dart';
-// These imports bring in all the screens of the app so they can be used in routing.
+import 'tutor/unavailable_courses_screen.dart'; // Ensure this path matches your folder structure
 
-// The main function is the entry point of the Flutter app
 void main() {
   runApp(const TutrApp());
-  // runApp launches the app and inflates the widget tree starting from TutrApp
 }
 
-// The root widget of the app
 class TutrApp extends StatelessWidget {
-  const TutrApp({super.key}); // Constructor with key for widget tree identification
+  const TutrApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // The build method describes the UI structure of this widget
     return MaterialApp(
-      debugShowCheckedModeBanner: false, // Removes the debug banner in the top-right corner
-      title: 'TUTR', // Title of the app, used by Android/iOS for app switcher
+      debugShowCheckedModeBanner: false,
+      title: 'TUTR',
       theme: ThemeData(
         scaffoldBackgroundColor: const Color(0xFFF8F9FB),
-        // Sets the default background color for all Scaffold widgets
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.black,
           primary: Colors.black,
           surface: Colors.white,
         ),
-        // Sets primary colors and surface colors using a seed color
+        // Ensures all popups and dialogs globally use a white background
         dialogTheme: const DialogThemeData(
           backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
+          surfaceTintColor: Colors.transparent, // Prevents Material 3 tinting
         ),
-        // Ensures dialogs/popups have a white background instead of default
-        useMaterial3: true, // Enables Material Design 3 styling for modern look
+        useMaterial3: true,
       ),
       home: const SplashScreen(),
-      // Initial screen shown when app starts, here it's the SplashScreen
       routes: {
         '/login': (context) => const LoginScreen(),
         '/role_selection': (context) => const RoleSelectionScreen(),
@@ -64,8 +55,7 @@ class TutrApp extends StatelessWidget {
         '/profile': (context) => const ProfileScreen(),
         '/connection': (context) => const ConnectionScreen(),
         '/inbox': (context) => const InboxScreen(),
-        '/profile_creation': (context) =>
-        const ProfileCreationScreen(role: 'Tutor'),
+        '/profile_creation': (context) => const ProfileCreationScreen(role: 'Tutor'),
         '/my_bids': (context) => const MyBidsScreen(),
         '/bid_details': (context) => const BidDetailsScreen(),
         '/edit_profile': (context) => const EditProfileScreen(),
@@ -74,8 +64,6 @@ class TutrApp extends StatelessWidget {
         '/security': (context) => const SecurityScreen(),
         '/unavailable_courses': (context) => const UnavailableCoursesScreen(),
       },
-      // Defines named routes for navigation throughout the app.
-      // Each key is a string route, and value is a function returning the screen widget.
     );
   }
 }

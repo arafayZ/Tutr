@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 import '../widgets/custom_bottom_nav.dart';
 // Import the Add Course screen to navigate when FAB is pressed
 import 'add_course_screen.dart';
+// Import the Security screen
+import 'security_screen.dart';
+// --- NEW IMPORT ---
+import 'unavailable_courses_screen.dart';
 
 // ==============================
 // 1. PROFILE SCREEN (Stateful)
@@ -30,52 +34,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // LOGOUT POPUP DIALOG FUNCTION
   // ==============================
   void _showLogoutDialog(BuildContext context) {
-    // Display a dialog
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          backgroundColor: Colors.white, // Dialog background color
-          surfaceTintColor: Colors.white, // For Material3
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), // Rounded edges
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
-              mainAxisSize: MainAxisSize.min, // Wrap content vertically
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Circular icon for logout warning
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1), // Light red background
+                    color: Colors.red.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.logout, color: Colors.red, size: 40),
                 ),
-                const SizedBox(height: 20), // Spacer
-
-                // Dialog title
+                const SizedBox(height: 20),
                 const Text(
                   "Logout",
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
-
-                // Dialog description
                 const Text(
                   "Are you sure you want to logout from your account?",
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 15, color: Colors.grey),
                 ),
                 const SizedBox(height: 30),
-
-                // Buttons row: Cancel and Logout
                 Row(
                   children: [
-                    // Cancel button
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context), // Close dialog
+                        onPressed: () => Navigator.pop(context),
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Colors.grey),
                           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -84,13 +79,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: const Text("Cancel", style: TextStyle(color: Colors.black)),
                       ),
                     ),
-                    const SizedBox(width: 12), // Spacer between buttons
-
-                    // Logout button
+                    const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          // Navigate to login screen and remove all previous routes
                           Navigator.pushNamedAndRemoveUntil(
                             context,
                             '/login',
@@ -121,54 +113,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB), // Screen background color
-      extendBody: true, // Extend body for floating button overlap
+      backgroundColor: const Color(0xFFF8F9FB),
+      extendBody: true,
 
-      // -----------------------------
-      // FLOATING ACTION BUTTON (Add Course)
-      // -----------------------------
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Navigate to Add Course Screen
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AddCourseScreen()),
           );
         },
-        backgroundColor: Colors.black, // Button color
-        shape: const CircleBorder(), // Circular shape
-        child: const Icon(Icons.add, color: Colors.white, size: 35), // Icon
+        backgroundColor: Colors.black,
+        shape: const CircleBorder(),
+        child: const Icon(Icons.add, color: Colors.white, size: 35),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
-      // -----------------------------
-      // BODY
-      // -----------------------------
       body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(), // Smooth scrolling with bounce
+        physics: const BouncingScrollPhysics(),
         child: Column(
           children: [
-            const SizedBox(height: 80), // Top spacing
+            const SizedBox(height: 80),
 
             // -----------------------------
             // PROFILE CARD WITH AVATAR
             // -----------------------------
             Center(
               child: Stack(
-                clipBehavior: Clip.none, // Allow avatar to overflow
+                clipBehavior: Clip.none,
                 alignment: Alignment.topCenter,
                 children: [
-                  // Card container with details and options
                   Container(
-                    width: MediaQuery.of(context).size.width * 0.85, // 85% width
-                    margin: const EdgeInsets.only(top: 60), // Push down to make space for avatar
+                    width: MediaQuery.of(context).size.width * 0.85,
+                    margin: const EdgeInsets.only(top: 60),
                     padding: const EdgeInsets.fromLTRB(20, 75, 20, 30),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(25),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05), // Subtle shadow
+                          color: Colors.black.withOpacity(0.05),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -177,7 +161,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // User name
                         Text(
                           userName,
                           textAlign: TextAlign.center,
@@ -188,8 +171,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-
-                        // User email
                         Text(
                           userEmail,
                           style: const TextStyle(
@@ -206,7 +187,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Icons.person_outline,
                           "Edit Profile",
                           onTap: () {
-                            // Navigate to edit profile screen with arguments
                             Navigator.pushNamed(
                               context,
                               '/edit_profile',
@@ -217,7 +197,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             );
                           },
                         ),
-                        _buildProfileOption(Icons.shield_outlined, "Security", onTap: () {}),
+                        _buildProfileOption(
+                          Icons.shield_outlined,
+                          "Security",
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const SecurityScreen()),
+                            );
+                          },
+                        ),
                         _buildProfileOption(
                           Icons.description_outlined,
                           "Terms & Conditions",
@@ -225,9 +214,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Navigator.pushNamed(context, '/terms_conditions');
                           },
                         ),
-                        _buildProfileOption(Icons.remove_circle_outline, "Unavailable Courses", onTap: () {}),
+                        // --- UPDATED UNAVAILABLE COURSES NAVIGATION ---
+                        _buildProfileOption(
+                          Icons.remove_circle_outline,
+                          "Unavailable Courses",
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const UnavailableCoursesScreen()),
+                            );
+                          },
+                        ),
 
-                        // Logout option
                         _buildProfileOption(
                           Icons.logout,
                           "Logout",
@@ -241,11 +239,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // PROFILE AVATAR
                   // -----------------------------
                   Positioned(
-                    top: 0, // Avatar at the top of the card
+                    top: 0,
                     child: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.black, width: 2), // Border around avatar
+                        border: Border.all(color: Colors.black, width: 2),
                       ),
                       child: CircleAvatar(
                         radius: 60,
@@ -259,36 +257,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-
-            // -----------------------------
-            // SAFE SPACE AT THE BOTTOM
-            // -----------------------------
-            const SizedBox(height: 150), // Prevent bottom nav overlap
+            const SizedBox(height: 150),
           ],
         ),
       ),
-
-      // -----------------------------
-      // BOTTOM NAVIGATION
-      // -----------------------------
-      bottomNavigationBar: const CustomBottomNav(currentIndex: 3), // Highlight profile tab
+      bottomNavigationBar: const CustomBottomNav(currentIndex: 3),
     );
   }
 
-  // ==============================
-  // WIDGET BUILDER: PROFILE OPTIONS
-  // ==============================
   Widget _buildProfileOption(IconData icon, String label, {required VoidCallback onTap}) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap, // Action when tapped
-        borderRadius: BorderRadius.circular(10), // Ripple shape
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8),
           child: Row(
             children: [
-              Icon(icon, size: 24, color: Colors.black87), // Option icon
+              Icon(icon, size: 24, color: Colors.black87),
               const SizedBox(width: 15),
               Expanded(
                 child: Text(
@@ -300,7 +287,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.black), // Forward arrow
+              const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.black),
             ],
           ),
         ),

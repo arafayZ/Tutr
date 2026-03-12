@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_bottom_nav.dart';
 import 'add_course_screen.dart';
+import 'chat_details_screen.dart';
 
 class ConnectionScreen extends StatefulWidget {
   const ConnectionScreen({super.key});
@@ -12,12 +13,12 @@ class ConnectionScreen extends StatefulWidget {
 class _ConnectionScreenState extends State<ConnectionScreen> {
   // Hardcoded initial list of connections (acting as your local database)
   final List<Map<String, dynamic>> _allConnections = [
-    {"name": "Asim Ali Khan", "role": "Physics Tutor", "activeBtn": ""},
-    {"name": "Ali Imran", "role": "Intermediate Student", "activeBtn": ""},
-    {"name": "Hiba Khan", "role": "O Level Tutor", "activeBtn": ""},
-    {"name": "Emaz Ali Khan", "role": "UI Designer", "activeBtn": ""},
-    {"name": "Bilal Raza", "role": "Full Stack Developer", "activeBtn": ""},
-    {"name": "Abdul Rafay", "role": "Database Designer", "activeBtn": ""},
+    {"name": "Asim Ali Khan", "activeBtn": ""},
+    {"name": "Ali Imran", "activeBtn": ""},
+    {"name": "Hiba Khan", "activeBtn": ""},
+    {"name": "Emaz Ali Khan", "activeBtn": ""},
+    {"name": "Bilal Raza", "activeBtn": ""},
+    {"name": "Abdul Rafay", "activeBtn": ""},
   ];
 
   // List that actually gets rendered; changes based on search input
@@ -36,13 +37,11 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     setState(() {
       _searchQuery = query;
       if (query.isEmpty) {
-        _filteredConnections = _allConnections; // Reset if search is cleared
+        _filteredConnections = _allConnections;
       } else {
-        // Simple case-insensitive match for name and role
         _filteredConnections = _allConnections
             .where((connection) =>
-        connection["name"]!.toLowerCase().contains(query.toLowerCase()) ||
-            connection["role"]!.toLowerCase().contains(query.toLowerCase()))
+            connection["name"]!.toLowerCase().contains(query.toLowerCase()))
             .toList();
       }
     });
@@ -171,7 +170,6 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
         children: [
           Row(
             children: [
-              // Placeholder avatar
               const CircleAvatar(
                 radius: 28,
                 backgroundColor: Colors.black,
@@ -179,29 +177,18 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
               ),
               const SizedBox(width: 15),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      person["name"]!,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      person["role"]!,
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                    ),
-                  ],
+                child: Text(
+                  person["name"]!,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Colors.black,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          // Action buttons (Disconnect/Message)
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -224,10 +211,20 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
       child: ElevatedButton(
         onPressed: () {
           setState(() {
-            person["activeBtn"] = label; // Updates local state to highlight button
+            person["activeBtn"] = label;
           });
+
           if (label == "Disconnect") {
-            _showConfirmationDialog(person); // Show alert before deleting
+            _showConfirmationDialog(person);
+          }
+          // --- ADDED NAVIGATION FOR MESSAGE ---
+          else if (label == "Message") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ChatDetailsScreen(userName: person["name"]),
+              ),
+            );
           }
         },
         style: ElevatedButton.styleFrom(

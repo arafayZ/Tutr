@@ -17,6 +17,8 @@ import 'tutor/terms_conditions_screen.dart';
 import 'tutor/connection_screen.dart';
 import 'tutor/inbox_screen.dart';
 import 'tutor/chat_details_screen.dart';
+import 'tutor/security_screen.dart';
+import 'tutor/unavailable_courses_screen.dart';
 // These imports bring in all the screens of the app so they can be used in routing.
 
 // The main function is the entry point of the Flutter app
@@ -69,6 +71,8 @@ class TutrApp extends StatelessWidget {
         '/edit_profile': (context) => const EditProfileScreen(),
         '/terms_conditions': (context) => const TermsConditionsScreen(),
         '/chat_details': (context) => const ChatDetailsScreen(userName: 'User'),
+        '/security': (context) => const SecurityScreen(),
+        '/unavailable_courses': (context) => const UnavailableCoursesScreen(),
       },
       // Defines named routes for navigation throughout the app.
       // Each key is a string route, and value is a function returning the screen widget.

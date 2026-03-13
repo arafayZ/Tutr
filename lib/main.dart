@@ -1,4 +1,4 @@
-// Importing Flutter material design package
+// Import Flutter material design package
 import 'package:flutter/material.dart';
 
 // Importing different TUTOR screens
@@ -17,7 +17,10 @@ import 'tutor/connection_screen.dart';
 import 'tutor/inbox_screen.dart';
 import 'tutor/chat_details_screen.dart';
 import 'tutor/security_screen.dart';
-import 'tutor/unavailable_courses_screen.dart'; // Ensure this path matches your folder structure
+import 'tutor/unavailable_courses_screen.dart';
+// New imports for the category and details logic
+import 'tutor/student_category_screen.dart';
+import 'tutor/student_details_screen.dart';
 
 void main() {
   runApp(const TutrApp());
@@ -38,14 +41,34 @@ class TutrApp extends StatelessWidget {
           primary: Colors.black,
           surface: Colors.white,
         ),
-        // Ensures all popups and dialogs globally use a white background
         dialogTheme: const DialogThemeData(
           backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent, // Prevents Material 3 tinting
+          surfaceTintColor: Colors.transparent,
         ),
         useMaterial3: true,
       ),
       home: const SplashScreen(),
+
+      onGenerateRoute: (settings) {
+        // Handle the Connection Screen route
+        if (settings.name == '/connection') {
+          final String studentName = settings.arguments as String? ?? "Student";
+          return MaterialPageRoute(
+            builder: (context) => ConnectionScreen(studentName: studentName),
+          );
+        }
+
+        // Handle the Student Details route (Metric, Inter, etc.)
+        if (settings.name == '/student_details') {
+          final String category = settings.arguments as String? ?? "Metric";
+          return MaterialPageRoute(
+            builder: (context) => StudentDetailsScreen(categoryName: category),
+          );
+        }
+
+        return null;
+      },
+
       routes: {
         '/login': (context) => const LoginScreen(),
         '/role_selection': (context) => const RoleSelectionScreen(),
@@ -53,11 +76,10 @@ class TutrApp extends StatelessWidget {
         '/student_dashboard': (context) => const StudentDashboard(),
         '/tutor_verification': (context) => const TutorVerificationScreen(),
         '/profile': (context) => const ProfileScreen(),
-        '/connection': (context) => const ConnectionScreen(),
         '/inbox': (context) => const InboxScreen(),
         '/profile_creation': (context) => const ProfileCreationScreen(role: 'Tutor'),
         '/my_bids': (context) => const MyBidsScreen(),
-        '/bid_details': (context) => const BidDetailsScreen(),
+        '/student_category': (context) => const StudentCategoryScreen(),
         '/edit_profile': (context) => const EditProfileScreen(),
         '/terms_conditions': (context) => const TermsConditionsScreen(),
         '/chat_details': (context) => const ChatDetailsScreen(userName: 'User'),

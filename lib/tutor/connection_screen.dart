@@ -4,14 +4,17 @@ import 'add_course_screen.dart';
 import 'chat_details_screen.dart';
 
 class ConnectionScreen extends StatefulWidget {
-  const ConnectionScreen({super.key});
+  // 1. Define the parameter to receive the name from the bid popup
+  final String studentName;
+
+  const ConnectionScreen({super.key, required this.studentName});
 
   @override
   State<ConnectionScreen> createState() => _ConnectionScreenState();
 }
 
 class _ConnectionScreenState extends State<ConnectionScreen> {
-  // Hardcoded initial list of connections (acting as your local database)
+  // Master list of connections
   final List<Map<String, dynamic>> _allConnections = [
     {"name": "Asim Ali Khan", "activeBtn": ""},
     {"name": "Ali Imran", "activeBtn": ""},
@@ -21,18 +24,25 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     {"name": "Abdul Rafay", "activeBtn": ""},
   ];
 
-  // List that actually gets rendered; changes based on search input
   List<Map<String, dynamic>> _filteredConnections = [];
   String _searchQuery = "";
 
   @override
   void initState() {
     super.initState();
-    // Initially, the filtered list shows everyone
+
+    // 2. Logic to add the newly connected student if they aren't already in the list
+    bool alreadyExists = _allConnections.any(
+            (element) => element["name"].toString().toLowerCase() == widget.studentName.toLowerCase()
+    );
+
+    if (!alreadyExists && widget.studentName != "Student") {
+      _allConnections.insert(0, {"name": widget.studentName, "activeBtn": ""});
+    }
+
     _filteredConnections = _allConnections;
   }
 
-  // Logic to handle searching by name or role
   void _filterConnections(String query) {
     setState(() {
       _searchQuery = query;
@@ -51,9 +61,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
-      extendBody: true, // Allows list items to scroll behind the notched bottom bar
-
-      // --- CENTERED FAB ---
+      extendBody: true,
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
@@ -66,11 +74,10 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
         child: const Icon(Icons.add, color: Colors.white, size: 35),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-
       body: SafeArea(
         child: Column(
           children: [
-            // --- ROUNDED HEADER WITH DROP SHADOW ---
+            // --- HEADER ---
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 20),
@@ -82,9 +89,8 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08), // Modern color syntax
+                    color: Colors.black.withValues(alpha: 0.08),
                     blurRadius: 15,
-                    spreadRadius: 1,
                     offset: const Offset(0, 8),
                   ),
                 ],
@@ -92,11 +98,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
               child: const Center(
                 child: Text(
                   "Connections",
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -117,24 +119,24 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                   ],
                 ),
                 child: TextField(
-                  onChanged: _filterConnections, // Triggers filter on every keystroke
+                  onChanged: _filterConnections,
                   cursorColor: Colors.black,
                   decoration: const InputDecoration(
                     hintText: "Search connections...",
                     prefixIcon: Icon(Icons.search, color: Colors.black),
-                    border: InputBorder.none, // Removes default underline
+                    border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(vertical: 15),
                   ),
                 ),
               ),
             ),
 
-            // --- CONNECTIONS LIST ---
+            // --- LIST ---
             Expanded(
               child: _filteredConnections.isEmpty
-                  ? _buildEmptyState() // Shows placeholder if no results
+                  ? _buildEmptyState()
                   : ListView.builder(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 120), // Bottom padding for FAB clearance
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 120),
                 itemCount: _filteredConnections.length,
                 itemBuilder: (context, index) {
                   return _buildConnectionItem(_filteredConnections[index]);
@@ -144,12 +146,10 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
           ],
         ),
       ),
-      // Index 1 indicates the second tab in the bottom bar
       bottomNavigationBar: const CustomBottomNav(currentIndex: 1),
     );
   }
 
-  // Builder for individual connection cards
   Widget _buildConnectionItem(Map<String, dynamic> person) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -179,11 +179,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
               Expanded(
                 child: Text(
                   person["name"]!,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Colors.black,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
               ),
             ],
@@ -202,7 +198,6 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     );
   }
 
-  // Generic button builder that handles the "active" highlight state
   Widget _buildActionButton(Map<String, dynamic> person, String label) {
     bool isActive = person["activeBtn"] == label;
 
@@ -216,9 +211,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
 
           if (label == "Disconnect") {
             _showConfirmationDialog(person);
-          }
-          // --- ADDED NAVIGATION FOR MESSAGE ---
-          else if (label == "Message") {
+          } else if (label == "Message") {
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -239,12 +232,11 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     );
   }
 
-  // Confirmation popup for removing a connection
   void _showConfirmationDialog(Map<String, dynamic> person) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.white, // Custom background to match app theme
+        backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         title: const Text("Disconnect?", style: TextStyle(fontWeight: FontWeight.bold)),
@@ -254,9 +246,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
           TextButton(
             onPressed: () {
               setState(() {
-                // Removes from the master list
                 _allConnections.removeWhere((e) => e["name"] == person["name"]);
-                // Refreshes the filtered list to reflect the removal
                 _filterConnections(_searchQuery);
               });
               Navigator.pop(context);
@@ -268,7 +258,6 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     );
   }
 
-  // UI for when no search results are found
   Widget _buildEmptyState() {
     return Center(
       child: Column(

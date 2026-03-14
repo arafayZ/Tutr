@@ -4,11 +4,14 @@ import 'edit_course_screen.dart';
 class CourseDetailScreen extends StatefulWidget {
   final Map<String, dynamic> course;
   final VoidCallback onAvailableTap;
+  // Logic: Control visibility based on which screen calls this
+  final bool showAvailableBtn;
 
   const CourseDetailScreen({
     super.key,
     required this.course,
-    required this.onAvailableTap
+    required this.onAvailableTap,
+    this.showAvailableBtn = true, // Default to true
   });
 
   @override
@@ -16,7 +19,6 @@ class CourseDetailScreen extends StatefulWidget {
 }
 
 class _CourseDetailScreenState extends State<CourseDetailScreen> {
-  // Store the course in a local variable so we can update it
   late Map<String, dynamic> currentCourse;
 
   @override
@@ -42,7 +44,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                 Container(
                   height: bgHeight,
                   width: double.infinity,
-                  color: currentCourse['color'],
+                  // Added fallback color to prevent crash if 'color' is null
+                  color: currentCourse['color'] ?? Colors.red[900],
                   child: SafeArea(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -54,18 +57,30 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                             onTap: () => Navigator.pop(context),
                             child: Container(
                               padding: const EdgeInsets.all(8),
-                              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                              decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle
+                              ),
                               child: const Icon(Icons.arrow_back, color: Colors.black),
                             ),
                           ),
-                          GestureDetector(
-                            onTap: widget.onAvailableTap,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
-                              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15)),
-                              child: const Text("Available", style: TextStyle(fontWeight: FontWeight.bold)),
+
+                          // --- CONDITIONAL AVAILABLE BUTTON ---
+                          if (widget.showAvailableBtn)
+                            GestureDetector(
+                              onTap: widget.onAvailableTap,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
+                                decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(15)
+                                ),
+                                child: const Text(
+                                    "Available",
+                                    style: TextStyle(fontWeight: FontWeight.bold)
+                                ),
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
@@ -79,7 +94,13 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(25),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, 10))],
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10)
+                        )
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,11 +108,17 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(currentCourse['title'], style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                            Text(
+                                currentCourse['title'] ?? "Course Detail",
+                                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)
+                            ),
                             Row(
                               children: [
                                 const Icon(Icons.star, color: Colors.orange, size: 20),
-                                Text(" ${currentCourse['rating']}", style: const TextStyle(fontWeight: FontWeight.bold))
+                                Text(
+                                    " ${currentCourse['rating']}",
+                                    style: const TextStyle(fontWeight: FontWeight.bold)
+                                )
                               ],
                             ),
                           ],
@@ -101,13 +128,19 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                           children: [
                             const Icon(Icons.grid_view_rounded, size: 18),
                             const SizedBox(width: 5),
-                            Text(currentCourse['level'], style: const TextStyle(fontWeight: FontWeight.w500)),
+                            Text(
+                                currentCourse['level'] ?? "N/A",
+                                style: const TextStyle(fontWeight: FontWeight.w500)
+                            ),
                             const SizedBox(width: 15),
                             const Icon(Icons.access_time, size: 18),
                             const SizedBox(width: 5),
                             const Text("2 Hours", style: TextStyle(fontWeight: FontWeight.w500)),
                             const Spacer(),
-                            Text(currentCourse['price'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue)),
+                            Text(
+                                currentCourse['price'] ?? "0 PKR",
+                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue)
+                            ),
                           ],
                         ),
                         const SizedBox(height: 25),
@@ -130,11 +163,11 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                 children: [
                   const Text("What You Provide", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 20),
-                  _detail(Icons.menu_book, "${currentCourse['students']} Classes per month"),
+                  _detail(Icons.menu_book, "${currentCourse['students'] ?? 0} Classes per month"),
                   _detail(Icons.access_time, "6:00 P.M - 8:00 P.M"),
                   _detail(Icons.calendar_month, "Monday to Friday"),
-                  _detail(Icons.wifi, "Online"),
-                  _detail(Icons.location_on, "Nazimabad, Karachi"),
+                  _detail(Icons.wifi, currentCourse['mode'] ?? "Online"),
+                  _detail(Icons.location_on, currentCourse['location'] ?? "Nazimabad, Karachi"),
                   const SizedBox(height: 30),
                   Row(
                     children: [
@@ -154,7 +187,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () async {
-                            // Wait for the result from the Edit Screen
                             final result = await Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -162,7 +194,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                               ),
                             );
 
-                            // If we got updated data back, update the UI
                             if (result != null && result is Map<String, dynamic>) {
                               setState(() {
                                 currentCourse = result;

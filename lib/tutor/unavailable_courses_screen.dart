@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-// Using a relative import so you don't need to worry about the package name
 import 'course_detail_screen.dart';
 
 class UnavailableCoursesScreen extends StatefulWidget {
@@ -10,10 +9,41 @@ class UnavailableCoursesScreen extends StatefulWidget {
 }
 
 class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
+  // Added more details to mock data to support the detail screen layout
   final List<Map<String, dynamic>> _courses = [
-    {"title": "Physics", "price": "2000 PKR", "rating": 4.2, "level": "Matric", "students": 23, "color": const Color(0xFF8C1414)},
-    {"title": "Chemistry", "price": "2500 PKR", "rating": 4.5, "level": "Inter", "students": 45, "color": const Color(0xFF144D8C)},
-    {"title": "Maths", "price": "1800 PKR", "rating": 4.8, "level": "Matric", "students": 12, "color": const Color(0xFF148C4E)},
+    {
+      "title": "Physics",
+      "price": "2000 PKR",
+      "rating": "4.2",
+      "level": "Matric",
+      "students": 23,
+      "color": const Color(0xFF8C1414),
+      "mode": "Online",
+      "location": "Nazimabad, Karachi",
+      "about": "Advanced Physics concepts for Matric students."
+    },
+    {
+      "title": "Chemistry",
+      "price": "2500 PKR",
+      "rating": "4.5",
+      "level": "Inter",
+      "students": 45,
+      "color": const Color(0xFF144D8C),
+      "mode": "Online",
+      "location": "Gulshan, Karachi",
+      "about": "Organic and Inorganic chemistry deep dive."
+    },
+    {
+      "title": "Maths",
+      "price": "1800 PKR",
+      "rating": "4.8",
+      "level": "Matric",
+      "students": 12,
+      "color": const Color(0xFF148C4E),
+      "mode": "Online",
+      "location": "DHA, Karachi",
+      "about": "Algebra and Geometry simplified."
+    },
   ];
 
   void _deleteCourse(int index) {
@@ -54,7 +84,16 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
           content: const Text("Are you sure you want to become available? New students will be able to book sessions."),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL", style: TextStyle(color: Colors.black))),
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text("CONFIRM", style: TextStyle(color: Colors.red))),
+            TextButton(
+                onPressed: () {
+                  // Logic to move course to available list would go here
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Course marked as Available!")),
+                  );
+                },
+                child: const Text("CONFIRM", style: TextStyle(color: Colors.red))
+            ),
           ],
         );
       },
@@ -68,34 +107,7 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08), // Fixed deprecated method
-                      blurRadius: 15,
-                      offset: const Offset(0, 8)
-                  )
-                ],
-              ),
-              child: Row(
-                children: [
-                  InkWell(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      height: 40, width: 40,
-                      decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
-                      child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
-                    ),
-                  ),
-                  const Expanded(child: Center(child: Padding(padding: EdgeInsets.only(right: 40), child: Text("Unavailable Courses", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))))),
-                ],
-              ),
-            ),
+            _buildHeader(context),
             Expanded(
               child: _courses.isEmpty
                   ? const Center(child: Text("No unavailable courses found."))
@@ -110,8 +122,10 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => CourseDetailScreen(
-                              course: _courses[index],
-                              onAvailableTap: () => _showAvailablePopup(context)
+                            course: _courses[index],
+                            onAvailableTap: () => _showAvailablePopup(context),
+                            // LOGIC: Show Available button because it's the Unavailable screen
+                            showAvailableBtn: true,
                           ),
                         ),
                       );
@@ -131,6 +145,44 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
     );
   }
 
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 15,
+              offset: const Offset(0, 8)
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          InkWell(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              height: 40, width: 40,
+              decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
+              child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+            ),
+          ),
+          const Expanded(
+              child: Center(
+                  child: Padding(
+                      padding: EdgeInsets.only(right: 40),
+                      child: Text("Unavailable Courses", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))
+                  )
+              )
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCourseCard(BuildContext context, Map<String, dynamic> course) {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -139,7 +191,7 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05), // Fixed deprecated method
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 5)
           )
@@ -151,7 +203,10 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
           children: [
             Container(
               width: 110,
-              decoration: BoxDecoration(color: course['color'], borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), bottomLeft: Radius.circular(20))),
+              decoration: BoxDecoration(
+                  color: course['color'],
+                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), bottomLeft: Radius.circular(20))
+              ),
             ),
             Expanded(
               child: Padding(

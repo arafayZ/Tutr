@@ -152,7 +152,8 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
     return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
       Icon(Icons.cancel_outlined, size: 100, color: Colors.black12),
       const SizedBox(height: 10),
-      const Text("Nothing Here Yet", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black26)),
+      const Text("Nothing Here Yet", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black26)),
+      const Text("You haven’t added any items yet.", style: TextStyle(fontSize: 15, fontWeight: FontWeight.normal, color: Colors.black26)),
       const SizedBox(height: 80),
     ]));
   }

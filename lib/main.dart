@@ -21,6 +21,7 @@ import 'tutor/unavailable_courses_screen.dart';
 // New imports for the category and details logic
 import 'tutor/student_category_screen.dart';
 import 'tutor/student_details_screen.dart';
+import 'tutor/course_category_screen.dart';
 
 void main() {
   runApp(const TutrApp());
@@ -80,6 +81,7 @@ class TutrApp extends StatelessWidget {
         '/profile_creation': (context) => const ProfileCreationScreen(role: 'Tutor'),
         '/my_bids': (context) => const MyBidsScreen(),
         '/student_category': (context) => const StudentCategoryScreen(),
+        '/course_category': (context) => const CourseCategoryScreen(),
         '/edit_profile': (context) => const EditProfileScreen(),
         '/terms_conditions': (context) => const TermsConditionsScreen(),
         '/chat_details': (context) => const ChatDetailsScreen(userName: 'User'),

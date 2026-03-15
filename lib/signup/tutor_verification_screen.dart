@@ -52,13 +52,24 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
         content: const Text(
           "Please upload all mandatory documents to continue.",
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFF0D1B3E)),
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF0D1B3E),
+          ),
         ),
         actions: [
           Center(
             child: TextButton(
               onPressed: () => Navigator.pop(context), // Close the popup
-              child: const Text("OK", style: TextStyle(color: Color(0xFF0D1B3E), fontWeight: FontWeight.bold, fontSize: 18)),
+              child: const Text(
+                "OK",
+                style: TextStyle(
+                  color: Color(0xFF0D1B3E),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
             ),
           ),
         ],
@@ -88,13 +99,16 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
                     image: DecorationImage(
-                      image: AssetImage('assets/images/verification_complete.png'),
+                      image: AssetImage('assets/images/success_user.png'),
                       fit: BoxFit.cover,
                     ),
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text("Congratulations", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                const Text(
+                  "Congratulations",
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 15),
                 const Text(
                   "Your account has been successfully created! We’re reviewing your documents...",
@@ -130,10 +144,14 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
         children: [
           // White Top Header with a Back Button
           Container(
-            width: double.infinity, height: 120,
+            width: double.infinity,
+            height: 120,
             decoration: const BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
             ),
             child: SafeArea(
               child: Padding(
@@ -142,7 +160,10 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
                   alignment: Alignment.centerLeft,
                   child: GestureDetector(
                     onTap: () => Navigator.pop(context), // Go back to Signup screen
-                    child: const CircleAvatar(backgroundColor: Colors.black, child: Icon(Icons.arrow_back, color: Colors.white)),
+                    child: const CircleAvatar(
+                      backgroundColor: Colors.black,
+                      child: Icon(Icons.arrow_back, color: Colors.white),
+                    ),
                   ),
                 ),
               ),
@@ -156,9 +177,15 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 40),
-                  const Text("Verify Your Identity", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                  const Text(
+                    "Verify Your Identity",
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 12),
-                  const Text("To maintain a safe and trusted learning environment...", style: TextStyle(color: Colors.grey)),
+                  const Text(
+                    "To maintain a safe and trusted learning environment, all tutors are required to complete identity verification before starting.",
+                    style: TextStyle(color: Colors.grey),
+                  ),
                   const SizedBox(height: 40),
 
                   // Button to upload ID Card
@@ -177,7 +204,36 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
                   ),
 
                   const SizedBox(height: 100),
-                  const Center(child: Text("By clicking Submit, you agree to our process...", textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: Colors.grey))),
+
+                  // Terms and Condition Text
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                      child: RichText(
+                        textAlign: TextAlign.center,
+                        text: TextSpan(
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
+                            fontFamily: 'sans-serif',
+                          ),
+                          children: [
+                            const TextSpan(text: "By clicking Submit, you agree to our "),
+                            TextSpan(
+                              text: "identity verification process",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                            const TextSpan(
+                              text: " and confirm that all provided information is correct and complete.",
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 20),
 
                   // The Final Submit Button
@@ -194,9 +250,22 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
                       }
                     },
                     child: Container(
-                      width: double.infinity, height: 60,
-                      decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(30)),
-                      child: const Center(child: Text("Submit", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
+                      width: double.infinity,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          "Submit",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 40),
@@ -210,7 +279,11 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
   }
 
   // Reusable helper function to build the upload buttons
-  Widget _buildUploadField({required String label, required VoidCallback onTap, required bool isUploaded}) {
+  Widget _buildUploadField({
+    required String label,
+    required VoidCallback onTap,
+    required bool isUploaded,
+  }) {
     // Logic to change border color based on file status or errors
     Color borderColor = Colors.black.withOpacity(0.2);
     if (isUploaded) {
@@ -222,12 +295,16 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: double.infinity, height: 70,
+        width: double.infinity,
+        height: 70,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(35),
-          border: Border.all(color: borderColor, width: (_showErrors && !isUploaded) ? 2.0 : 1.5),
+          border: Border.all(
+            color: borderColor,
+            width: (_showErrors && !isUploaded) ? 2.0 : 1.5,
+          ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -236,7 +313,10 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
               child: Text(
                 label, // Shows filename if selected, otherwise shows hint
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 16, color: isUploaded ? Colors.black : (_showErrors ? Colors.red : Colors.grey)),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: isUploaded ? Colors.black : (_showErrors ? Colors.red : Colors.grey),
+                ),
               ),
             ),
             // Changes icon to a checkmark if the file is picked

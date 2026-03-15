@@ -52,11 +52,11 @@ class _SignupScreenState extends State<SignupScreen> {
             children: [
               const Text("Condition & Attending", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
-              const Text("By signing up, you confirm that you are at least 18 years old..."), // Terms text
+              const Text("By signing up, you confirm that you are at least 18 years old and that all the information you provide is accurate and up-to-date. Both students and tutors agree to communicate respectfully and follow all guidelines provided within the app. Tutors are responsible for the correctness of their course details, schedules, and availability."), // Terms text
               const SizedBox(height: 20),
               const Text("Terms & Use", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
-              const Text("All payments and fees made through the app are final..."), // Usage text
+              const Text("All payments and fees made through the app are final. The platform is not responsible for any content or interactions shared between users. By creating an account, you acknowledge and accept these terms and conditions."), // Usage text
             ],
           ),
         ),

@@ -108,9 +108,13 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
             const SizedBox(height: 20),
 
             // Success icon
-            const Icon(Icons.check_circle_outline,
-                size: 80,
-                color: Colors.blueGrey),
+            // Success image from assets
+            Image.asset(
+              'assets/images/verification_complete.png',
+              height: 120,
+              width: 120,
+              fit: BoxFit.contain,
+            ),
 
             const SizedBox(height: 20),
 

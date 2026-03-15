@@ -9,7 +9,6 @@ class UnavailableCoursesScreen extends StatefulWidget {
 }
 
 class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
-  // Added more details to mock data to support the detail screen layout
   final List<Map<String, dynamic>> _courses = [
     {
       "title": "Physics",
@@ -46,55 +45,86 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
     },
   ];
 
-  void _deleteCourse(int index) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Delete Course?", style: TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text("Are you sure you want to remove this course from your unavailable list?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("CANCEL", style: TextStyle(color: Colors.black)),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _courses.removeAt(index);
-              });
-              Navigator.pop(context);
-            },
-            child: const Text("DELETE", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAvailablePopup(BuildContext context) {
+  void _showAvailablePopup(BuildContext context, int index) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text("Make Yourself Available?", style: TextStyle(fontWeight: FontWeight.bold)),
-          content: const Text("Are you sure you want to become available? New students will be able to book sessions."),
+          title: const Text(
+            "Make Yourself Available?",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          content: const Text(
+            "Are you sure you want to become available? New students will be able to book sessions.",
+            style: TextStyle(color: Colors.black87, fontSize: 14),
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL", style: TextStyle(color: Colors.black))),
             TextButton(
-                onPressed: () {
-                  // Logic to move course to available list would go here
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Course marked as Available!")),
-                  );
-                },
-                child: const Text("CONFIRM", style: TextStyle(color: Colors.red))
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "CANCEL",
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                setState(() {
+                  _courses.removeAt(index);
+                });
+                _showSuccessDialog(context);
+              },
+              child: const Text(
+                "CONFIRM",
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  void _showSuccessDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        Future.delayed(const Duration(seconds: 5), () {
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
+        });
+
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 20),
+              Icon(Icons.check_circle, color: Colors.green, size: 60),
+              SizedBox(height: 20),
+              Text(
+                "Success!",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 10),
+              Text(
+                "Course marked as Available!",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+              SizedBox(height: 30),
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                strokeWidth: 3,
+              ),
+              SizedBox(height: 10),
+            ],
+          ),
         );
       },
     );
@@ -110,31 +140,35 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
             _buildHeader(context),
             Expanded(
               child: _courses.isEmpty
-                  ? const Center(child: Text("No unavailable courses found."))
+                  ? Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _buildEmptyState(),
+              )
                   : ListView.builder(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                 physics: const BouncingScrollPhysics(),
                 itemCount: _courses.length,
                 itemBuilder: (context, index) {
-                  return InkWell(
+                  return GestureDetector(
                     onTap: () async {
-                      final result = await Navigator.push(
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => CourseDetailScreen(
                             course: _courses[index],
-                            onAvailableTap: () => _showAvailablePopup(context),
-                            // LOGIC: Show Available button because it's the Unavailable screen
+                            onAvailableTap: () => _showAvailablePopup(context, index),
+                            onDelete: (courseToDelete) {
+                              setState(() {
+                                _courses.removeAt(index);
+                              });
+                            },
                             showAvailableBtn: true,
                           ),
                         ),
                       );
-
-                      if (result == "delete") {
-                        _deleteCourse(index);
-                      }
+                      setState(() {});
                     },
-                    child: _buildCourseCard(context, _courses[index]),
+                    child: _buildCourseCard(context, _courses[index], index),
                   );
                 },
               ),
@@ -145,111 +179,169 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
     );
   }
 
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset(
+            'assets/images/cancel.png',
+            width: 180,
+            height: 180,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(height: 25),
+          const Text(
+            "No Unavailable Courses",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFFBDBDBD),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            "All your courses are currently active or haven't been added.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Color(0xFFBDBDBD),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 80),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHeader(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 15,
-              offset: const Offset(0, 8)
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
           )
         ],
       ),
       child: Row(
         children: [
-          InkWell(
+          GestureDetector(
             onTap: () => Navigator.pop(context),
             child: Container(
-              height: 40, width: 40,
+              height: 40,
+              width: 40,
               decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
               child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
             ),
           ),
           const Expanded(
-              child: Center(
-                  child: Padding(
-                      padding: EdgeInsets.only(right: 40),
-                      child: Text("Unavailable Courses", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))
-                  )
-              )
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.only(right: 40),
+                child: Text(
+                  "Unavailable Courses",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCourseCard(BuildContext context, Map<String, dynamic> course) {
+  Widget _buildCourseCard(BuildContext context, Map<String, dynamic> course, int index) {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 5)
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
           )
         ],
       ),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              width: 110,
-              decoration: BoxDecoration(
-                  color: course['color'],
-                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), bottomLeft: Radius.circular(20))
-              ),
+      child: Row(
+        children: [
+          Container(
+            width: 85,
+            height: 85,
+            decoration: BoxDecoration(
+              color: course['color'] ?? Colors.grey,
+              borderRadius: BorderRadius.circular(15),
             ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(15),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Flexible(child: Text(course['title'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
-                        Row(children: [const Icon(Icons.star, color: Colors.orange, size: 16), Text(" ${course['rating']}", style: const TextStyle(fontSize: 13, color: Colors.grey))]),
-                      ],
+                    Text(
+                      course['title'] ?? "Unknown",
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                     ),
-                    const SizedBox(height: 2),
-                    Text(course['price'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue)),
-                    const Spacer(),
                     Row(
                       children: [
-                        const Text("ONLINE", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red)),
-                        const Text(" | ", style: TextStyle(fontSize: 11)),
-                        Text("${course['students']} Student", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        const Icon(Icons.star, color: Colors.amber, size: 16),
+                        Text(
+                          " ${course['rating'] ?? '0.0'}",
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey),
+                        )
                       ],
-                    ),
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.bottomRight,
-                      child: InkWell(
-                        onTap: () => _showAvailablePopup(context),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-                          decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(12)),
-                          child: const Text("Available", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-                        ),
-                      ),
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 2),
+                Text(
+                  "${course['price'] ?? ''} ${course['level'] ?? ''}",
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blue),
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    const Text("ONLINE", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red)),
+                    const Text(" | ", style: TextStyle(color: Colors.grey, fontSize: 10)),
+                    Text("${course['students'] ?? 0} Student", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: GestureDetector(
+                    onTap: () => _showAvailablePopup(context, index),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        "Available",
+                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

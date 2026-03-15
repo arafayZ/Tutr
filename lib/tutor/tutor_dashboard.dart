@@ -7,6 +7,7 @@ import 'course_category_screen.dart';
 import 'reviews_screen.dart';
 import 'add_course_screen.dart';
 import 'search_screen.dart';
+import 'notifications_screen.dart'; // Ensure this matches your filename
 import '../widgets/custom_bottom_nav.dart';
 
 // --- 1. DATA MODEL ---
@@ -172,7 +173,7 @@ class _StatCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(25),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
+              color: Colors.black.withOpacity(0.15),
               blurRadius: 10,
               offset: const Offset(0, 5),
             )
@@ -206,7 +207,7 @@ class CourseCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: Colors.black.withOpacity(0.08),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -277,7 +278,6 @@ class _ActiveCoursesListView extends StatelessWidget {
       children: [
         const Text("Top Courses", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 15),
-        // Spread without .toList() to fix linting
         ...mockDbData.map((course) => CourseCard(course: course)),
       ],
     );
@@ -305,16 +305,30 @@ class _EmptyCoursesView extends StatelessWidget {
   const _EmptyCoursesView();
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("Top Courses", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        SizedBox(height: 40),
+        const Text("Top Courses", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 40),
         Center(
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.cancel_outlined, size: 100, color: Color(0xFFE0E0E0)),
-              Text("Nothing Here Yet", style: TextStyle(color: Colors.grey, fontSize: 18)),
+              Opacity(
+                opacity: 0.3,
+                child: Icon(Icons.cancel_presentation_outlined, size: 120, color: Colors.grey[400]),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                "Nothing Here Yet",
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.grey),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                "You haven't added any items yet.",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
             ],
           ),
         ),
@@ -357,7 +371,15 @@ class _TopProfileRow extends StatelessWidget {
             child: const _CircleIconButton(icon: Icons.search),
           ),
           const SizedBox(width: 10),
-          const _CircleIconButton(icon: Icons.notifications_none),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+              );
+            },
+            child: const _CircleIconButton(icon: Icons.notifications_none),
+          ),
         ],
       ),
     );
@@ -436,7 +458,7 @@ class _ActIcon extends StatelessWidget {
               borderRadius: BorderRadius.circular(15),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: Colors.black.withOpacity(0.05),
                   blurRadius: 10,
                 )
               ],

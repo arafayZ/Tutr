@@ -107,11 +107,11 @@ class CourseCategoryScreen extends StatelessWidget {
                   ),
                   _CategoryCard(
                     label: "O & A Level",
-                    imagePath: 'assets/images/metric_course.png',
+                    imagePath: 'assets/images/oa_course.png',
                   ),
                   _CategoryCard(
                     label: "Entrance Test",
-                    imagePath: 'assets/images/inter_course.png',
+                    imagePath: 'assets/images/test_course.png',
                   ),
                 ],
               ),

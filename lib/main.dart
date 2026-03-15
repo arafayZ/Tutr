@@ -18,6 +18,7 @@ import 'tutor/inbox_screen.dart';
 import 'tutor/chat_details_screen.dart';
 import 'tutor/security_screen.dart';
 import 'tutor/unavailable_courses_screen.dart';
+import 'tutor/notifications_screen.dart'; // Added this import
 // New imports for the category and details logic
 import 'tutor/student_category_screen.dart';
 import 'tutor/student_details_screen.dart';
@@ -87,6 +88,7 @@ class TutrApp extends StatelessWidget {
         '/chat_details': (context) => const ChatDetailsScreen(userName: 'User'),
         '/security': (context) => const SecurityScreen(),
         '/unavailable_courses': (context) => const UnavailableCoursesScreen(),
+        '/notifications': (context) => const NotificationsScreen(), // Added this route
       },
     );
   }

@@ -4,14 +4,15 @@ import 'edit_course_screen.dart';
 class CourseDetailScreen extends StatefulWidget {
   final Map<String, dynamic> course;
   final VoidCallback onAvailableTap;
-  // Logic: Control visibility based on which screen calls this
   final bool showAvailableBtn;
+  final Function(Map<String, dynamic>) onDelete; // Updated type to match usage
 
   const CourseDetailScreen({
     super.key,
     required this.course,
     required this.onAvailableTap,
-    this.showAvailableBtn = true, // Default to true
+    required this.onDelete, // Required to handle deletion
+    this.showAvailableBtn = true,
   });
 
   @override
@@ -25,6 +26,68 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   void initState() {
     super.initState();
     currentCourse = widget.course;
+  }
+
+  void _showDeleteConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Are you sure you want to delete this subject? This action cannot be undone.",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: const Text(
+                        "CANCEL",
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 30),
+                    GestureDetector(
+                      onTap: () {
+                        widget.onDelete(currentCourse);
+                        Navigator.pop(context); // Close dialog
+                        Navigator.pop(context); // Back to list screen
+                      },
+                      child: const Text(
+                        "DELETE",
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -44,7 +107,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                 Container(
                   height: bgHeight,
                   width: double.infinity,
-                  // Added fallback color to prevent crash if 'color' is null
                   color: currentCourse['color'] ?? Colors.red[900],
                   child: SafeArea(
                     child: Padding(
@@ -64,8 +126,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                               child: const Icon(Icons.arrow_back, color: Colors.black),
                             ),
                           ),
-
-                          // --- CONDITIONAL AVAILABLE BUTTON ---
                           if (widget.showAvailableBtn)
                             GestureDetector(
                               onTap: widget.onAvailableTap,
@@ -96,7 +156,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       borderRadius: BorderRadius.circular(25),
                       boxShadow: [
                         BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
+                            color: Colors.black12,
                             blurRadius: 20,
                             offset: const Offset(0, 10)
                         )
@@ -173,7 +233,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                     children: [
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () => Navigator.pop(context, "delete"),
+                          onPressed: () => _showDeleteConfirmation(context),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFE0E0E0),
                             foregroundColor: Colors.black,

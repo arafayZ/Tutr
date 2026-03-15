@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../widgets/custom_bottom_nav.dart';
+import '../widgets/custom_bottom_nav.dart'; // Ensure this path is correct
 import 'course_detail_screen.dart';
 
 class SelectedCourseCategoryScreen extends StatefulWidget {
@@ -15,12 +15,20 @@ class _SelectedCourseCategoryScreenState extends State<SelectedCourseCategoryScr
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
 
-  final List<Map<String, dynamic>> _allStudents = [
+  List<Map<String, dynamic>> _allStudents = [
     {"subject": "Physics", "price": "2000 PKR", "rating": "4.2", "students": 23, "mode": "Online", "category": "Metric"},
     {"subject": "Maths", "price": "2500 PKR", "rating": "4.5", "students": 15, "mode": "Student Home", "category": "Metric"},
     {"subject": "Biology", "price": "3000 PKR", "rating": "4.7", "students": 8, "mode": "Online", "category": "Intermediate"},
     {"subject": "English", "price": "1800 PKR", "rating": "4.0", "students": 10, "mode": "Tutor Home", "category": "Metric"},
   ];
+
+  // Update this in SelectedCourseCategoryScreen
+  void _deleteCourse(Map<String, dynamic> course) {
+    setState(() {
+      // This finds the exact original object and removes it
+      _allStudents.remove(course);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,57 +70,6 @@ class _SelectedCourseCategoryScreenState extends State<SelectedCourseCategoryScr
     );
   }
 
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            )
-          ],
-        ),
-        child: TextField(
-          controller: _searchController,
-          onChanged: (value) => setState(() => _searchQuery = value),
-          decoration: const InputDecoration(
-            hintText: "Search students...",
-            hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
-            prefixIcon: Icon(Icons.search, color: Colors.black54),
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(vertical: 15),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModeSlider() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 15),
-      child: Container(
-        padding: const EdgeInsets.all(5),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
-        ),
-        child: Row(
-          children: [
-            _buildTabButton("Online"),
-            _buildTabButton("Student Home"),
-            _buildTabButton("Tutor Home"),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildHeader(BuildContext context) {
     return Container(
       padding: const EdgeInsets.only(top: 50, left: 20, right: 20, bottom: 20),
@@ -142,17 +99,47 @@ class _SelectedCourseCategoryScreenState extends State<SelectedCourseCategoryScr
     );
   }
 
-  Widget _buildEmptyState() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.cancel_outlined, size: 100, color: Colors.black12),
-          SizedBox(height: 10),
-          Text("Nothing Here Yet", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black26)),
-          Text("You haven’t added any items yet.", style: TextStyle(fontSize: 15, fontWeight: FontWeight.normal, color: Colors.black26)),
-          SizedBox(height: 80),
-        ],
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: TextField(
+          controller: _searchController,
+          onChanged: (value) => setState(() => _searchQuery = value),
+          decoration: const InputDecoration(
+            hintText: "Search students...",
+            hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+            prefixIcon: Icon(Icons.search, color: Colors.black54),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(vertical: 15),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModeSlider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 15),
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
+        ),
+        child: Row(
+          children: [
+            _buildTabButton("Online"),
+            _buildTabButton("Student Home"),
+            _buildTabButton("Tutor Home"),
+          ],
+        ),
       ),
     );
   }
@@ -175,6 +162,21 @@ class _SelectedCourseCategoryScreenState extends State<SelectedCourseCategoryScr
     );
   }
 
+  Widget _buildEmptyState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.cancel_outlined, size: 100, color: Colors.black12),
+          SizedBox(height: 10),
+          Text("Nothing Here Yet", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black26)),
+          Text("You haven’t added any items yet.", style: TextStyle(fontSize: 15, fontWeight: FontWeight.normal, color: Colors.black26)),
+          SizedBox(height: 80),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStudentCard(Map<String, dynamic> data) {
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
@@ -182,7 +184,7 @@ class _SelectedCourseCategoryScreenState extends State<SelectedCourseCategoryScr
       decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)]),
+          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)]),
       child: Row(
         children: [
           Container(
@@ -208,10 +210,11 @@ class _SelectedCourseCategoryScreenState extends State<SelectedCourseCategoryScr
                   const Text(" | ", style: TextStyle(color: Colors.grey)),
                   Text("${data['students']} Student", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 9)),
                 ]),
+                // Locate this inside your _buildStudentCard widget
                 Align(
                   alignment: Alignment.centerRight,
                   child: ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async { // 1. Added async here
                       final Map<String, dynamic> courseData = {
                         "title": data['subject'],
                         "rating": data['rating'],
@@ -225,17 +228,22 @@ class _SelectedCourseCategoryScreenState extends State<SelectedCourseCategoryScr
                         "location": "Nazimabad, Karachi",
                       };
 
-                      Navigator.push(
+                      // 2. Await the navigation
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => CourseDetailScreen(
                             course: courseData,
+                            onDelete: (item) => _deleteCourse(data),
                             onAvailableTap: () {},
-                            // Logic: Disable the button when coming from this screen
                             showAvailableBtn: false,
                           ),
                         ),
                       );
+
+                      // 3. This runs AFTER the Detail screen is popped.
+                      // It forces the list to rebuild with the updated _allStudents data.
+                      setState(() {});
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,

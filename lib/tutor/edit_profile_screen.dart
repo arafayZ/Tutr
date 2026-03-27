@@ -1,4 +1,4 @@
-// Import Dart IO for file operations (used for image picking)
+// Import Dart IO for file operations
 import 'dart:io';
 
 // Import Flutter material design components
@@ -13,7 +13,6 @@ import 'package:image_picker/image_picker.dart';
 // Import your custom header widget
 import '../widgets/custom_tab_header.dart';
 
-// --- 1. MAIN SCREEN CLASS ---
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
 
@@ -21,9 +20,7 @@ class EditProfileScreen extends StatefulWidget {
   State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
-// --- 2. STATE CLASS ---
 class _EditProfileScreenState extends State<EditProfileScreen> {
-
   // --- Controllers for input fields ---
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
@@ -36,24 +33,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _headlineController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
 
-  // --- Variables for image and gender ---
-  File? _image;  // Stores selected profile image
-  final ImagePicker _picker = ImagePicker();  // Image picker instance
-  String? _selectedGender; // Selected gender
-  bool _isInitialized = false; // To prevent multiple initialization
+  // --- Variables ---
+  File? _image;
+  final ImagePicker _picker = ImagePicker();
+  String? _selectedGender;
+  bool _isInitialized = false;
 
-  // --- 3. INITIAL DATA FETCH ---
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
-    // Only initialize once
     if (!_isInitialized) {
       final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-
-      // Load initial data from navigation arguments
       if (args != null) {
-        // Split full name into first and last
         List<String> nameParts = (args['name'] ?? "").split(" ");
         _firstNameController.text = nameParts.isNotEmpty ? nameParts[0] : "";
         _lastNameController.text = nameParts.length > 1 ? nameParts.sublist(1).join(" ") : "";
@@ -63,51 +54,158 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  // --- 4. IMAGE PICKER METHOD ---
+  @override
+  void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _dobController.dispose();
+    _locationController.dispose();
+    _phoneController.dispose();
+    _uniController.dispose();
+    _schoolController.dispose();
+    _workController.dispose();
+    _headlineController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  // --- VALIDATION HELPERS ---
+
+  // Checks if the email format is valid
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+  }
+
+  // --- METHODS ---
+
   Future<void> _pickImage() async {
-    // Method will open gallery or camera and store selected image
-    // Implementation goes here...
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+      if (pickedFile != null) {
+        setState(() => _image = File(pickedFile.path));
+      }
+    } catch (e) {
+      debugPrint("Error picking image: $e");
+    }
   }
 
-  // --- 5. DATE PICKER METHOD ---
   Future<void> _selectDate() async {
-    // Method opens date picker and sets selected DOB
-    // Implementation goes here...
+    DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime(2000),
+      firstDate: DateTime(1950),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.black,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() => _dobController.text = "${picked.day}/${picked.month}/${picked.year}");
+    }
   }
 
-  // --- 6. SUCCESS POPUP METHOD ---
+  void _handleSave() {
+    String email = _emailController.text.trim();
+
+    // 1. Check if email is empty
+    if (email.isEmpty) {
+      _showErrorDialog("Email address cannot be empty.");
+      return;
+    }
+
+    // 2. Validate email format
+    if (!_isValidEmail(email)) {
+      _showErrorDialog("Please enter a valid email address (e.g., name@example.com).");
+      return;
+    }
+
+    // 3. If valid, show success
+    _showSuccessPopup();
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        content: Text(message, textAlign: TextAlign.center),
+        actions: [
+          Center(
+            child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showSuccessPopup() {
-    // Show dialog confirming changes saved
-    // Implementation goes here...
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.check_circle, color: Colors.green, size: 70),
+              const SizedBox(height: 20),
+              const Text("Profile Updated!", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              const Text("Your changes have been saved successfully.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 30),
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                },
+                child: Container(
+                  width: double.infinity, height: 50,
+                  decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(25)),
+                  child: const Center(child: Text("Done", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
-  // --- 7. BUILD METHOD ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB), // Background color for screen
-
-      // Use column for header + scrollable content
+      backgroundColor: const Color(0xFFF8F9FB),
       body: Column(
         children: [
-
-          // --- 7a. CUSTOM HEADER ---
           CustomTabHeader(
-            title: const Text(
-              "Edit Profile",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
+            title: const Text("Edit Profile", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           ),
-
-          // --- 7b. MAIN SCROLLABLE FORM ---
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              physics: const BouncingScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
-                  // --- Profile Photo Section ---
                   Center(
                     child: Stack(
                       children: [
@@ -115,19 +213,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           radius: 60,
                           backgroundColor: const Color(0xFFE0E0E0),
                           backgroundImage: _image != null
-                              ? FileImage(_image!) // Show picked image
-                              : const AssetImage('assets/images/rafay.jpeg') as ImageProvider, // Default placeholder
+                              ? FileImage(_image!)
+                              : const AssetImage('assets/images/rafay.jpeg') as ImageProvider,
                         ),
                         Positioned(
                           bottom: 0, right: 0,
                           child: GestureDetector(
-                            onTap: _pickImage, // Open image picker
+                            onTap: _pickImage,
                             child: Container(
                               padding: const EdgeInsets.all(8),
-                              decoration: const BoxDecoration(
-                                color: Colors.black,
-                                shape: BoxShape.circle,
-                              ),
+                              decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
                               child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
                             ),
                           ),
@@ -137,12 +232,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                   const SizedBox(height: 30),
 
-                  // --- HEADLINE ---
                   _buildSectionHeader("Headline"),
                   _buildTextField(hint: "e.g., Math Tutor", controller: _headlineController),
                   const SizedBox(height: 20),
 
-                  // --- PERSONAL DETAILS ---
                   _buildSectionHeader("Personal Details"),
                   _buildTextField(hint: "First Name", controller: _firstNameController),
                   const SizedBox(height: 12),
@@ -152,10 +245,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     hint: "Email Address",
                     controller: _emailController,
                     icon: Icons.email_outlined,
+                    keyboardType: TextInputType.emailAddress,
                   ),
                   const SizedBox(height: 12),
 
-                  // Date of Birth (with date picker)
                   GestureDetector(
                     onTap: _selectDate,
                     child: AbsorbPointer(
@@ -168,86 +261,32 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  _buildTextField(
-                    hint: "Area, City",
-                    icon: Icons.location_on_outlined,
-                    controller: _locationController,
-                  ),
+                  _buildTextField(hint: "Area, City", icon: Icons.location_on_outlined, controller: _locationController),
                   const SizedBox(height: 12),
 
-                  // --- GENDER DROPDOWN ---
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedGender,
-                        hint: const Text("Gender"),
-                        isExpanded: true,
-                        items: ["Male", "Female", "Other"]
-                            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                            .toList(),
-                        onChanged: (val) => setState(() => _selectedGender = val),
-                      ),
-                    ),
-                  ),
+                  _buildGenderDropdown(),
                   const SizedBox(height: 12),
 
-                  // --- PHONE NUMBER ---
-                  _buildTextField(
-                    hint: "xxxxxxxxxx",
-                    controller: _phoneController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(10),
-                    ],
-                    prefixWidget: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(width: 12),
-                        Text("🇵🇰", style: TextStyle(fontSize: 20)),
-                        SizedBox(width: 8),
-                        Text("( +92 ) ", style: TextStyle(fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-
+                  _buildPhoneField(),
                   const SizedBox(height: 20),
 
-                  // --- EDUCATION SECTION ---
                   _buildSectionHeader("Education"),
                   _buildTextField(hint: "University", icon: Icons.school_outlined, controller: _uniController),
                   const SizedBox(height: 12),
                   _buildTextField(hint: "High School", icon: Icons.account_balance_outlined, controller: _schoolController),
 
                   const SizedBox(height: 20),
-
-                  // --- WORK EXPERIENCE ---
                   _buildSectionHeader("Work (Optional)"),
                   _buildTextField(hint: "Work Experience", icon: Icons.work_outline, controller: _workController),
 
                   const SizedBox(height: 40),
 
-                  // --- SAVE CHANGES BUTTON ---
                   GestureDetector(
-                    onTap: _showSuccessPopup, // Trigger save
+                    onTap: _handleSave, // Uses validation logic
                     child: Container(
-                      width: double.infinity,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          "Save Changes",
-                          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ),
+                      width: double.infinity, height: 60,
+                      decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(30)),
+                      child: const Center(child: Text("Save Changes", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
                     ),
                   ),
                   const SizedBox(height: 30),
@@ -260,9 +299,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  // --- HELPER WIDGETS ---
+  // --- SUB-WIDGETS ---
 
-  // Section header with bold text
   Widget _buildSectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0, left: 4),
@@ -270,7 +308,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  // Reusable text field widget with optional icon and prefix
   Widget _buildTextField({
     required String hint,
     IconData? icon,
@@ -285,17 +322,45 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       inputFormatters: inputFormatters,
       decoration: InputDecoration(
         hintText: hint,
+        hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
         prefixIcon: icon != null ? Icon(icon, color: Colors.black87, size: 20) : prefixWidget,
-        filled: true,
-        fillColor: Colors.white,
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+        filled: true, fillColor: Colors.white,
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.black, width: 1)),
+      ),
+    );
+  }
+
+  Widget _buildGenderDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedGender,
+          hint: const Text("Gender"),
+          isExpanded: true,
+          items: ["Male", "Female", "Other"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          onChanged: (val) => setState(() => _selectedGender = val),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.black, width: 1),
-        ),
+      ),
+    );
+  }
+
+  Widget _buildPhoneField() {
+    return _buildTextField(
+      hint: "3001234567",
+      controller: _phoneController,
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
+      prefixWidget: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(width: 12),
+          Text("🇵🇰", style: TextStyle(fontSize: 20)),
+          SizedBox(width: 8),
+          Text("( +92 ) ", style: TextStyle(fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }

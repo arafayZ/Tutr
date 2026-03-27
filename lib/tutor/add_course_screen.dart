@@ -1,10 +1,7 @@
-// Import Flutter material design components
 import 'package:flutter/material.dart';
-
-// Import custom tab header widget for consistent screen headers
+import 'package:flutter/services.dart';
 import '../widgets/custom_tab_header.dart';
 
-// --- 1. MAIN SCREEN CLASS ---
 class AddCourseScreen extends StatefulWidget {
   const AddCourseScreen({super.key});
 
@@ -12,70 +9,106 @@ class AddCourseScreen extends StatefulWidget {
   State<AddCourseScreen> createState() => _AddCourseScreenState();
 }
 
-// --- 2. STATE CLASS ---
 class _AddCourseScreenState extends State<AddCourseScreen> {
-
-  // Flag to determine whether the course form is pending submission
   bool isPending = false;
 
-  // Text controllers for form input fields
   final TextEditingController _aboutController = TextEditingController();
   final TextEditingController _subjectController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _feeController = TextEditingController();
+  final TextEditingController _classesController = TextEditingController();
 
-  // Predefined lists for dropdowns
-  static const List<String> _timeList = ["09:00","10:00","11:00","12:00","13:00","14:00"];
-  static const List<String> _dayList = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-  static const List<String> _classList = ["04","08","12","16","20"];
+  static const List<String> _dayList = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday"
+  ];
 
-  // Selected values for dropdowns
   String? _selectedCategory;
   String? _selectedMode;
 
-  // Default start and end times
-  String _startTime = "09:00";
-  String _endTime = "10:00";
+  TimeOfDay _startTime = const TimeOfDay(hour: 9, minute: 0);
+  TimeOfDay _endTime = const TimeOfDay(hour: 10, minute: 0);
 
-  // Default start and end days
   String _startDay = "Monday";
   String _endDay = "Friday";
 
-  // Default classes per month
-  String _classesPerMonth = "12";
-
-  // Flag to show validation errors
   bool _showErrors = false;
 
-  // Dispose controllers when the widget is removed from tree
+  @override
+  void initState() {
+    super.initState();
+    _classesController.text = "12";
+  }
+
   @override
   void dispose() {
     _aboutController.dispose();
     _subjectController.dispose();
     _locationController.dispose();
     _feeController.dispose();
+    _classesController.dispose();
     super.dispose();
   }
 
-  // --- 3. BUILD METHOD ---
+  Future<void> _pickTime(bool isStart) async {
+    // Ensure the result is explicitly treated as TimeOfDay?
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: isStart ? _startTime : _endTime,
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.black, // Hand, selected circle, and AM/PM toggle
+              onPrimary: Colors.white, // Text inside the selection
+              surface: Colors.white, // Background of the picker
+              onSurface: Colors.black, // Default numbers/text
+            ),
+            // Specifically targets the AM/PM toggle box style
+            timePickerTheme: TimePickerThemeData(
+              dayPeriodColor: WidgetStateColor.resolveWith((states) =>
+              states.contains(WidgetState.selected)
+                  ? Colors.black.withValues(alpha: 0.2) // Highlighted box bg
+                  : Colors.transparent),
+              dayPeriodTextColor: WidgetStateColor.resolveWith((states) =>
+              states.contains(WidgetState.selected)
+                  ? Colors.black // Selected AM/PM text color
+                  : Colors.black),
+              dayPeriodBorderSide: const BorderSide(color: Colors.black),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        if (isStart) {
+          _startTime = picked;
+        } else {
+          _endTime = picked;
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB), // Page background
-
-      // SafeArea ensures UI doesn't overlap system bars
+      backgroundColor: const Color(0xFFF8F9FB),
       body: SafeArea(
-        bottom: true, // Include bottom safe area
         child: Column(
           children: [
-            // Custom tab header
             const CustomTabHeader(
-              title: Text(
-                "Add Course",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
+              title: Text("Add Course",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             ),
-            // Expandable area: either show pending view or form
             Expanded(
               child: isPending ? _buildPendingView() : _buildFormView(),
             ),
@@ -85,117 +118,83 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
     );
   }
 
-  // ---------------- FORM VIEW ----------------
-  // Method to build the form for adding course
   Widget _buildFormView() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24,20,24,40), // Outer padding
-
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
-          // Section title: About
           const Text("About", style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height:10),
-
-          // About field
+          const SizedBox(height: 10),
           _buildAboutField(),
-
-          // Word limit notice
-          const Align(
-            alignment: Alignment.centerRight,
-            child: Text("(Word limit: 100)", style: TextStyle(color: Colors.grey,fontSize:11)),
-          ),
-
-          const SizedBox(height:25),
-
-          // Section title: What You Provide
-          const Text("What You Provide", style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height:15),
-
-          // Subject input field
+          const SizedBox(height: 25),
+          const Text("What You Provide",
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 15),
           _buildField("Subject", _subjectController, "e.g. Maths"),
-
-          // Dropdown for category
           _buildDropdown(
-            "Category",
-            const ["Metric","Intermediate","O/A Levels"],
-            _selectedCategory,
-                (v)=>setState(()=>_selectedCategory=v),
-          ),
-
-          // Dropdown for teaching mode
+              "Category",
+              const ["Metric", "Intermediate", "O Level", "A Level"],
+              _selectedCategory,
+                  (v) => setState(() => _selectedCategory = v)),
           _buildDropdown(
-            "Teaching Mode",
-            const ["Online","Student Home","Tutor Home"],
-            _selectedMode,
-                (v)=>setState(()=>_selectedMode=v),
-          ),
-
-          // Location input field
-          _buildField("Area, City", _locationController, "e.g. Gulistan-e-Jauhar"),
-
-          const SizedBox(height:10),
-
-          // Row: Start Time and End Time dropdowns
+              "Teaching Mode",
+              const ["Online", "Student Home", "Tutor Home"],
+              _selectedMode,
+                  (v) => setState(() => _selectedMode = v)),
+          _buildField("Area, City", _locationController, "e.g. Nazimabad, Karachi"),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
-                child: _buildSmallDropdown("Start Time", _timeList, _startTime, (v)=>setState(()=>_startTime=v!)),
-              ),
-              const SizedBox(width:15),
+                  child: _buildTimeSelector(
+                      "Start Time", _startTime, () => _pickTime(true))),
+              const SizedBox(width: 15),
               Expanded(
-                child: _buildSmallDropdown("End Time", _timeList, _endTime, (v)=>setState(()=>_endTime=v!)),
-              ),
+                  child: _buildTimeSelector(
+                      "End Time", _endTime, () => _pickTime(false))),
             ],
           ),
-
-          const SizedBox(height:20),
-
-          // Row: Start Day and End Day dropdowns
+          const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
-                child: _buildSmallDropdown("Days", _dayList, _startDay, (v)=>setState(()=>_startDay=v!)),
-              ),
+                  child: _buildSmallDropdown("Days", _dayList, _startDay,
+                          (v) => setState(() => _startDay = v!))),
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal:10,vertical:20),
-                child: Text("To"),
-              ),
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 20),
+                  child: Text("To")),
               Expanded(
-                child: _buildSmallDropdown("Days", _dayList, _endDay, (v)=>setState(()=>_endDay=v!)),
-              ),
+                  child: _buildSmallDropdown("Days", _dayList, _endDay,
+                          (v) => setState(() => _endDay = v!))),
             ],
           ),
-
-          const SizedBox(height:20),
-
-          // Row: Classes per month and Tuition Fee
+          const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
-                child: _buildSmallDropdown("Classes (Month)", _classList, _classesPerMonth, (v)=>setState(()=>_classesPerMonth=v!)),
+                child: _buildField("Classes (Month)", _classesController,
+                    "Max 25",
+                    isNumeric: true, maxValue: 25),
               ),
-              const SizedBox(width:15),
+              const SizedBox(width: 15),
               Expanded(
-                child: _buildField("Tuition Fee (PKR)", _feeController, "0000"),
+                child: _buildField("Tuition Fee (PKR)", _feeController,
+                    "Max 50,000",
+                    isNumeric: true, maxValue: 50000),
               ),
             ],
           ),
-
-          const SizedBox(height:40),
-
-          // Row: Cancel and Add buttons
+          const SizedBox(height: 40),
           Row(
             children: [
               Expanded(
-                child: _buildButton("Cancel", const Color(0xFFEEEEEE), Colors.black, ()=>Navigator.pop(context)),
-              ),
-              const SizedBox(width:15),
+                  child: _buildButton("Cancel", const Color(0xFFEEEEEE),
+                      Colors.black, () => Navigator.pop(context))),
+              const SizedBox(width: 15),
               Expanded(
-                child: _buildButton("Add", Colors.black, Colors.white, _validateAndSubmit),
-              ),
+                  child: _buildButton(
+                      "Add", Colors.black, Colors.white, _validateAndSubmit)),
             ],
           ),
         ],
@@ -203,27 +202,62 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
     );
   }
 
-  // ---------------- GENERIC INPUT FIELD ----------------
-  Widget _buildField(String label, TextEditingController controller, String hint) {
-    bool hasError = _showErrors && controller.text.trim().isEmpty; // Show red border if error
+  Widget _buildTimeSelector(String label, TimeOfDay time, VoidCallback onTap) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(
+                fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 5),
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+            decoration: BoxDecoration(
+                color: Colors.white, borderRadius: BorderRadius.circular(12)),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(time.format(context), style: const TextStyle(fontSize: 12)),
+                const Icon(Icons.access_time, size: 16, color: Colors.grey),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildField(String label, TextEditingController controller, String hint,
+      {bool isNumeric = false, int? maxValue}) {
+    int? val = int.tryParse(controller.text);
+    bool hasError = _showErrors &&
+        (controller.text.trim().isEmpty ||
+            (isNumeric && val == null) ||
+            (maxValue != null && val != null && val > maxValue));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Field label
-        Text(label, style: const TextStyle(fontSize:12,color:Colors.grey,fontWeight:FontWeight.bold)),
-        const SizedBox(height:6),
-
-        // Text input field
+        Text(label,
+            style: const TextStyle(
+                fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
         TextField(
           controller: controller,
+          keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
+          inputFormatters:
+          isNumeric ? [FilteringTextInputFormatter.digitsOnly] : [],
           decoration: InputDecoration(
             hintText: hint,
+            hintStyle: const TextStyle(color: Color(0xFFBDBDBD), fontSize: 14),
             filled: true,
             fillColor: Colors.white,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: hasError ? Colors.red : Colors.transparent),
+              borderSide: BorderSide(
+                  color: hasError ? Colors.red : Colors.transparent),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -231,79 +265,105 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
             ),
           ),
         ),
-        const SizedBox(height:15),
+        const SizedBox(height: 15),
       ],
     );
   }
 
-  // ---------------- ABOUT FIELD ----------------
   Widget _buildAboutField() {
     bool hasError = _showErrors && _aboutController.text.trim().isEmpty;
+    int wordCount = _aboutController.text.trim().isEmpty
+        ? 0
+        : _aboutController.text.trim().split(RegExp(r'\s+')).length;
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: hasError ? Colors.red : const Color(0xFFEEEEEE)),
-      ),
-      child: TextField(
-        controller: _aboutController,
-        maxLines: 4,
-        decoration: const InputDecoration(
-          hintText: "Describe your course...",
-          border: InputBorder.none,
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(
+                color: hasError ? Colors.red : const Color(0xFFEEEEEE)),
+          ),
+          child: TextField(
+            controller: _aboutController,
+            maxLines: 4,
+            onChanged: (v) => setState(() {}),
+            decoration: const InputDecoration(
+              hintText: "Describe your course...",
+              hintStyle: TextStyle(color: Color(0xFFBDBDBD), fontSize: 14),
+              border: InputBorder.none,
+            ),
+          ),
         ),
-      ),
+        const SizedBox(height: 5),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text("$wordCount/100 words",
+              style: const TextStyle(color: Colors.grey, fontSize: 11)),
+        ),
+      ],
     );
   }
 
-  // ---------------- DROPDOWN ----------------
-  Widget _buildDropdown(String label, List<String> items, String? value, Function(String?) onChanged) {
-    bool hasError = _showErrors && value == null; // Show red border if no selection
-
+  Widget _buildDropdown(String label, List<String> items, String? value,
+      Function(String?) onChanged) {
+    bool hasError = _showErrors && value == null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize:12,color:Colors.grey,fontWeight:FontWeight.bold)),
-        const SizedBox(height:6),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal:16),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: hasError ? Colors.red : Colors.transparent),
+            border: Border.all(
+                color: hasError ? Colors.red : Colors.transparent),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               isExpanded: true,
-              hint: Text("Select $label"),
+              hint: const Text("Select",
+                  style: TextStyle(color: Color(0xFFBDBDBD), fontSize: 14)),
               value: value,
-              items: items.map((e)=>DropdownMenuItem(value: e, child: Text(e))).toList(),
+              items: items
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                  .toList(),
               onChanged: onChanged,
             ),
           ),
         ),
-        const SizedBox(height:15),
+        const SizedBox(height: 15),
       ],
     );
   }
 
-  // ---------------- SMALL DROPDOWN ----------------
-  Widget _buildSmallDropdown(String label, List<String> items, String value, Function(String?) onChanged) {
+  Widget _buildSmallDropdown(String label, List<String> items, String value,
+      Function(String?) onChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize:11,color:Colors.grey,fontWeight:FontWeight.bold)),
-        const SizedBox(height:5),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 5),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal:12),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+              color: Colors.white, borderRadius: BorderRadius.circular(12)),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               isExpanded: true,
               value: value,
-              items: items.map((e)=>DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize:12)))).toList(),
+              items: items
+                  .map((e) => DropdownMenuItem(
+                  value: e, child: Text(e, style: const TextStyle(fontSize: 12))))
+                  .toList(),
               onChanged: onChanged,
             ),
           ),
@@ -312,40 +372,117 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
     );
   }
 
-  // ---------------- BUTTON ----------------
-  Widget _buildButton(String text, Color bg, Color textColor, VoidCallback onTap) {
+  Widget _buildButton(
+      String text, Color bg, Color textColor, VoidCallback onTap) {
     return SizedBox(
-      height:55,
+      height: 55,
       child: ElevatedButton(
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
           backgroundColor: bg,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         ),
-        child: Text(text, style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+        child: Text(text,
+            style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
       ),
     );
   }
 
-  // ---------------- VALIDATION ----------------
   void _validateAndSubmit() {
     setState(() {
-      // Check required fields
-      if (_aboutController.text.isEmpty || _subjectController.text.isEmpty || _selectedCategory == null) {
+      int? fee = int.tryParse(_feeController.text);
+      int? classes = int.tryParse(_classesController.text);
+      int wordCount = _aboutController.text.trim().isEmpty
+          ? 0
+          : _aboutController.text.trim().split(RegExp(r'\s+')).length;
+
+      // Convert time to double for comparison
+      double startDouble = _startTime.hour + _startTime.minute / 60.0;
+      double endDouble = _endTime.hour + _endTime.minute / 60.0;
+
+      // 1. Check for Range/Limit Errors (Classes and Fee)
+      if ((classes != null && classes > 25) || (fee != null && fee > 50000)) {
+        String errorTitle = (classes ?? 0) > 25 ? "Invalid Class Count" : "Invalid Fee";
+        String errorMsg = (classes ?? 0) > 25
+            ? "You cannot add more than 25 classes per month."
+            : "The tuition fee cannot exceed 50,000 PKR.";
+        _showErrorPopup(errorTitle, errorMsg);
         _showErrors = true;
+        return;
+      }
+
+      // 2. Check for Time Logic Errors (End time must be after Start time)
+      if (endDouble <= startDouble) {
+        _showErrorPopup(
+            "Invalid Time",
+            "The end time must be strictly after the start time."
+        );
+        _showErrors = true;
+        return;
+      }
+
+      // 3. Check for Word Count Errors
+      if (wordCount > 100) {
+        _showErrorPopup(
+            "Text Too Long",
+            "The 'About' section cannot exceed 100 words."
+        );
+        _showErrors = true;
+        return;
+      }
+
+      // 4. Standard empty field validation
+      if (_aboutController.text.isEmpty ||
+          _subjectController.text.isEmpty ||
+          _selectedCategory == null ||
+          _selectedMode == null || // Added mode check
+          fee == null ||
+          classes == null) {
+        _showErrors = true;
+        // Optionally show a popup for missing fields too
+        _showErrorPopup("Missing Info", "Please fill in all the required fields.");
       } else {
         _showErrors = false;
-        _showSuccessPopup(); // Show confirmation
+        _showSuccessPopup();
       }
     });
   }
 
-  // ---------------- SUCCESS POPUP ----------------
+  void _showErrorPopup(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        child: Padding(
+          padding: const EdgeInsets.all(30),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text("⚠️", style: TextStyle(fontSize: 50)),
+              const SizedBox(height: 15),
+              Text(title,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              Text(message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.grey)),
+              const SizedBox(height: 25),
+              _buildButton("Try Again", Colors.black, Colors.white,
+                      () => Navigator.pop(context)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showSuccessPopup() {
     showDialog(
       context: context,
-      barrierDismissible: false, // User can't close manually
+      barrierDismissible: false,
       builder: (context) => Dialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
@@ -354,12 +491,14 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text("🎉", style:TextStyle(fontSize:50)), // Celebration emoji
-              SizedBox(height:15),
-              Text("Congratulations", style: TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
-              SizedBox(height:10),
-              Text("Course added successfully!", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
-              SizedBox(height:20),
+              Text("🎉", style: TextStyle(fontSize: 50)),
+              SizedBox(height: 15),
+              Text("Congratulations",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              SizedBox(height: 10),
+              Text("Course added successfully!",
+                  textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+              SizedBox(height: 20),
               CircularProgressIndicator(color: Colors.black),
             ],
           ),
@@ -367,43 +506,42 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
       ),
     );
 
-    // Auto-close popup and navigate back after 2 seconds
-    Future.delayed(const Duration(seconds:2),(){
-      if(mounted){
-        Navigator.pop(context); // Close popup
-        Navigator.pop(context); // Go back to previous screen
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        Navigator.pop(context);
+        Navigator.pop(context);
       }
     });
   }
 
-  // ---------------- PENDING SCREEN ----------------
-  Widget _buildPendingView(){
+  Widget _buildPendingView() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal:40),
+      padding: const EdgeInsets.symmetric(horizontal: 40),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Circular container with hourglass icon
             Container(
               padding: const EdgeInsets.all(30),
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha:0.05), blurRadius:10)
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)
                 ],
               ),
-              child: Icon(Icons.hourglass_empty_rounded, size:100, color: Colors.grey[300]),
+              child: Icon(Icons.hourglass_empty_rounded,
+                  size: 100, color: Colors.grey[300]),
             ),
-            const SizedBox(height:30),
-            // Pending text
-            const Text("Under Review", style: TextStyle(fontSize:22,fontWeight:FontWeight.bold)),
-            const SizedBox(height:12),
+            const SizedBox(height: 30),
+            const Text("Under Review",
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
             const Text(
-              "Your account is currently under review by the admin. You will be able to add courses once your profile is approved.",
+              "Your account is currently under review by the admin.",
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey, fontSize:16, height:1.5),
+              style: TextStyle(color: Colors.grey, fontSize: 16, height: 1.5),
             ),
           ],
         ),

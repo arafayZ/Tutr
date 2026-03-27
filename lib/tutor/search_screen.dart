@@ -1,13 +1,10 @@
-// Import Flutter material design widgets
 import 'package:flutter/material.dart';
-// Import a custom tab header widget from your project
 import '../widgets/custom_tab_header.dart';
 
 // --- DATA MODELS ---
-// Course data model
 class CourseData {
-  final String tutorName, subject, grade, price, rating, mode; // Basic course info
-  final Color color; // Color to represent course visually
+  final String tutorName, subject, grade, price, rating, mode;
+  final Color color;
 
   CourseData({
     required this.tutorName,
@@ -16,17 +13,16 @@ class CourseData {
     required this.price,
     required this.rating,
     required this.mode,
-    required this.color
+    required this.color,
   });
 }
 
-// Student data model
 class StudentData {
-  final String name; // Student's name
+  final String name;
   StudentData({required this.name});
 }
 
-// Main Search screen widget
+// --- MAIN SEARCH SCREEN ---
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -34,77 +30,100 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
-// State class for SearchScreen
 class _SearchScreenState extends State<SearchScreen> {
-  bool isSearchingCourses = true; // Flag: true = courses, false = students
-  String searchQuery = ""; // Current text in search box
+  bool isSearchingCourses = true;
+  String searchQuery = "";
 
-  // Sample courses list
+  // Filter States - Stored here so they persist when sheet closes
+  Map<String, bool> selectedCategories = {
+    "Matric": false,
+    "Intermediate": false,
+    "O Level": false,
+    "A Level": false,
+    "Entrance Test": false,
+  };
+
+  Map<String, bool> selectedModes = {
+    "Online": false,
+    "Student Home": false, // Match your CourseData 'mode' strings exactly
+    "Tutor Home": false,
+  };
+
   final List<CourseData> _allCourses = [
     CourseData(tutorName: "Asim Ali Khan", subject: "Physics", grade: "Matric", price: "2000", rating: "4.2", mode: "Online", color: Colors.red.shade900),
     CourseData(tutorName: "Ali Imran", subject: "Physics", grade: "Intermediate", price: "2200", rating: "4.0", mode: "Tutor Home", color: Colors.brown),
     CourseData(tutorName: "Hiba Khan", subject: "Physics", grade: "O Level", price: "2500", rating: "4.3", mode: "Student Home", color: Colors.pink.shade900),
   ];
 
-  // Sample students list
   final List<StudentData> _allStudents = [
     StudentData(name: "Asim Ali Khan"),
     StudentData(name: "Asim Furqan"),
     StudentData(name: "Asim Ayoob"),
   ];
 
-  // Filtered results based on search query
   List<dynamic> get _filteredResults {
     if (isSearchingCourses) {
-      return _allCourses
-          .where((c) => c.subject.toLowerCase().contains(searchQuery.toLowerCase()))
-          .toList();
+      return _allCourses.where((c) {
+        // 1. Search Query Match
+        bool matchesSearch = c.subject.toLowerCase().contains(searchQuery.toLowerCase());
+
+        // 2. Category Filter (If none selected, show all)
+        bool noCategoryFilter = !selectedCategories.values.contains(true);
+        bool matchesCategory = noCategoryFilter || selectedCategories[c.grade] == true;
+
+        // 3. Mode Filter (If none selected, show all)
+        bool noModeFilter = !selectedModes.values.contains(true);
+        bool matchesMode = noModeFilter || selectedModes[c.mode] == true;
+
+        return matchesSearch && matchesCategory && matchesMode;
+      }).toList();
     } else {
-      return _allStudents
-          .where((s) => s.name.toLowerCase().contains(searchQuery.toLowerCase()))
-          .toList();
+      return _allStudents.where((s) => s.name.toLowerCase().contains(searchQuery.toLowerCase())).toList();
     }
   }
 
-  // Shows the filter bottom sheet
   void _showFilterOptions() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const FilterBottomSheet(),
+      builder: (context) => FilterBottomSheet(
+        initialCategories: selectedCategories,
+        initialModes: selectedModes,
+        onApply: (newCats, newModes) {
+          setState(() {
+            selectedCategories = newCats;
+            selectedModes = newModes;
+          });
+        },
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final results = _filteredResults; // Current results based on search/filter
+    final results = _filteredResults;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB), // Page background
+      backgroundColor: const Color(0xFFF8F9FB),
       body: Column(
         children: [
           const CustomTabHeader(
-            title: Text(
-              "Search",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
+            title: Text("Search", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           ),
-          // Search bar and filter button row
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
             child: Row(
               children: [
-                // Search box
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(15),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
                     ),
                     child: TextField(
-                      onChanged: (val) => setState(() => searchQuery = val), // Updates search query
+                      onChanged: (val) => setState(() => searchQuery = val),
                       decoration: const InputDecoration(
                         hintText: "Search here...",
                         prefixIcon: Icon(Icons.search, color: Colors.grey),
@@ -115,7 +134,6 @@ class _SearchScreenState extends State<SearchScreen> {
                   ),
                 ),
                 const SizedBox(width: 15),
-                // Filter button
                 GestureDetector(
                   onTap: _showFilterOptions,
                   child: Container(
@@ -131,7 +149,6 @@ class _SearchScreenState extends State<SearchScreen> {
               ],
             ),
           ),
-          // Tabs for Courses / Students
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -146,7 +163,6 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // Results info row
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -159,16 +175,14 @@ class _SearchScreenState extends State<SearchScreen> {
                       const TextSpan(text: "Result for "),
                       TextSpan(
                           text: "\"${searchQuery.isEmpty ? "All" : searchQuery}\"",
-                          style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)
-                      ),
+                          style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
-                Text("${results.length} FOUNDS", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12)),
+                Text("${results.length} FOUND", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12)),
               ],
             ),
           ),
-          // Display filtered results
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(20),
@@ -176,11 +190,11 @@ class _SearchScreenState extends State<SearchScreen> {
               itemBuilder: (context, index) {
                 final item = results[index];
                 if (isSearchingCourses && item is CourseData) {
-                  return _buildCourseItem(item); // Build course tile
+                  return _buildCourseItem(item);
                 } else if (!isSearchingCourses && item is StudentData) {
-                  return _buildStudentItem(item); // Build student tile
+                  return _buildStudentItem(item);
                 }
-                return const SizedBox.shrink(); // Fallback empty widget
+                return const SizedBox.shrink();
               },
             ),
           ),
@@ -189,7 +203,6 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  // Helper to build a tab button (Courses / Students)
   Widget _buildTabButton(String label, bool isActive, VoidCallback onTap) {
     return Expanded(
       child: GestureDetector(
@@ -197,23 +210,17 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-              color: isActive ? Colors.black : Colors.transparent,
-              borderRadius: BorderRadius.circular(30)
-          ),
+              color: isActive ? Colors.black : Colors.transparent, borderRadius: BorderRadius.circular(30)),
           child: Text(
             label,
             textAlign: TextAlign.center,
-            style: TextStyle(
-                color: isActive ? Colors.white : Colors.black,
-                fontWeight: FontWeight.bold
-            ),
+            style: TextStyle(color: isActive ? Colors.white : Colors.black, fontWeight: FontWeight.bold),
           ),
         ),
       ),
     );
   }
 
-  // Build course item UI
   Widget _buildCourseItem(CourseData course) {
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
@@ -221,11 +228,10 @@ class _SearchScreenState extends State<SearchScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
       ),
       child: Row(
         children: [
-          // Color box representing course
           Container(width: 80, height: 80, decoration: BoxDecoration(color: course.color, borderRadius: BorderRadius.circular(15))),
           const SizedBox(width: 15),
           Expanded(
@@ -250,7 +256,6 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  // Build student item UI
   Widget _buildStudentItem(StudentData student) {
     return ListTile(
       leading: const CircleAvatar(backgroundColor: Colors.black, radius: 25, child: Icon(Icons.person, color: Colors.white)),
@@ -260,42 +265,43 @@ class _SearchScreenState extends State<SearchScreen> {
 }
 
 // --- FILTER BOTTOM SHEET ---
-// Stateful widget for filtering options
 class FilterBottomSheet extends StatefulWidget {
-  const FilterBottomSheet({super.key});
+  final Map<String, bool> initialCategories;
+  final Map<String, bool> initialModes;
+  final Function(Map<String, bool>, Map<String, bool>) onApply;
+
+  const FilterBottomSheet({
+    super.key,
+    required this.initialCategories,
+    required this.initialModes,
+    required this.onApply,
+  });
 
   @override
   State<FilterBottomSheet> createState() => _FilterBottomSheetState();
 }
 
 class _FilterBottomSheetState extends State<FilterBottomSheet> {
-  // Category filters with default selection
-  Map<String, bool> categories = {
-    "Matric": false,
-    "Intermediate": true,
-    "O Level": false,
-    "A Level": false,
-    "Entrance Test": false,
-  };
+  late Map<String, bool> categories;
+  late Map<String, bool> teachingModes;
 
-  // Teaching mode filters with default selection
-  Map<String, bool> teachingModes = {
-    "Online": false,
-    "Student's Home": true,
-    "Tutor's Place": true,
-  };
+  @override
+  void initState() {
+    super.initState();
+    categories = Map.from(widget.initialCategories);
+    teachingModes = Map.from(widget.initialModes);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.85, // Covers 85% of screen
+      height: MediaQuery.of(context).size.height * 0.85,
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)), // Rounded top
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       child: Column(
         children: [
-          // Header row with back button, title, clear button
           Padding(
             padding: const EdgeInsets.all(20),
             child: Row(
@@ -313,8 +319,8 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                 TextButton(
                   onPressed: () {
                     setState(() {
-                      categories.updateAll((k, v) => false); // Clear all
-                      teachingModes.updateAll((k, v) => false); // Clear all
+                      categories.updateAll((k, v) => false);
+                      teachingModes.updateAll((k, v) => false);
                     });
                   },
                   child: const Text("Clear", style: TextStyle(color: Colors.grey, fontSize: 16)),
@@ -322,24 +328,20 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               ],
             ),
           ),
-          // Filter options scroll
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 25),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 10),
-                  const Text("Categories:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black)),
+                  const Text("Categories:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                   const SizedBox(height: 15),
-                  // Render each category checkbox
                   ...categories.keys.map((key) => _buildCustomCheckbox(key, categories[key]!, (val) {
                     setState(() => categories[key] = val!);
                   })),
                   const SizedBox(height: 30),
-                  const Text("Teaching Mode:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black)),
+                  const Text("Teaching Mode:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                   const SizedBox(height: 15),
-                  // Render each teaching mode checkbox
                   ...teachingModes.keys.map((key) => _buildCustomCheckbox(key, teachingModes[key]!, (val) {
                     setState(() => teachingModes[key] = val!);
                   })),
@@ -347,15 +349,17 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               ),
             ),
           ),
-          // Apply button at bottom
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(25, 10, 25, 10),
+              padding: const EdgeInsets.all(25),
               child: SizedBox(
                 width: double.infinity,
                 height: 65,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context), // Close sheet
+                  onPressed: () {
+                    widget.onApply(categories, teachingModes);
+                    Navigator.pop(context);
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(35)),
@@ -382,12 +386,11 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     );
   }
 
-  // Custom checkbox widget
   Widget _buildCustomCheckbox(String title, bool value, Function(bool?) onChanged) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: InkWell(
-        onTap: () => onChanged(!value), // Toggle checkbox on tap
+        onTap: () => onChanged(!value),
         child: Row(
           children: [
             Container(
@@ -396,7 +399,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               decoration: BoxDecoration(
                 color: value ? Colors.black : const Color(0xFFE8F1FF),
                 borderRadius: BorderRadius.circular(6),
-                border: value ? null : Border.all(color: Colors.grey.shade300, width: 1),
+                border: value ? null : Border.all(color: Colors.grey.shade300),
               ),
               child: value ? const Icon(Icons.check, color: Colors.white, size: 18) : null,
             ),

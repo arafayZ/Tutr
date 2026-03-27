@@ -16,7 +16,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   bool _obscureText = true;
-  bool _rememberMe = false;
   bool _showErrors = false;
 
   @override
@@ -38,28 +37,16 @@ class _LoginScreenState extends State<LoginScreen> {
       String email = _emailController.text.trim().toLowerCase();
       String password = _passwordController.text.trim();
 
-      // 1. Check for empty fields
       if (email.isEmpty || password.isEmpty) {
         _showErrors = true;
         _showErrorPopup("Please enter your email and password to sign in.");
-      }
-      // 2. Check for valid email format
-      else if (!_isValidEmail(email)) {
+      } else if (!_isValidEmail(email)) {
         _showErrors = true;
         _showErrorPopup("The email address you entered is not valid. Please check and try again.");
-      }
-      // 3. Success: Proceed with login
-      else {
+      } else {
         _showErrors = false;
 
-        String? userRole;
-        if (email.contains("tutor")) {
-          userRole = "Tutor";
-        } else if (email.contains("student")) {
-          userRole = "Student";
-        } else {
-          userRole = "Tutor";
-        }
+        String userRole = email.contains("student") ? "Student" : "Tutor";
 
         Widget dashboard = (userRole == "Tutor")
             ? const TutorDashboard()
@@ -133,7 +120,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 60),
 
-              // Email Field with specialized keyboard
               _buildInputField(
                 controller: _emailController,
                 hint: "Enter your email",
@@ -157,49 +143,33 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
 
-              const SizedBox(height: 15),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: _rememberMe,
-                        activeColor: Colors.black,
-                        onChanged: (val) => setState(() => _rememberMe = val!),
-                      ),
-                      const Text(
-                        "Remember me",
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      if (_isValidEmail(_emailController.text.trim())) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ForgotPasswordScreen(
-                              email: _emailController.text.trim(),
-                            ),
+              // Updated Row: Removed Checkbox, kept Forget Password aligned to the right
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    if (_isValidEmail(_emailController.text.trim())) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ForgotPasswordScreen(
+                            email: _emailController.text.trim(),
                           ),
-                        );
-                      } else {
-                        _showErrorPopup(
-                            "Please enter a valid email address first to reset your password.");
-                      }
-                    },
-                    child: const Text(
-                      "Forget password?",
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.black,
-                          fontWeight: FontWeight.w600),
-                    ),
+                        ),
+                      );
+                    } else {
+                      _showErrorPopup(
+                          "Please enter a valid email address first to reset your password.");
+                    }
+                  },
+                  child: const Text(
+                    "Forget password?",
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.black,
+                        fontWeight: FontWeight.w600),
                   ),
-                ],
+                ),
               ),
 
               const SizedBox(height: 40),
@@ -262,12 +232,12 @@ class _LoginScreenState extends State<LoginScreen> {
     required IconData icon,
     bool obscureText = false,
     Widget? suffix,
-    TextInputType keyboardType = TextInputType.text, // Added keyboardType
+    TextInputType keyboardType = TextInputType.text,
   }) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
-      keyboardType: keyboardType, // Applied keyboardType
+      keyboardType: keyboardType,
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),

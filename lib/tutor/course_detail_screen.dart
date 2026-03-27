@@ -5,13 +5,13 @@ class CourseDetailScreen extends StatefulWidget {
   final Map<String, dynamic> course;
   final VoidCallback onAvailableTap;
   final bool showAvailableBtn;
-  final Function(Map<String, dynamic>) onDelete; // Updated type to match usage
+  final Function(Map<String, dynamic>) onDelete;
 
   const CourseDetailScreen({
     super.key,
     required this.course,
     required this.onAvailableTap,
-    required this.onDelete, // Required to handle deletion
+    required this.onDelete,
     this.showAvailableBtn = true,
   });
 
@@ -28,6 +28,18 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     currentCourse = widget.course;
   }
 
+  // Helper function to pick the correct icon based on the teaching mode
+  IconData _getModeIcon(String mode) {
+    final lowerMode = mode.toLowerCase();
+    if (lowerMode.contains('online')) {
+      return Icons.wifi;
+    } else if (lowerMode.contains('home') || lowerMode.contains('physical')) {
+      return Icons.home_rounded;
+    } else {
+      return Icons.location_on_outlined;
+    }
+  }
+
   void _showDeleteConfirmation(BuildContext context) {
     showDialog(
       context: context,
@@ -35,6 +47,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
             child: Column(
@@ -136,7 +149,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                                     borderRadius: BorderRadius.circular(15)
                                 ),
                                 child: const Text(
-                                    "Available",
+                                    "Unavailable",
                                     style: TextStyle(fontWeight: FontWeight.bold)
                                 ),
                               ),
@@ -155,10 +168,10 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(25),
                       boxShadow: [
-                        BoxShadow(
+                        const BoxShadow(
                             color: Colors.black12,
                             blurRadius: 20,
-                            offset: const Offset(0, 10)
+                            offset: Offset(0, 10)
                         )
                       ],
                     ),
@@ -184,25 +197,36 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                           ],
                         ),
                         const SizedBox(height: 15),
+
+                        // FIXED: Row with Expanded/Flexible to prevent Overflow
                         Row(
                           children: [
-                            const Icon(Icons.grid_view_rounded, size: 18),
-                            const SizedBox(width: 5),
-                            Text(
-                                currentCourse['level'] ?? "N/A",
-                                style: const TextStyle(fontWeight: FontWeight.w500)
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.grid_view_rounded, size: 18),
+                                  const SizedBox(width: 5),
+                                  Flexible(
+                                    child: Text(
+                                      currentCourse['level'] ?? "N/A",
+                                      style: const TextStyle(fontWeight: FontWeight.w500),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Icon(Icons.access_time, size: 18),
+                                  const SizedBox(width: 5),
+                                  const Text("2 Hours", style: TextStyle(fontWeight: FontWeight.w500)),
+                                ],
+                              ),
                             ),
-                            const SizedBox(width: 15),
-                            const Icon(Icons.access_time, size: 18),
-                            const SizedBox(width: 5),
-                            const Text("2 Hours", style: TextStyle(fontWeight: FontWeight.w500)),
-                            const Spacer(),
                             Text(
                                 currentCourse['price'] ?? "0 PKR",
-                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue)
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue)
                             ),
                           ],
                         ),
+
                         const SizedBox(height: 25),
                         const Text("About", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 10),
@@ -226,7 +250,13 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                   _detail(Icons.menu_book, "${currentCourse['students'] ?? 0} Classes per month"),
                   _detail(Icons.access_time, "6:00 P.M - 8:00 P.M"),
                   _detail(Icons.calendar_month, "Monday to Friday"),
-                  _detail(Icons.wifi, currentCourse['mode'] ?? "Online"),
+
+                  // Dynamic Mode Icon Implementation
+                  _detail(
+                      _getModeIcon(currentCourse['mode'] ?? "Online"),
+                      currentCourse['mode'] ?? "Online"
+                  ),
+
                   _detail(Icons.location_on, currentCourse['location'] ?? "Nazimabad, Karachi"),
                   const SizedBox(height: 30),
                   Row(
@@ -237,6 +267,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFE0E0E0),
                             foregroundColor: Colors.black,
+                            elevation: 0,
                             padding: const EdgeInsets.symmetric(vertical: 18),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                           ),
@@ -286,7 +317,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       padding: const EdgeInsets.only(bottom: 18),
       child: Row(
         children: [
-          Icon(icon, size: 24),
+          Icon(icon, size: 24, color: Colors.black87),
           const SizedBox(width: 15),
           Text(text, style: const TextStyle(fontSize: 16))
         ],
@@ -294,3 +325,4 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     );
   }
 }
+

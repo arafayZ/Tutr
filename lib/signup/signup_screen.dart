@@ -37,12 +37,21 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
+  // --- VALIDATION HELPERS ---
+
+  // Checks if the email format is valid (e.g., name@domain.com)
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+  }
+
+  // --- POPUPS & LOGIC ---
+
   // Function to show the "Terms and Conditions" popup
   void _showTermsPopup() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.white, // Setting the background to white
+        backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
         content: SingleChildScrollView(
@@ -52,19 +61,18 @@ class _SignupScreenState extends State<SignupScreen> {
             children: [
               const Text("Condition & Attending", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
-              const Text("By signing up, you confirm that you are at least 18 years old and that all the information you provide is accurate and up-to-date. Both students and tutors agree to communicate respectfully and follow all guidelines provided within the app. Tutors are responsible for the correctness of their course details, schedules, and availability."), // Terms text
+              const Text("By signing up, you confirm that you are at least 18 years old and that all the information you provide is accurate and up-to-date. Both students and tutors agree to communicate respectfully and follow all guidelines provided within the app."),
               const SizedBox(height: 20),
               const Text("Terms & Use", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
-              const Text("All payments and fees made through the app are final. The platform is not responsible for any content or interactions shared between users. By creating an account, you acknowledge and accept these terms and conditions."), // Usage text
+              const Text("All payments and fees made through the app are final. The platform is not responsible for any content or interactions shared between users. By creating an account, you acknowledge and accept these terms and conditions."),
             ],
           ),
         ),
         actions: [
-          // OK button to close the popup
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("OK", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+            child: const Text("OK", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.black)),
           ),
         ],
       ),
@@ -80,15 +88,19 @@ class _SignupScreenState extends State<SignupScreen> {
         _showErrors = true;
         _showDialogPopup("Please fill in all mandatory fields to continue.");
       }
-      // 2. Check if the two passwords match
+      // 2. NEW: Email Format Validation
+      else if (!_isValidEmail(_emailController.text)) {
+        _showDialogPopup("Please enter a valid email address.");
+      }
+      // 3. Check if the two passwords match
       else if (_passwordController.text != _confirmPasswordController.text) {
         _showDialogPopup("Passwords do not match.");
       }
-      // 3. Check if the user checked the "Terms" box
+      // 4. Check if the user checked the "Terms" box
       else if (!_agreeToTerms) {
         _showDialogPopup("You must agree to the terms and conditions to sign up.");
       }
-      // 4. If everything is perfect, move to the Profile Creation screen
+      // 5. Success -> Navigate to Profile Creation
       else {
         _showErrors = false;
         Navigator.push(
@@ -105,9 +117,15 @@ class _SignupScreenState extends State<SignupScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
-        content: Text(message, textAlign: TextAlign.center),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16)),
         actions: [
-          Center(child: TextButton(onPressed: () => Navigator.pop(context), child: const Text("OK"))),
+          Center(
+            child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("OK", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold))
+            ),
+          ),
         ],
       ),
     );
@@ -116,7 +134,7 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB), // Light background color
+      backgroundColor: const Color(0xFFF8F9FB),
       body: Column(
         children: [
           // White Header with the Back Button
@@ -132,8 +150,11 @@ class _SignupScreenState extends State<SignupScreen> {
                 child: Padding(
                   padding: const EdgeInsets.only(left: 24.0),
                   child: GestureDetector(
-                    onTap: () => Navigator.pop(context), // Goes back to the previous screen
-                    child: const CircleAvatar(backgroundColor: Colors.black, child: Icon(Icons.arrow_back, color: Colors.white)),
+                    onTap: () => Navigator.pop(context),
+                    child: const CircleAvatar(
+                        backgroundColor: Colors.black,
+                        child: Icon(Icons.arrow_back, color: Colors.white)
+                    ),
                   ),
                 ),
               ),
@@ -143,15 +164,14 @@ class _SignupScreenState extends State<SignupScreen> {
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
+              physics: const BouncingScrollPhysics(),
               child: Column(
                 children: [
                   const SizedBox(height: 30),
                   const Text("Get Started", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
-                  // Shows if you are starting "as a Tutor" or "as a Student"
                   Text("as a ${widget.role}", style: const TextStyle(fontSize: 18, color: Colors.black54)),
                   const SizedBox(height: 40),
 
-                  // Building the input fields using a helper function
                   _buildTextField(label: "Full name", icon: Icons.person_outline, controller: _nameController),
                   const SizedBox(height: 16),
                   _buildTextField(label: "Valid email", icon: Icons.email_outlined, controller: _emailController),
@@ -160,7 +180,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     label: "Strong password", icon: Icons.lock_outline,
                     isPassword: true, controller: _passwordController,
                     obscure: _obscurePassword,
-                    onToggle: () => setState(() => _obscurePassword = !_obscurePassword), // Flips eye icon
+                    onToggle: () => setState(() => _obscurePassword = !_obscurePassword),
                   ),
                   const SizedBox(height: 16),
                   _buildTextField(
@@ -172,7 +192,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   const SizedBox(height: 20),
 
-                  // The Terms and Conditions Checkbox Row
+                  // Terms Row
                   Row(
                     children: [
                       Checkbox(
@@ -183,13 +203,12 @@ class _SignupScreenState extends State<SignupScreen> {
                       Expanded(
                         child: RichText(
                           text: TextSpan(
-                            style: const TextStyle(color: Colors.black87, fontSize: 9),
+                            style: const TextStyle(color: Colors.black87, fontSize: 11),
                             children: [
                               const TextSpan(text: "By checking the box you agree to our "),
                               TextSpan(
                                 text: "Terms and Conditions",
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                                // This makes the text "Terms and Conditions" clickable
+                                style: const TextStyle(fontWeight: FontWeight.bold, decoration: TextDecoration.underline),
                                 recognizer: TapGestureRecognizer()..onTap = _showTermsPopup,
                               ),
                             ],
@@ -201,34 +220,27 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   const SizedBox(height: 40),
 
-                  // The Big Black "Continue" Button
+                  // Continue Button
                   GestureDetector(
                     onTap: _handleSignup,
                     child: Container(
                       width: double.infinity, height: 60,
                       decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(30)),
-                      child: const Center(child: Text("Continue", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
+                      child: const Center(
+                          child: Text("Continue", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))
+                      ),
                     ),
                   ),
 
                   const SizedBox(height: 25),
 
-                  // Link to Login if they already have an account
                   GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LoginScreen()),
-                    ),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginScreen())),
                     child: const Text.rich(
                       TextSpan(
                         text: "Already a member? ",
                         children: [
-                          TextSpan(
-                            text: "Login",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          TextSpan(text: "Login", style: TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -243,23 +255,46 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  // Reusable helper function to create styled TextFields easily
-  Widget _buildTextField({required String label, required IconData icon, required TextEditingController controller, bool isPassword = false, bool? obscure, VoidCallback? onToggle}) {
+  // Reusable helper function for TextFields
+  Widget _buildTextField({
+    required String label,
+    required IconData icon,
+    required TextEditingController controller,
+    bool isPassword = false,
+    bool? obscure,
+    VoidCallback? onToggle
+  }) {
+    // Determine the keyboard type based on the hint text
+    TextInputType keyboardType = TextInputType.text;
+    if (label.toLowerCase().contains("email")) {
+      keyboardType = TextInputType.emailAddress;
+    }
+
     return TextField(
       controller: controller,
-      obscureText: isPassword ? (obscure ?? true) : false, // Hides text for passwords
+      keyboardType: keyboardType,
+      obscureText: isPassword ? (obscure ?? true) : false,
       decoration: InputDecoration(
         hintText: label,
         prefixIcon: Icon(icon, color: Colors.grey),
-        // Eye icon for passwords only
-        suffixIcon: isPassword ? IconButton(icon: Icon((obscure ?? true) ? Icons.visibility_off_outlined : Icons.visibility_outlined), onPressed: onToggle) : null,
-        filled: true, fillColor: Colors.white,
+        suffixIcon: isPassword
+            ? IconButton(
+            icon: Icon((obscure ?? true) ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+            onPressed: onToggle
+        )
+            : null,
+        filled: true,
+        fillColor: Colors.white,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          // Shows a red border if the user tried to continue with an empty field
-          borderSide: _showErrors && controller.text.isEmpty ? const BorderSide(color: Colors.red, width: 1.5) : BorderSide.none,
+          borderSide: _showErrors && controller.text.isEmpty
+              ? const BorderSide(color: Colors.red, width: 1.5)
+              : BorderSide.none,
         ),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.black, width: 1)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.black, width: 1)
+        ),
       ),
     );
   }

@@ -39,7 +39,7 @@ class TutorDashboard extends StatefulWidget {
 }
 
 class _TutorDashboardState extends State<TutorDashboard> {
-  TutorStatus currentStatus = TutorStatus.active;
+  TutorStatus currentStatus = TutorStatus.active; // status of the dashbaord
   String userName = "Abdul Rafay";
   String? profilePicPath = 'assets/images/rafay.jpeg';
   int activeStudents = 30;
@@ -303,25 +303,38 @@ class _PendingReviewView extends StatelessWidget {
 
 class _EmptyCoursesView extends StatelessWidget {
   const _EmptyCoursesView();
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Top Courses", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text("Top Courses",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 40),
         Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Opacity(
-                opacity: 0.3,
-                child: Icon(Icons.cancel_presentation_outlined, size: 120, color: Colors.grey[400]),
+              // Replaced Opacity + Icon with your custom Image
+              Image.asset(
+                'assets/images/cancel.png', // Replace with your actual filename
+                height: 180, // Adjusted size for better visibility
+                width: 180,
+                fit: BoxFit.contain,
+                // Optional: adds a fallback if the image fails to load
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(Icons.auto_stories_outlined,
+                      size: 120, color: Colors.grey[300]);
+                },
               ),
               const SizedBox(height: 20),
               const Text(
                 "Nothing Here Yet",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.grey),
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey),
               ),
               const SizedBox(height: 10),
               const Text(

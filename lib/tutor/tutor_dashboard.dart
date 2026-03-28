@@ -7,7 +7,8 @@ import 'course_category_screen.dart';
 import 'reviews_screen.dart';
 import 'add_course_screen.dart';
 import 'search_screen.dart';
-import 'notifications_screen.dart'; // Ensure this matches your filename
+import 'course_detail_screen.dart'; // Ensure this matches your filename
+import 'notifications_screen.dart';
 import '../widgets/custom_bottom_nav.dart';
 
 // --- 1. DATA MODEL ---
@@ -39,7 +40,7 @@ class TutorDashboard extends StatefulWidget {
 }
 
 class _TutorDashboardState extends State<TutorDashboard> {
-  TutorStatus currentStatus = TutorStatus.active; // status of the dashbaord
+  TutorStatus currentStatus = TutorStatus.active;
   String userName = "Abdul Rafay";
   String? profilePicPath = 'assets/images/rafay.jpeg';
   int activeStudents = 30;
@@ -173,7 +174,7 @@ class _StatCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(25),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15), // Updated syntax
               blurRadius: 10,
               offset: const Offset(0, 5),
             )
@@ -193,66 +194,99 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-// --- 4. COURSE CARD ---
+// --- 4. COURSE CARD (INTEGRATED NAVIGATION) ---
 class CourseCard extends StatelessWidget {
   final Course course;
   const CourseCard({super.key, required this.course});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            height: 120,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: course.fallbackColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-              image: course.backgroundImage != null ? DecorationImage(image: AssetImage(course.backgroundImage!), fit: BoxFit.cover) : null,
+    return GestureDetector(
+      onTap: () {
+        // Convert Course object to Map for Detail Screen compatibility
+        final Map<String, dynamic> courseMap = {
+          'title': course.subject,
+          'rating': course.rating,
+          'level': course.grade,
+          'price': course.price,
+          'mode': course.mode,
+          'color': course.fallbackColor,
+          'about': "Master ${course.subject} with expert guidance and personalized sessions.",
+          'students': "12",
+          'location': "Nazimabad, Karachi",
+        };
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CourseDetailScreen(
+              course: courseMap,
+              showAvailableBtn: false, // Hides button for Dashboard view
+              onAvailableTap: () {},
+              onDelete: (deletedCourse) {
+                // Future implementation: remove from dashboard list
+              },
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(18.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(course.tutorName, style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 13)),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(course.subject, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    Text(course.grade, style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Text(course.price, style: const TextStyle(color: Color(0xFF0961F5), fontWeight: FontWeight.bold, fontSize: 15)),
-                    _buildDivider(),
-                    const Icon(Icons.star, color: Colors.amber, size: 18),
-                    Text(" ${course.rating}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                    _buildDivider(),
-                    Text(course.mode.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ],
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(25),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              height: 120,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: course.fallbackColor,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+                image: course.backgroundImage != null
+                    ? DecorationImage(image: AssetImage(course.backgroundImage!), fit: BoxFit.cover)
+                    : null,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(18.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(course.tutorName,
+                      style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(course.subject, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(course.grade, style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Text(course.price, style: const TextStyle(color: Color(0xFF0961F5), fontWeight: FontWeight.bold, fontSize: 15)),
+                      _buildDivider(),
+                      const Icon(Icons.star, color: Colors.amber, size: 18),
+                      Text(" ${course.rating}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                      _buildDivider(),
+                      Text(course.mode.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -270,7 +304,7 @@ class _ActiveCoursesListView extends StatelessWidget {
   Widget build(BuildContext context) {
     final List<Course> mockDbData = [
       Course(tutorName: "Asim Ali Khan", subject: "Mathematics", grade: "Matric", price: "1800/-", rating: "4.2", mode: "Online", fallbackColor: const Color(0xFFAD1457)),
-      Course(tutorName: "Abdul Rafay", subject: "Sindhi", grade: "Matric", price: "1000/-", rating: "3.2", mode: "Offline", fallbackColor: const Color(0xFFAD8E14)),
+      Course(tutorName: "Abdul Rafay", subject: "Sindhi", grade: "Matric", price: "1000/-", rating: "3.2", mode: "Physical", fallbackColor: const Color(0xFFAD8E14)),
       Course(tutorName: "Anzala Abid", subject: "English", grade: "O Level", price: "2000/-", rating: "4.2", mode: "Tutor Home", fallbackColor: const Color(0xFF0D47A1)),
     ];
     return Column(
@@ -284,6 +318,7 @@ class _ActiveCoursesListView extends StatelessWidget {
   }
 }
 
+// --- REST OF UI (Pending, Empty, Profile Row, Activity Icons) ---
 class _PendingReviewView extends StatelessWidget {
   const _PendingReviewView();
   @override
@@ -303,45 +338,20 @@ class _PendingReviewView extends StatelessWidget {
 
 class _EmptyCoursesView extends StatelessWidget {
   const _EmptyCoursesView();
-
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Top Courses",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text("Top Courses", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 40),
         Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Replaced Opacity + Icon with your custom Image
-              Image.asset(
-                'assets/images/cancel.png', // Replace with your actual filename
-                height: 180, // Adjusted size for better visibility
-                width: 180,
-                fit: BoxFit.contain,
-                // Optional: adds a fallback if the image fails to load
-                errorBuilder: (context, error, stackTrace) {
-                  return Icon(Icons.auto_stories_outlined,
-                      size: 120, color: Colors.grey[300]);
-                },
-              ),
+              Image.asset('assets/images/cancel.png', height: 180, width: 180, fit: BoxFit.contain),
               const SizedBox(height: 20),
-              const Text(
-                "Nothing Here Yet",
-                style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                "You haven't added any items yet.",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-              ),
+              const Text("Nothing Here Yet", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.grey)),
             ],
           ),
         ),
@@ -350,7 +360,6 @@ class _EmptyCoursesView extends StatelessWidget {
   }
 }
 
-// --- 6. TOP PROFILE ROW ---
 class _TopProfileRow extends StatelessWidget {
   final String greeting, name;
   final String? profilePic;
@@ -375,22 +384,12 @@ class _TopProfileRow extends StatelessWidget {
           ]),
           const Spacer(),
           GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SearchScreen()),
-              );
-            },
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SearchScreen())),
             child: const _CircleIconButton(icon: Icons.search),
           ),
           const SizedBox(width: 10),
           GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const NotificationsScreen()),
-              );
-            },
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsScreen())),
             child: const _CircleIconButton(icon: Icons.notifications_none),
           ),
         ],
@@ -412,7 +411,6 @@ class _CircleIconButton extends StatelessWidget {
   }
 }
 
-// --- ACTIVITY CENTER ---
 class _ActivityCenterRow extends StatelessWidget {
   const _ActivityCenterRow();
   @override
@@ -420,30 +418,10 @@ class _ActivityCenterRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _ActIcon(
-          icon: Icons.person_outline,
-          label: "Students",
-          color: Colors.black,
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const StudentCategoryScreen())),
-        ),
-        _ActIcon(
-          icon: Icons.book_outlined,
-          label: "Courses",
-          color: Colors.black,
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CourseCategoryScreen())),
-        ),
-        _ActIcon(
-          icon: Icons.gavel,
-          label: "Bids",
-          color: Colors.black,
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MyBidsScreen())),
-        ),
-        _ActIcon(
-          icon: Icons.star_border,
-          label: "Reviews",
-          color: Colors.black,
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ReviewsScreen())),
-        ),
+        _ActIcon(icon: Icons.person_outline, label: "Students", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const StudentCategoryScreen()))),
+        _ActIcon(icon: Icons.book_outlined, label: "Courses", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CourseCategoryScreen()))),
+        _ActIcon(icon: Icons.gavel, label: "Bids", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MyBidsScreen()))),
+        _ActIcon(icon: Icons.star_border, label: "Reviews", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ReviewsScreen()))),
       ],
     );
   }
@@ -452,10 +430,9 @@ class _ActivityCenterRow extends StatelessWidget {
 class _ActIcon extends StatelessWidget {
   final IconData icon;
   final String label;
-  final Color color;
   final VoidCallback? onTap;
 
-  const _ActIcon({required this.icon, required this.label, required this.color, this.onTap});
+  const _ActIcon({required this.icon, required this.label, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -469,14 +446,9 @@ class _ActIcon extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(15),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                )
-              ],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
             ),
-            child: Icon(icon, color: color, size: 28),
+            child: Icon(icon, color: Colors.black, size: 28),
           ),
           const SizedBox(height: 8),
           Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),

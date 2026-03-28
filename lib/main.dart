@@ -18,11 +18,14 @@ import 'tutor/inbox_screen.dart';
 import 'tutor/chat_details_screen.dart';
 import 'tutor/security_screen.dart';
 import 'tutor/unavailable_courses_screen.dart';
-import 'tutor/notifications_screen.dart'; // Added this import
-// New imports for the category and details logic
+import 'tutor/notifications_screen.dart';
 import 'tutor/student_category_screen.dart';
 import 'tutor/student_details_screen.dart';
 import 'tutor/course_category_screen.dart';
+
+// NEW IMPORTS for Student Management
+import 'tutor/my_students_list_screen.dart';
+import 'tutor/student_profile_screen.dart';
 
 void main() {
   runApp(const TutrApp());
@@ -43,9 +46,12 @@ class TutrApp extends StatelessWidget {
           primary: Colors.black,
           surface: Colors.white,
         ),
+        // Ensuring dialogs match your white background requirement
         dialogTheme: const DialogThemeData(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
+          titleTextStyle: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold),
+          contentTextStyle: TextStyle(color: Colors.black87, fontSize: 16),
         ),
         useMaterial3: true,
       ),
@@ -65,6 +71,26 @@ class TutrApp extends StatelessWidget {
           final String category = settings.arguments as String? ?? "Metric";
           return MaterialPageRoute(
             builder: (context) => StudentDetailsScreen(categoryName: category),
+          );
+        }
+
+        // Handle My Students List (Passing the connection data)
+        if (settings.name == '/my_students_list') {
+          final List<Map<String, dynamic>> connections =
+              settings.arguments as List<Map<String, dynamic>>? ?? [];
+          return MaterialPageRoute(
+            builder: (context) => MyStudentsListScreen(connections: connections),
+          );
+        }
+
+        // Handle Student Profile (Passing the StudentDetails object)
+        if (settings.name == '/student_profile_details') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder: (context) => StudentProfileScreen(
+              student: args['student'] as StudentDetails,
+              onDisconnect: args['onDisconnect'] as Function(String),
+            ),
           );
         }
 
@@ -88,7 +114,7 @@ class TutrApp extends StatelessWidget {
         '/chat_details': (context) => const ChatDetailsScreen(userName: 'User'),
         '/security': (context) => const SecurityScreen(),
         '/unavailable_courses': (context) => const UnavailableCoursesScreen(),
-        '/notifications': (context) => const NotificationsScreen(), // Added this route
+        '/notifications': (context) => const NotificationsScreen(),
       },
     );
   }

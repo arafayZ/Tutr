@@ -15,7 +15,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
 
-  // 1. Defined the connections list here so we can pass it to the next screen
+  // 1. Connections list for the next screen
   final List<Map<String, dynamic>> _allConnections = [
     {"name": "Asim Ali Khan"},
     {"name": "Ali Imran"},
@@ -23,6 +23,9 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
     {"name": "Emaz Ali Khan"},
     {"name": "Bilal Raza"},
     {"name": "Abdul Rafay"},
+    {"name": "Hiba Khan"},
+    {"name": "Emaz Ali Khan"},
+    {"name": "Bilal Raza"},
   ];
 
   final List<Map<String, dynamic>> _allStudents = [
@@ -34,6 +37,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Logic to filter based on Category, Mode, and Search Text
     final filteredList = _allStudents.where((s) {
       final matchesCategory = s['category'] == widget.categoryName;
       final matchesMode = s['mode'] == _selectedMode;
@@ -45,7 +49,6 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
       backgroundColor: const Color(0xFFF8F9FB),
       extendBody: true,
 
-      // --- MATCHED ENLARGED FAB ---
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
         backgroundColor: Colors.black,
@@ -55,42 +58,57 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(context),
-          const SizedBox(height: 20),
 
-          // --- SEARCH BAR ---
+          // --- 2. FUNCTIONAL SEARCH BAR (Placed below header) ---
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.fromLTRB(25, 25, 25, 5),
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: TextField(
                 controller: _searchController,
                 onChanged: (value) => setState(() => _searchQuery = value),
-                decoration: const InputDecoration(
-                  hintText: "Search students...",
-                  hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
-                  prefixIcon: Icon(Icons.search, color: Colors.black54),
+                decoration: InputDecoration(
+                  hintText: "Search in ${widget.categoryName}...",
+                  hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+                  prefixIcon: const Icon(Icons.search, color: Colors.black),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 15),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                    icon: const Icon(Icons.clear, size: 20),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() => _searchQuery = "");
+                    },
+                  )
+                      : null,
                 ),
               ),
             ),
           ),
 
-          // --- MODE SLIDER ---
+          // --- 3. MODE SLIDER ---
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 15),
+            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 15),
             child: Container(
               padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(30),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
               ),
               child: Row(
                 children: [
@@ -102,12 +120,13 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
             ),
           ),
 
-          // --- LIST ---
+          // --- 4. LIST ---
           Expanded(
             child: filteredList.isEmpty
                 ? _buildEmptyState()
                 : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 140),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+              physics: const BouncingScrollPhysics(),
               itemCount: filteredList.length,
               itemBuilder: (context, index) => _buildStudentCard(filteredList[index]),
             ),
@@ -118,15 +137,14 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
     );
   }
 
-  // ... (Header and Empty State widgets remain the same) ...
-
   Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.only(top: 50, left: 20, right: 20, bottom: 20),
+      height: 120, // Explicit height to match previous screen
+      padding: const EdgeInsets.only(top: 50, left: 20, right: 20),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 2))],
       ),
       child: Stack(
         alignment: Alignment.center,
@@ -149,13 +167,18 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
   }
 
   Widget _buildEmptyState() {
-    return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Icon(Icons.cancel_outlined, size: 100, color: Colors.black12),
-      const SizedBox(height: 10),
-      const Text("Nothing Here Yet", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black26)),
-      const Text("You haven’t added any items yet.", style: TextStyle(fontSize: 15, fontWeight: FontWeight.normal, color: Colors.black26)),
-      const SizedBox(height: 80),
-    ]));
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset('assets/images/cancel.png', height: 160, width: 160, fit: BoxFit.contain),
+          const SizedBox(height: 15),
+          const Text("Nothing Here Yet", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black26)),
+          const Text("No students found in this category.", style: TextStyle(fontSize: 14, color: Colors.black26)),
+          const SizedBox(height: 100), // Account for Bottom Nav
+        ],
+      ),
+    );
   }
 
   Widget _buildTabButton(String label) {
@@ -165,9 +188,19 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
         onTap: () => setState(() => _selectedMode = label),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(color: isSelected ? Colors.black : Colors.transparent, borderRadius: BorderRadius.circular(25)),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.black : Colors.transparent,
+            borderRadius: BorderRadius.circular(25),
+          ),
           alignment: Alignment.center,
-          child: Text(label, style: TextStyle(color: isSelected ? Colors.white : Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.black,
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+            ),
+          ),
         ),
       ),
     );
@@ -177,31 +210,47 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
+      ),
       child: Row(
         children: [
-          Container(width: 80, height: 80, decoration: BoxDecoration(color: Colors.red[900], borderRadius: BorderRadius.circular(15))),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: const Color(0xFFAD1457), // The Tutr standard red
+              borderRadius: BorderRadius.circular(15),
+            ),
+          ),
           const SizedBox(width: 15),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Text(data['subject'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  Row(children: [const Icon(Icons.star, color: Colors.amber, size: 14), Text(" ${data['rating']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))]),
-                ]),
-                Text("${data['price']} ${widget.categoryName}", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(data['subject'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Row(children: [
+                      const Icon(Icons.star, color: Colors.amber, size: 14),
+                      Text(" ${data['rating']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ]),
+                  ],
+                ),
+                Text("${data['price']}", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12)),
                 const SizedBox(height: 4),
                 Row(children: [
                   Text(data['mode'].toUpperCase(), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 9)),
                   const Text(" | ", style: TextStyle(color: Colors.grey)),
-                  Text("${data['students']} Student", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 9)),
+                  Text("${data['students']} Students", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 9)),
                 ]),
                 Align(
                   alignment: Alignment.centerRight,
                   child: ElevatedButton(
                     onPressed: () {
-                      // 2. NAVIGATE AND PASS THE CONNECTIONS LIST
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -211,11 +260,12 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       minimumSize: const Size(0, 28),
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
-                    child: const Text("Student Details", style: TextStyle(color: Colors.white, fontSize: 10)),
+                    child: const Text("Student Details", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                   ),
                 )
               ],

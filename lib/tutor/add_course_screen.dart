@@ -134,7 +134,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
           _buildField("Subject", _subjectController, "e.g. Maths"),
           _buildDropdown(
               "Category",
-              const ["Metric", "Intermediate", "O Level", "A Level"],
+              const ["Metric", "Intermediate", "O Level", "A Level", "Entrance Test"],
               _selectedCategory,
                   (v) => setState(() => _selectedCategory = v)),
           _buildDropdown(

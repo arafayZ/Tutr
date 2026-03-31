@@ -116,7 +116,7 @@ class _MyBidsScreenState extends State<MyBidsScreen> {
 
           const CustomTabHeader(
 
-            title: Text("My Bids", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            title: Text("Bids", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
 
           ),
 

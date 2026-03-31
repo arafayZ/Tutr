@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_tab_header.dart';
+import 'course_detail_screen.dart';
+import 'student_profile_screen.dart';
 
 // --- DATA MODELS ---
 class CourseData {
-  final String tutorName, subject, grade, price, rating, mode;
+  final String id, tutorName, subject, grade, price, rating, mode;
   final Color color;
 
   CourseData({
+    required this.id,
     required this.tutorName,
     required this.subject,
     required this.grade,
@@ -15,14 +18,27 @@ class CourseData {
     required this.mode,
     required this.color,
   });
+
+  // Helper to convert object to Map to satisfy your screen's requirement
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'tutorName': tutorName,
+      'subject': subject,
+      'grade': grade,
+      'price': price,
+      'rating': rating,
+      'mode': mode,
+      'color': color,
+    };
+  }
 }
 
 class StudentData {
-  final String name;
-  StudentData({required this.name});
+  final String id, name;
+  StudentData({required this.id, required this.name});
 }
 
-// --- MAIN SEARCH SCREEN ---
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -34,7 +50,6 @@ class _SearchScreenState extends State<SearchScreen> {
   bool isSearchingCourses = true;
   String searchQuery = "";
 
-  // Filter States - Stored here so they persist when sheet closes
   Map<String, bool> selectedCategories = {
     "Matric": false,
     "Intermediate": false,
@@ -45,36 +60,31 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Map<String, bool> selectedModes = {
     "Online": false,
-    "Student Home": false, // Match your CourseData 'mode' strings exactly
+    "Student Home": false,
     "Tutor Home": false,
   };
 
   final List<CourseData> _allCourses = [
-    CourseData(tutorName: "Asim Ali Khan", subject: "Physics", grade: "Matric", price: "2000", rating: "4.2", mode: "Online", color: Colors.red.shade900),
-    CourseData(tutorName: "Ali Imran", subject: "Physics", grade: "Intermediate", price: "2200", rating: "4.0", mode: "Tutor Home", color: Colors.brown),
-    CourseData(tutorName: "Hiba Khan", subject: "Physics", grade: "O Level", price: "2500", rating: "4.3", mode: "Student Home", color: Colors.pink.shade900),
+    CourseData(id: "c1", tutorName: "Asim Ali Khan", subject: "Physics", grade: "Matric", price: "2000", rating: "4.2", mode: "Online", color: Colors.red.shade900),
+    CourseData(id: "c2", tutorName: "Ali Imran", subject: "Physics", grade: "Intermediate", price: "2200", rating: "4.0", mode: "Tutor Home", color: Colors.brown),
+    CourseData(id: "c3", tutorName: "Hiba Khan", subject: "Physics", grade: "O Level", price: "2500", rating: "4.3", mode: "Student Home", color: Colors.pink.shade900),
   ];
 
   final List<StudentData> _allStudents = [
-    StudentData(name: "Asim Ali Khan"),
-    StudentData(name: "Asim Furqan"),
-    StudentData(name: "Asim Ayoob"),
+    StudentData(id: "s1", name: "Asim Ali Khan"),
+    StudentData(id: "s2", name: "Asim Furqan"), // Corrected spelling
+    StudentData(id: "s3", name: "Asim Ayub"),   // Corrected spelling
   ];
 
   List<dynamic> get _filteredResults {
     if (isSearchingCourses) {
       return _allCourses.where((c) {
-        // 1. Search Query Match
-        bool matchesSearch = c.subject.toLowerCase().contains(searchQuery.toLowerCase());
-
-        // 2. Category Filter (If none selected, show all)
+        bool matchesSearch = c.subject.toLowerCase().contains(searchQuery.toLowerCase()) ||
+            c.tutorName.toLowerCase().contains(searchQuery.toLowerCase());
         bool noCategoryFilter = !selectedCategories.values.contains(true);
         bool matchesCategory = noCategoryFilter || selectedCategories[c.grade] == true;
-
-        // 3. Mode Filter (If none selected, show all)
         bool noModeFilter = !selectedModes.values.contains(true);
         bool matchesMode = noModeFilter || selectedModes[c.mode] == true;
-
         return matchesSearch && matchesCategory && matchesMode;
       }).toList();
     } else {
@@ -222,44 +232,91 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildCourseItem(CourseData course) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
-      ),
-      child: Row(
-        children: [
-          Container(width: 80, height: 80, decoration: BoxDecoration(color: course.color, borderRadius: BorderRadius.circular(15))),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(course.tutorName, style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
-                Text(course.subject, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                Text("${course.price} PKR | ${course.grade}", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
-                Row(
-                  children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 16),
-                    Text(" ${course.rating}  |  ", style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text(course.mode.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                  ],
-                )
-              ],
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CourseDetailScreen(
+              course: course.toMap(),
+              onAvailableTap: () {},
+              // Fixed: onDelete expected a function that takes the course map
+              onDelete: (courseMap) {},
             ),
-          )
-        ],
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 15),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
+        ),
+        child: Row(
+          children: [
+            Container(width: 80, height: 80, decoration: BoxDecoration(color: course.color, borderRadius: BorderRadius.circular(15))),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(course.tutorName, style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
+                  Text(course.subject, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text("${course.price} PKR | ${course.grade}", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                  Row(
+                    children: [
+                      const Icon(Icons.star, color: Colors.amber, size: 16),
+                      Text(" ${course.rating}  |  ", style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text(course.mode.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                    ],
+                  )
+                ],
+              ),
+            )
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildStudentItem(StudentData student) {
-    return ListTile(
-      leading: const CircleAvatar(backgroundColor: Colors.black, radius: 25, child: Icon(Icons.person, color: Colors.white)),
-      title: Text(student.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 5)],
+      ),
+      child: ListTile(
+        onTap: () {
+          final details = StudentDetails(
+            id: student.id,
+            name: student.name,
+            profilePic: "assets/images/user.png",
+            location: "Karachi, Pakistan",
+            dob: "Not Available",
+            gender: "Male",
+            college: "KIET", // Corrected
+            school: "Karachi Public School",
+            phone: "+92 300 0000000",
+            email: "${student.name.toLowerCase().replaceAll(' ', '')}@email.com",
+          );
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => StudentProfileScreen(
+                    student: details,
+                    onDisconnect: (id) {},
+                  )
+              )
+          );
+        },
+        leading: const CircleAvatar(backgroundColor: Colors.black, radius: 25, child: Icon(Icons.person, color: Colors.white)),
+        title: Text(student.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+      ),
     );
   }
 }

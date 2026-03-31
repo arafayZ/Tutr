@@ -4,7 +4,7 @@ import '../widgets/custom_tab_header.dart';
 
 class BidDetailsScreen extends StatefulWidget {
   final String studentName;
-  final bool isRequest;
+  final bool isRequest; // true if coming from Request tab, false if from Bids tab
 
   const BidDetailsScreen({super.key, required this.studentName, required this.isRequest});
 
@@ -21,7 +21,7 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => Dialog(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.white, // Preference: White background
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
         child: Padding(padding: const EdgeInsets.all(24), child: content),
       ),
@@ -34,7 +34,9 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
       backgroundColor: const Color(0xFFF8F9FB),
       body: Column(
         children: [
-          const CustomTabHeader(title: Text("Bid Details", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
+          const CustomTabHeader(title: Text("Details", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
+
+          // 1. SCROLLABLE AREA (Top Content)
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
@@ -43,21 +45,37 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
                 children: [
                   _CourseHeaderCard(tutorName: tutorName),
                   const SizedBox(height: 25),
-                  const Text("Student", style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1A237E), fontSize: 16)),
+                  const Text("Student", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 16)),
                   const SizedBox(height: 12),
                   _StudentTile(name: widget.studentName),
-                  const SizedBox(height: 30),
-                  _PriceRow(label: "Your Offer:", price: "2000 PKR", color: Colors.red),
-                  const SizedBox(height: 15),
-                  _PriceRow(label: "Student Offer:", price: "1500 PKR", color: Colors.red),
-                  const SizedBox(height: 40),
 
+                  // Restore prices ONLY if accessing from Bids tab
+                  if (!widget.isRequest) ...[
+                    const SizedBox(height: 30),
+                    _PriceRow(label: "Your Offer:", price: "2000 PKR", color: Colors.red),
+                    const SizedBox(height: 15),
+                    _PriceRow(label: "Student Offer:", price: "1500 PKR", color: Colors.red),
+                  ],
+                ],
+              ),
+            ),
+          ),
+
+          // 2. FIXED BOTTOM AREA (Buttons remain at bottom)
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   if (_selectedStatus != "Rejected") ...[
                     _ActionButton(
-                        label: "Accept Offer",
+                        label: widget.isRequest ? "Accept" : "Accept Offer",
                         color: Colors.black,
                         onTap: () => _showPopup(context, _SuccessPopup(studentName: widget.studentName))
                     ),
+
                     if (!widget.isRequest)
                       _ActionButton(
                           label: "Counter Offer",
@@ -65,15 +83,16 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
                           textColor: Colors.black,
                           onTap: () => _showPopup(context, const _CounterPopup())
                       ),
+
                     _ActionButton(
-                        label: "Reject Offer",
+                        label: widget.isRequest ? "Reject" : "Reject Offer",
                         color: const Color(0xFFE0E0E0),
                         textColor: Colors.black,
                         onTap: () async {
                           final res = await showDialog<bool>(
                             context: context,
                             builder: (context) => Dialog(
-                              backgroundColor: Colors.white,
+                              backgroundColor: Colors.white, // Preference: White background
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
                               child: const Padding(padding: EdgeInsets.all(24), child: _RejectPopup()),
                             ),
@@ -107,7 +126,7 @@ class _CourseHeaderCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
       ),
       child: Row(
         children: [
@@ -138,9 +157,9 @@ class _StudentTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const CircleAvatar(radius: 25, backgroundColor: Colors.black),
+        const CircleAvatar(radius: 25, backgroundColor: Colors.black, child: Icon(Icons.person, color: Colors.white)),
         const SizedBox(width: 15),
-        Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1A237E))),
+        Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black)),
       ],
     );
   }
@@ -157,7 +176,7 @@ class _PriceRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A237E))),
+        Text(label, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
         Text(price, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
       ],
     );
@@ -207,7 +226,7 @@ class _RejectedStatusBox extends StatelessWidget {
   }
 }
 
-// --- POPUPS (Consolidated in this file) ---
+// --- POPUPS ---
 
 class _SuccessPopup extends StatefulWidget {
   final String studentName;
@@ -236,7 +255,7 @@ class _SuccessPopupState extends State<_SuccessPopup> {
       children: [
         const Text("🎉", style: TextStyle(fontSize: 50)),
         const SizedBox(height: 15),
-        const Text("Congratulations", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF1A237E))),
+        const Text("Congratulations", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black)),
         Text("You're now connected with ${widget.studentName}.", textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey, fontSize: 13)),
         const SizedBox(height: 20),
         const CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
@@ -255,7 +274,13 @@ class _CounterPopup extends StatelessWidget {
         const Text("Student Offer", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const Text("1500 PKR", style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 20)),
         const SizedBox(height: 20),
-        TextField(textAlign: TextAlign.center, decoration: InputDecoration(hintText: "Enter Counter Offer", border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)))),
+        TextField(
+            textAlign: TextAlign.center,
+            decoration: InputDecoration(
+                hintText: "Enter Counter Offer",
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(30))
+            )
+        ),
         const SizedBox(height: 20),
         Row(
           children: [

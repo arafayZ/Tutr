@@ -25,88 +25,70 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   @override
   void initState() {
     super.initState();
-    currentCourse = widget.course;
+    currentCourse = Map.from(widget.course);
   }
 
-  // Helper function to pick the correct icon based on the teaching mode
+  // Helper to handle the toggle and return data to the calling screen
+  void _toggleAvailability(String newStatus) {
+    setState(() {
+      currentCourse['status'] = newStatus;
+    });
+    // This pops the screen and sends the updated course map back
+    Navigator.pop(context, currentCourse);
+    // Keep the callback for any specific logic in parent
+    widget.onAvailableTap();
+  }
+
   IconData _getModeIcon(String mode) {
     final lowerMode = mode.toLowerCase();
-    if (lowerMode.contains('online')) {
-      return Icons.wifi;
-    } else if (lowerMode.contains('home') || lowerMode.contains('physical')) {
-      return Icons.home_rounded;
-    } else {
-      return Icons.location_on_outlined;
-    }
+    if (lowerMode.contains('online')) return Icons.wifi;
+    if (lowerMode.contains('home') || lowerMode.contains('physical')) return Icons.home_rounded;
+    return Icons.location_on_outlined;
   }
 
   void _showDeleteConfirmation(BuildContext context) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Are you sure you want to delete this subject? This action cannot be undone.",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                    height: 1.4,
+      builder: (BuildContext context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Delete subject?", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              const Text("This action cannot be undone.", style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL", style: TextStyle(color: Colors.black))),
+                  const SizedBox(width: 20),
+                  TextButton(
+                    onPressed: () {
+                      widget.onDelete(currentCourse);
+                      Navigator.pop(context);
+                      Navigator.pop(context);
+                    },
+                    child: const Text("DELETE", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                   ),
-                ),
-                const SizedBox(height: 32),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: const Text(
-                        "CANCEL",
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 30),
-                    GestureDetector(
-                      onTap: () {
-                        widget.onDelete(currentCourse);
-                        Navigator.pop(context); // Close dialog
-                        Navigator.pop(context); // Back to list screen
-                      },
-                      child: const Text(
-                        "DELETE",
-                        style: TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final double bgHeight = MediaQuery.of(context).size.height * 0.4;
-    final double cardTopOffset = bgHeight * 0.6;
+    final bool isUnavailable = currentCourse['status'] == 'Unavailable';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -132,26 +114,35 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                             onTap: () => Navigator.pop(context),
                             child: Container(
                               padding: const EdgeInsets.all(8),
-                              decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle
-                              ),
+                              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
                               child: const Icon(Icons.arrow_back, color: Colors.black),
                             ),
                           ),
-                          if (widget.showAvailableBtn)
+                          if (!isUnavailable)
+                            Theme(
+                              data: Theme.of(context).copyWith(cardColor: Colors.white),
+                              child: PopupMenuButton<String>(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
+                                onSelected: (value) => _toggleAvailability('Unavailable'),
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(
+                                    value: 'toggle',
+                                    child: Text("Make Unavailable", style: TextStyle(fontWeight: FontWeight.w500)),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
                             GestureDetector(
-                              onTap: widget.onAvailableTap,
+                              onTap: () => _toggleAvailability('Available'),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
                                 decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(15)
                                 ),
-                                child: const Text(
-                                    "Unavailable",
-                                    style: TextStyle(fontWeight: FontWeight.bold)
-                                ),
+                                child: const Text("Available", style: TextStyle(fontWeight: FontWeight.bold)),
                               ),
                             ),
                         ],
@@ -159,21 +150,16 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                     ),
                   ),
                 ),
+                // --- Rest of your UI Content Card logic remains the same ---
                 Padding(
-                  padding: EdgeInsets.only(top: cardTopOffset),
+                  padding: EdgeInsets.only(top: bgHeight * 0.6),
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 25),
                     padding: const EdgeInsets.all(25),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(25),
-                      boxShadow: [
-                        const BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 20,
-                            offset: Offset(0, 10)
-                        )
-                      ],
+                      boxShadow: [const BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, 10))],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,24 +167,16 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                                currentCourse['title'] ?? "Course Detail",
-                                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)
-                            ),
+                            Text(currentCourse['title'] ?? "Course Detail", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                             Row(
                               children: [
                                 const Icon(Icons.star, color: Colors.orange, size: 20),
-                                Text(
-                                    " ${currentCourse['rating']}",
-                                    style: const TextStyle(fontWeight: FontWeight.bold)
-                                )
+                                Text(" ${currentCourse['rating']}", style: const TextStyle(fontWeight: FontWeight.bold))
                               ],
                             ),
                           ],
                         ),
                         const SizedBox(height: 15),
-
-                        // FIXED: Row with Expanded/Flexible to prevent Overflow
                         Row(
                           children: [
                             Expanded(
@@ -206,13 +184,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                                 children: [
                                   const Icon(Icons.grid_view_rounded, size: 18),
                                   const SizedBox(width: 5),
-                                  Flexible(
-                                    child: Text(
-                                      currentCourse['level'] ?? "N/A",
-                                      style: const TextStyle(fontWeight: FontWeight.w500),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
+                                  Flexible(child: Text(currentCourse['level'] ?? "N/A", style: const TextStyle(fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis)),
                                   const SizedBox(width: 12),
                                   const Icon(Icons.access_time, size: 18),
                                   const SizedBox(width: 5),
@@ -220,20 +192,13 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                                 ],
                               ),
                             ),
-                            Text(
-                                currentCourse['price'] ?? "0 PKR",
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue)
-                            ),
+                            Text(currentCourse['price'] ?? "0 PKR", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue)),
                           ],
                         ),
-
                         const SizedBox(height: 25),
                         const Text("About", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 10),
-                        Text(
-                            currentCourse['about'] ?? "Master ${currentCourse['title']} with step-by-step guidance!",
-                            style: const TextStyle(color: Colors.grey, height: 1.5)
-                        ),
+                        Text(currentCourse['about'] ?? "Course details go here.", style: const TextStyle(color: Colors.grey, height: 1.5)),
                       ],
                     ),
                   ),
@@ -250,14 +215,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                   _detail(Icons.menu_book, "${currentCourse['students'] ?? 0} Classes per month"),
                   _detail(Icons.access_time, "6:00 P.M - 8:00 P.M"),
                   _detail(Icons.calendar_month, "Monday to Friday"),
-
-                  // Dynamic Mode Icon Implementation
-                  _detail(
-                      _getModeIcon(currentCourse['mode'] ?? "Online"),
-                      currentCourse['mode'] ?? "Online"
-                  ),
-
-                  _detail(Icons.location_on, currentCourse['location'] ?? "Nazimabad, Karachi"),
+                  _detail(_getModeIcon(currentCourse['mode'] ?? "Online"), currentCourse['mode'] ?? "Online"),
+                  _detail(Icons.location_on, currentCourse['location'] ?? "Karachi, Pakistan"),
                   const SizedBox(height: 30),
                   Row(
                     children: [
@@ -278,17 +237,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => EditCourseScreen(course: currentCourse),
-                              ),
-                            );
-
+                            final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => EditCourseScreen(course: currentCourse)));
                             if (result != null && result is Map<String, dynamic>) {
-                              setState(() {
-                                currentCourse = result;
-                              });
+                              setState(() => currentCourse = result);
                             }
                           },
                           style: ElevatedButton.styleFrom(
@@ -302,7 +253,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       ),
                     ],
                   ),
-                  SizedBox(height: MediaQuery.of(context).padding.bottom + 20),
                 ],
               ),
             ),
@@ -325,4 +275,3 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     );
   }
 }
-

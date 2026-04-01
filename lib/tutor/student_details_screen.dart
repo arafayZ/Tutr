@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_bottom_nav.dart';
 import 'my_students_list_screen.dart';
+import 'add_course_screen.dart';
+import 'course_detail_screen.dart';
 
 class StudentDetailsScreen extends StatefulWidget {
   final String categoryName;
@@ -15,7 +17,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
 
-  // 1. Connections list for the next screen
+  // Connections list for the MyStudentsListScreen
   final List<Map<String, dynamic>> _allConnections = [
     {"name": "Asim Ali Khan"},
     {"name": "Ali Imran"},
@@ -23,9 +25,6 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
     {"name": "Emaz Ali Khan"},
     {"name": "Bilal Raza"},
     {"name": "Abdul Rafay"},
-    {"name": "Hiba Khan"},
-    {"name": "Emaz Ali Khan"},
-    {"name": "Bilal Raza"},
   ];
 
   final List<Map<String, dynamic>> _allStudents = [
@@ -49,8 +48,14 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
       backgroundColor: const Color(0xFFF8F9FB),
       extendBody: true,
 
+      // ---------------- ADD COURSE BUTTON ----------------
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddCourseScreen()),
+          );
+        },
         backgroundColor: Colors.black,
         shape: const CircleBorder(),
         child: const Icon(Icons.add, color: Colors.white, size: 35),
@@ -62,7 +67,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
         children: [
           _buildHeader(context),
 
-          // --- 2. FUNCTIONAL SEARCH BAR (Placed below header) ---
+          // ---------------- SEARCH BAR ----------------
           Padding(
             padding: const EdgeInsets.fromLTRB(25, 25, 25, 5),
             child: Container(
@@ -100,7 +105,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
             ),
           ),
 
-          // --- 3. MODE SLIDER ---
+          // ---------------- MODE SLIDER ----------------
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 15),
             child: Container(
@@ -120,7 +125,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
             ),
           ),
 
-          // --- 4. LIST ---
+          // ---------------- COURSE LIST ----------------
           Expanded(
             child: filteredList.isEmpty
                 ? _buildEmptyState()
@@ -139,7 +144,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
 
   Widget _buildHeader(BuildContext context) {
     return Container(
-      height: 120, // Explicit height to match previous screen
+      height: 120,
       padding: const EdgeInsets.only(top: 50, left: 20, right: 20),
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -171,11 +176,12 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset('assets/images/cancel.png', height: 160, width: 160, fit: BoxFit.contain),
+          Image.asset('assets/images/cancel.png', height: 160, width: 160, fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => const Icon(Icons.search_off, size: 100, color: Colors.grey)),
           const SizedBox(height: 15),
           const Text("Nothing Here Yet", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black26)),
-          const Text("No students found in this category.", style: TextStyle(fontSize: 14, color: Colors.black26)),
-          const SizedBox(height: 100), // Account for Bottom Nav
+          const Text("No courses found in this category.", style: TextStyle(fontSize: 14, color: Colors.black26)),
+          const SizedBox(height: 100),
         ],
       ),
     );
@@ -207,71 +213,102 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
   }
 
   Widget _buildStudentCard(Map<String, dynamic> data) {
+    // Preparing the map for CourseDetailScreen
+    final Map<String, dynamic> courseData = {
+      "title": data['subject'],
+      "price": data['price'],
+      "rating": data['rating'].toString(),
+      "level": widget.categoryName,
+      "students": data['students'],
+      "color": const Color(0xFFAD1457), // Tutr Standard Theme Color
+      "mode": data['mode'],
+      "location": "Nazimabad, Karachi",
+      "about": "Detailed ${data['subject']} preparation focusing on key concepts and exam success.",
+      "status": "Available",
+    };
+
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: const Color(0xFFAD1457), // The Tutr standard red
-              borderRadius: BorderRadius.circular(15),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CourseDetailScreen(
+                course: courseData,
+                onAvailableTap: () {},
+                onDelete: (val) {},
+                showAvailableBtn: true,
+              ),
             ),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          );
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 80, height: 80,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFAD1457),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(data['subject'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(data['subject'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Row(children: [
+                          const Icon(Icons.star, color: Colors.amber, size: 14),
+                          Text(" ${data['rating']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        ]),
+                      ],
+                    ),
+                    Text("${data['price']}", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12)),
+                    const SizedBox(height: 4),
                     Row(children: [
-                      const Icon(Icons.star, color: Colors.amber, size: 14),
-                      Text(" ${data['rating']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      Text(data['mode'].toUpperCase(), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 9)),
+                      const Text(" | ", style: TextStyle(color: Colors.grey)),
+                      Text("${data['students']} Students", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 9)),
                     ]),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MyStudentsListScreen(connections: _allConnections),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          minimumSize: const Size(0, 28),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                        ),
+                        child: const Text("Student Details", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                      ),
+                    )
                   ],
                 ),
-                Text("${data['price']}", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12)),
-                const SizedBox(height: 4),
-                Row(children: [
-                  Text(data['mode'].toUpperCase(), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 9)),
-                  const Text(" | ", style: TextStyle(color: Colors.grey)),
-                  Text("${data['students']} Students", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 9)),
-                ]),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => MyStudentsListScreen(connections: _allConnections),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      minimumSize: const Size(0, 28),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                    ),
-                    child: const Text("Student Details", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                  ),
-                )
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

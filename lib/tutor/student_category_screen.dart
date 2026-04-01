@@ -6,6 +6,7 @@ import '../widgets/custom_bottom_nav.dart';
 
 // Import the student details screen where category data will be sent
 import 'student_details_screen.dart'; // Ensure this import matches your file structure
+import 'add_course_screen.dart';
 
 // Main screen where tutor selects student category
 class StudentCategoryScreen extends StatelessWidget {
@@ -192,9 +193,15 @@ class StudentCategoryScreen extends StatelessWidget {
 
       // ---------------- FLOATING ACTION BUTTON ----------------
       floatingActionButton: FloatingActionButton(
-
-        // Action when button is pressed (currently empty)
-        onPressed: () {},
+        // Updated: Navigation logic added here
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AddCourseScreen(), // Ensure this screen is imported
+            ),
+          );
+        },
 
         // Button color
         backgroundColor: Colors.black,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/custom_bottom_nav.dart';
 import 'chat_details_screen.dart';
 import 'student_profile_screen.dart';
+import 'add_course_screen.dart';
 
 class MyStudentsListScreen extends StatefulWidget {
   final List<Map<String, dynamic>> connections;
@@ -41,11 +42,30 @@ class _MyStudentsListScreenState extends State<MyStudentsListScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       extendBody: true,
+      // ---------------- FLOATING ACTION BUTTON ----------------
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        // Updated: Navigation logic added here
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AddCourseScreen(), // Ensure this screen is imported
+            ),
+          );
+        },
+
+        // Button color
         backgroundColor: Colors.black,
+
+        // Circular shape
         shape: const CircleBorder(),
-        child: const Icon(Icons.add, color: Colors.white, size: 35),
+
+        // Plus icon inside button
+        child: const Icon(
+          Icons.add,
+          color: Colors.white,
+          size: 35,
+        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       body: Column(

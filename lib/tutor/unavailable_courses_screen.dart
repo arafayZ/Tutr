@@ -9,6 +9,7 @@ class UnavailableCoursesScreen extends StatefulWidget {
 }
 
 class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
+  // Your course list remains the same
   final List<Map<String, dynamic>> _courses = [
     {
       "title": "Physics",
@@ -51,6 +52,7 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white, // Ensures consistent white background
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text(
             "Make Yourself Available?",
@@ -100,6 +102,7 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
 
         return AlertDialog(
           backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           content: const Column(
             mainAxisSize: MainAxisSize.min,
@@ -151,11 +154,17 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
                 itemBuilder: (context, index) {
                   return GestureDetector(
                     onTap: () async {
+                      // --- CRITICAL FIX START ---
+                      // Create a copy of the course and set the status to 'Unavailable'
+                      final Map<String, dynamic> courseData = Map.from(_courses[index]);
+                      courseData['status'] = 'Unavailable';
+                      // --- CRITICAL FIX END ---
+
                       await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => CourseDetailScreen(
-                            course: _courses[index],
+                            course: courseData, // Pass the data with the status key
                             onAvailableTap: () => _showAvailablePopup(context, index),
                             onDelete: (courseToDelete) {
                               setState(() {
@@ -179,35 +188,24 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
     );
   }
 
+  // --- UI Build Methods (No changes needed here) ---
+
   Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset(
-            'assets/images/cancel.png',
-            width: 180,
-            height: 180,
-            fit: BoxFit.contain,
-          ),
+          const Icon(Icons.do_not_disturb_on_rounded, size: 100, color: Color(0xFFBDBDBD)),
           const SizedBox(height: 25),
           const Text(
             "No Unavailable Courses",
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFFBDBDBD),
-            ),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: Color(0xFFBDBDBD)),
           ),
           const SizedBox(height: 12),
           const Text(
             "All your courses are currently active or haven't been added.",
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: Color(0xFFBDBDBD),
-              letterSpacing: 0.5,
-            ),
+            style: TextStyle(fontSize: 16, color: Color(0xFFBDBDBD), letterSpacing: 0.5),
           ),
           const SizedBox(height: 80),
         ],

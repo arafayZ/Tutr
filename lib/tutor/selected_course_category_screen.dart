@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_bottom_nav.dart'; // Ensure this path is correct
 import 'course_detail_screen.dart';
+import 'add_course_screen.dart';
 
 class SelectedCourseCategoryScreen extends StatefulWidget {
   final String categoryName;
@@ -42,11 +43,30 @@ class _SelectedCourseCategoryScreenState extends State<SelectedCourseCategoryScr
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       extendBody: true,
+      // ---------------- FLOATING ACTION BUTTON ----------------
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        // Updated: Navigation logic added here
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AddCourseScreen(), // Ensure this screen is imported
+            ),
+          );
+        },
+
+        // Button color
         backgroundColor: Colors.black,
+
+        // Circular shape
         shape: const CircleBorder(),
-        child: const Icon(Icons.add, color: Colors.white, size: 35),
+
+        // Plus icon inside button
+        child: const Icon(
+          Icons.add,
+          color: Colors.white,
+          size: 35,
+        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       body: Column(

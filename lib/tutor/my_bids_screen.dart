@@ -1,32 +1,18 @@
 import 'package:flutter/material.dart';
-
 import '../widgets/custom_bottom_nav.dart';
-
 import '../widgets/custom_tab_header.dart';
-
 import 'bid_details_screen.dart';
-
-
+import 'add_course_screen.dart';
 
 class MyBidsScreen extends StatefulWidget {
-
   const MyBidsScreen({super.key});
-
-
-
   @override
-
   State<MyBidsScreen> createState() => _MyBidsScreenState();
-
 }
-
-
 
 class _MyBidsScreenState extends State<MyBidsScreen> {
 
   String _selectedTab = "My Bids";
-
-
 
   final List<String> _allBids = [
 
@@ -168,16 +154,30 @@ class _MyBidsScreenState extends State<MyBidsScreen> {
 
       ),
 
+      // ---------------- FLOATING ACTION BUTTON ----------------
       floatingActionButton: FloatingActionButton(
+        // Updated: Navigation logic added here
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AddCourseScreen(), // Ensure this screen is imported
+            ),
+          );
+        },
 
-        onPressed: () {},
-
+        // Button color
         backgroundColor: Colors.black,
 
+        // Circular shape
         shape: const CircleBorder(),
 
-        child: const Icon(Icons.add, color: Colors.white, size: 30),
-
+        // Plus icon inside button
+        child: const Icon(
+          Icons.add,
+          color: Colors.white,
+          size: 35,
+        ),
       ),
 
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,

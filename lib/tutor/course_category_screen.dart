@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 // Import custom bottom navigation widget
 import '../widgets/custom_bottom_nav.dart';
 import 'selected_course_category_screen.dart'; // Ensure filename casing matches your file
+import 'add_course_screen.dart';
 
 // Main screen where tutor selects course category
 class CourseCategoryScreen extends StatelessWidget {
@@ -121,10 +122,25 @@ class CourseCategoryScreen extends StatelessWidget {
       ),
 
       // ---------------- FLOATING ACTION BUTTON ----------------
+      // ---------------- FLOATING ACTION BUTTON ----------------
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        // Updated: Navigation logic added here
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AddCourseScreen(), // Ensure this screen is imported
+            ),
+          );
+        },
+
+        // Button color
         backgroundColor: Colors.black,
+
+        // Circular shape
         shape: const CircleBorder(),
+
+        // Plus icon inside button
         child: const Icon(
           Icons.add,
           color: Colors.white,

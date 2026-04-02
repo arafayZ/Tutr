@@ -46,7 +46,6 @@ class TutrApp extends StatelessWidget {
           primary: Colors.black,
           surface: Colors.white,
         ),
-        // Ensuring dialogs match your white background requirement
         dialogTheme: const DialogThemeData(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
@@ -102,10 +101,21 @@ class TutrApp extends StatelessWidget {
         '/role_selection': (context) => const RoleSelectionScreen(),
         '/tutor_dashboard': (context) => const TutorDashboard(),
         '/student_dashboard': (context) => const StudentDashboard(),
-        '/tutor_verification': (context) => const TutorVerificationScreen(),
+        // FIXED: Added arguments for tutor_verification
+        '/tutor_verification': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+          return TutorVerificationScreen(userId: args?['userId'] ?? 0);
+        },
         '/profile': (context) => const ProfileScreen(),
         '/inbox': (context) => const InboxScreen(),
-        '/profile_creation': (context) => const ProfileCreationScreen(role: 'Tutor'),
+        // FIXED: Added arguments for profile_creation
+        '/profile_creation': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+          return ProfileCreationScreen(
+            role: args['role'],
+            userId: args['userId'],
+          );
+        },
         '/my_bids': (context) => const MyBidsScreen(),
         '/student_category': (context) => const StudentCategoryScreen(),
         '/course_category': (context) => const CourseCategoryScreen(),

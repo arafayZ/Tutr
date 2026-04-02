@@ -1,73 +1,80 @@
 // Import standard Dart and Flutter libraries
-import 'dart:async'; // Used for the 5-second timer on the success screen
-import 'package:flutter/material.dart'; // Standard Flutter UI components
-import 'package:file_picker/file_picker.dart'; // Library to pick PDF or Image files from the phone
-import 'login_screen.dart'; // Link to the login page for redirection
+import 'dart:async';
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'login_screen.dart';
+import '../services/api_service.dart';  // ADD THIS
 
-// Creating a StatefulWidget because we need to update the screen when files are selected
 class TutorVerificationScreen extends StatefulWidget {
-  const TutorVerificationScreen({super.key});
+  final int userId;  // ADD THIS - to know which tutor is uploading
+  const TutorVerificationScreen({super.key, required this.userId});
 
   @override
   State<TutorVerificationScreen> createState() => _TutorVerificationScreenState();
 }
 
 class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
-  // Variables to store the names of the selected files
   String? _idFileName;
   String? _degreeFileName;
-
-  // Boolean to track if we should show red borders (error state)
+  File? _idFile;      // ADD THIS - store actual file
+  File? _degreeFile;  // ADD THIS - store actual file
   bool _showErrors = false;
+  bool _isLoading = false;  // ADD THIS
 
-  // Function to open the phone's file explorer
   Future<void> _pickFile(String type) async {
-    // Only allow specific file types like PDF and common images
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'png', 'jpeg'],
     );
 
-    // If a file was picked successfully
     if (result != null) {
       setState(() {
-        // Save the file name to the correct variable based on which button was clicked
         if (type == "ID") {
           _idFileName = result.files.single.name;
+          _idFile = File(result.files.single.path!);
         } else {
           _degreeFileName = result.files.single.name;
+          _degreeFile = File(result.files.single.path!);
         }
       });
     }
   }
 
-  // Popup that shows if the user clicks "Submit" without uploading files
-  void _showErrorPopup() {
+  void _showErrorPopup(String message) {
+    // Clean the message
+    String cleanMessage = message
+        .replaceFirst('Exception: ', '')
+        .replaceAll(RegExp(r'[{}[\]"\\]'), '')
+        .trim();
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.white, // White background per instructions
-        surfaceTintColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-        content: const Text(
-          "Please upload all mandatory documents to continue.",
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        content: Text(
+          cleanMessage,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF0D1B3E),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Colors.black87,
           ),
         ),
         actions: [
           Center(
             child: TextButton(
-              onPressed: () => Navigator.pop(context), // Close the popup
+              onPressed: () => Navigator.pop(context),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.black,
+              ),
               child: const Text(
                 "OK",
                 style: TextStyle(
-                  color: Color(0xFF0D1B3E),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -76,12 +83,39 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
       ),
     );
   }
+  Future<void> _submitDocuments() async {
+    // Check if both files are uploaded
+    if (_idFile == null || _degreeFile == null) {
+      setState(() => _showErrors = true);
+      _showErrorPopup("Please upload both ID Card and Degree Certificate.");
+      return;
+    }
 
-  // Popup that shows when the tutor successfully submits their documents
+    setState(() => _isLoading = true);
+
+    try {
+      // Call API to upload documents
+      await ApiService.uploadDocuments(
+        widget.userId,
+        _idFile!,
+        _degreeFile!,
+      );
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showSuccessPopup();
+
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showErrorPopup(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
   void _showSuccessPopup() {
     showDialog(
       context: context,
-      barrierDismissible: false, // User cannot tap outside to close this
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return Dialog(
           backgroundColor: Colors.white,
@@ -92,7 +126,6 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Displaying the verification success image
                 Container(
                   height: 120,
                   width: 120,
@@ -106,16 +139,15 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  "Congratulations",
+                  "Documents Submitted!",
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 15),
                 const Text(
-                  "Your account has been successfully created! We’re reviewing your documents...",
+                  "Your documents have been submitted successfully. We're reviewing them and will notify you once approved.",
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 30),
-                // Small loading spinner
                 const CircularProgressIndicator(color: Color(0xFF0D1B3E)),
               ],
             ),
@@ -124,13 +156,12 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
       },
     );
 
-    // Wait for 5 seconds, then go to the Login Screen
     Timer(const Duration(seconds: 5), () {
       if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const LoginScreen()),
-              (route) => false, // Remove all previous screens from history
+              (route) => false,
         );
       }
     });
@@ -140,156 +171,158 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
-      body: Column(
+      body: Stack(
         children: [
-          // White Top Header with a Back Button
-          Container(
-            width: double.infinity,
-            height: 120,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
-              ),
-            ),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 24.0),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: GestureDetector(
-                    onTap: () => Navigator.pop(context), // Go back to Signup screen
-                    child: const CircleAvatar(
-                      backgroundColor: Colors.black,
-                      child: Icon(Icons.arrow_back, color: Colors.white),
+          Column(
+            children: [
+              Container(
+                width: double.infinity,
+                height: 120,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(30),
+                    bottomRight: Radius.circular(30),
+                  ),
+                ),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 24.0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const CircleAvatar(
+                          backgroundColor: Colors.black,
+                          child: Icon(Icons.arrow_back, color: Colors.white),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 40),
+                      const Text(
+                        "Verify Your Identity",
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        "To maintain a safe and trusted learning environment, all tutors are required to complete identity verification before starting.",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      const SizedBox(height: 40),
 
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 40),
-                  const Text(
-                    "Verify Your Identity",
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    "To maintain a safe and trusted learning environment, all tutors are required to complete identity verification before starting.",
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 40),
+                      _buildUploadField(
+                        label: _idFileName ?? "+ Identity Card (ID)",
+                        onTap: () => _pickFile("ID"),
+                        isUploaded: _idFileName != null,
+                      ),
+                      const SizedBox(height: 20),
 
-                  // Button to upload ID Card
-                  _buildUploadField(
-                    label: _idFileName ?? "+ Identity Card (ID)",
-                    onTap: () => _pickFile("ID"),
-                    isUploaded: _idFileName != null,
-                  ),
-                  const SizedBox(height: 20),
+                      _buildUploadField(
+                        label: _degreeFileName ?? "+ Degree / Certificate",
+                        onTap: () => _pickFile("Degree"),
+                        isUploaded: _degreeFileName != null,
+                      ),
 
-                  // Button to upload Degree/Certificate
-                  _buildUploadField(
-                    label: _degreeFileName ?? "+ Degree / Certificate",
-                    onTap: () => _pickFile("Degree"),
-                    isUploaded: _degreeFileName != null,
-                  ),
+                      const SizedBox(height: 100),
 
-                  const SizedBox(height: 100),
-
-                  // Terms and Condition Text
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                      child: RichText(
-                        textAlign: TextAlign.center,
-                        text: TextSpan(
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey,
-                            fontFamily: 'sans-serif',
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                          child: RichText(
+                            textAlign: TextAlign.center,
+                            text: TextSpan(
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey,
+                                fontFamily: 'sans-serif',
+                              ),
+                              children: [
+                                const TextSpan(text: "By clicking Submit, you agree to our "),
+                                TextSpan(
+                                  text: "identity verification process",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey[800],
+                                  ),
+                                ),
+                                const TextSpan(
+                                  text: " and confirm that all provided information is correct and complete.",
+                                ),
+                              ],
+                            ),
                           ),
-                          children: [
-                            const TextSpan(text: "By clicking Submit, you agree to our "),
-                            TextSpan(
-                              text: "identity verification process",
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      GestureDetector(
+                        onTap: _isLoading ? null : _submitDocuments,
+                        child: Container(
+                          width: double.infinity,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: _isLoading ? Colors.grey : Colors.black,
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: Center(
+                            child: _isLoading
+                                ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                                : const Text(
+                              "Submit",
                               style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.grey[800],
                               ),
                             ),
-                            const TextSpan(
-                              text: " and confirm that all provided information is correct and complete.",
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // The Final Submit Button
-                  GestureDetector(
-                    onTap: () {
-                      // Check if both files are uploaded before showing success
-                      if (_idFileName != null && _degreeFileName != null) {
-                        setState(() => _showErrors = false);
-                        _showSuccessPopup();
-                      } else {
-                        // If something is missing, show red borders and error popup
-                        setState(() => _showErrors = true);
-                        _showErrorPopup();
-                      }
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          "Submit",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 40),
+                    ],
                   ),
-                  const SizedBox(height: 40),
-                ],
+                ),
+              ),
+            ],
+          ),
+          if (_isLoading)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
               ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  // Reusable helper function to build the upload buttons
   Widget _buildUploadField({
     required String label,
     required VoidCallback onTap,
     required bool isUploaded,
   }) {
-    // Logic to change border color based on file status or errors
     Color borderColor = Colors.black.withOpacity(0.2);
     if (isUploaded) {
-      borderColor = Colors.green; // Turn green if uploaded
+      borderColor = Colors.green;
     } else if (_showErrors) {
-      borderColor = Colors.red; // Turn red if the user missed it
+      borderColor = Colors.red;
     }
 
     return GestureDetector(
@@ -311,7 +344,7 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
           children: [
             Expanded(
               child: Text(
-                label, // Shows filename if selected, otherwise shows hint
+                label,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 16,
@@ -319,7 +352,6 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
                 ),
               ),
             ),
-            // Changes icon to a checkmark if the file is picked
             Icon(
               isUploaded ? Icons.check_circle : Icons.note_add_outlined,
               color: isUploaded ? Colors.green : (_showErrors ? Colors.red : Colors.black),

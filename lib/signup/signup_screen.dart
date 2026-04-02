@@ -1,13 +1,13 @@
 // Import standard Flutter tools and other screens in your project
 import 'dart:async';
-import 'package:flutter/gestures.dart'; // Used for the clickable text in "Terms and Conditions"
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'profile_creation_screen.dart';
 import 'login_screen.dart';
+import '../services/api_service.dart';  // ADD THIS
 
-// Creating a StatefulWidget because the screen needs to track user input and errors
 class SignupScreen extends StatefulWidget {
-  final String role; // Stores if the user is a "Tutor" or "Student" passed from the previous screen
+  final String role;
   const SignupScreen({super.key, required this.role});
 
   @override
@@ -15,21 +15,19 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  // Controllers to get the text typed into each box
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
 
-  // Booleans to track UI states (show/hide password, check boxes, and errors)
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _agreeToTerms = false;
   bool _showErrors = false;
+  bool _isLoading = false;  // ADD THIS
 
   @override
   void dispose() {
-    // Clean up all controllers when the user leaves the screen to save phone memory
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -37,16 +35,10 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  // --- VALIDATION HELPERS ---
-
-  // Checks if the email format is valid (e.g., name@domain.com)
   bool _isValidEmail(String email) {
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
   }
 
-  // --- POPUPS & LOGIC ---
-
-  // Function to show the "Terms and Conditions" popup
   void _showTermsPopup() {
     showDialog(
       context: context,
@@ -61,11 +53,11 @@ class _SignupScreenState extends State<SignupScreen> {
             children: [
               const Text("Condition & Attending", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
-              const Text("By signing up, you confirm that you are at least 18 years old and that all the information you provide is accurate and up-to-date. Both students and tutors agree to communicate respectfully and follow all guidelines provided within the app."),
+              const Text("By signing up, you confirm that you are at least 18 years old and that all the information you provide is accurate and up-to-date."),
               const SizedBox(height: 20),
               const Text("Terms & Use", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
-              const Text("All payments and fees made through the app are final. The platform is not responsible for any content or interactions shared between users. By creating an account, you acknowledge and accept these terms and conditions."),
+              const Text("All payments and fees made through the app are final."),
             ],
           ),
         ),
@@ -79,51 +71,95 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  // The main logic when the user clicks the "Continue" button
-  void _handleSignup() {
-    setState(() {
-      // 1. Check if any text field is empty
-      if (_nameController.text.isEmpty || _emailController.text.isEmpty ||
-          _passwordController.text.isEmpty || _confirmPasswordController.text.isEmpty) {
-        _showErrors = true;
-        _showDialogPopup("Please fill in all mandatory fields to continue.");
-      }
-      // 2. NEW: Email Format Validation
-      else if (!_isValidEmail(_emailController.text)) {
-        _showDialogPopup("Please enter a valid email address.");
-      }
-      // 3. Check if the two passwords match
-      else if (_passwordController.text != _confirmPasswordController.text) {
-        _showDialogPopup("Passwords do not match.");
-      }
-      // 4. Check if the user checked the "Terms" box
-      else if (!_agreeToTerms) {
-        _showDialogPopup("You must agree to the terms and conditions to sign up.");
-      }
-      // 5. Success -> Navigate to Profile Creation
-      else {
-        _showErrors = false;
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => ProfileCreationScreen(role: widget.role)),
-        );
-      }
-    });
+  Future<void> _handleSignup() async {
+    // Validation
+    if (_nameController.text.isEmpty || _emailController.text.isEmpty ||
+        _passwordController.text.isEmpty || _confirmPasswordController.text.isEmpty) {
+      setState(() => _showErrors = true);
+      _showDialogPopup("Please fill in all mandatory fields to continue.");
+      return;
+    }
+
+    if (!_isValidEmail(_emailController.text)) {
+      _showDialogPopup("Please enter a valid email address.");
+      return;
+    }
+
+    if (_passwordController.text != _confirmPasswordController.text) {
+      _showDialogPopup("Passwords do not match.");
+      return;
+    }
+
+    if (!_agreeToTerms) {
+      _showDialogPopup("You must agree to the terms and conditions to sign up.");
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final userData = await ApiService.register(
+        _emailController.text.trim(),
+        _passwordController.text,
+        widget.role,
+      );
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfileCreationScreen(
+            role: widget.role,
+            userId: userData['id'],
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      String errorMsg = e.toString().replaceFirst('Exception: ', '');
+      _showDialogPopup(errorMsg);
+    }
   }
 
-  // Helper function to show basic error popups
   void _showDialogPopup(String message) {
+    // Clean the message
+    String cleanMessage = message
+        .replaceFirst('Exception: ', '')
+        .replaceAll(RegExp(r'[{}[\]"\\]'), '')
+        .trim();
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        content: Text(
+          cleanMessage,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Colors.black87,
+          ),
+        ),
         actions: [
           Center(
             child: TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("OK", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold))
+              onPressed: () => Navigator.pop(context),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.black,
+              ),
+              child: const Text(
+                "OK",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
         ],
@@ -137,7 +173,6 @@ class _SignupScreenState extends State<SignupScreen> {
       backgroundColor: const Color(0xFFF8F9FB),
       body: Column(
         children: [
-          // White Header with the Back Button
           Container(
             width: double.infinity, height: 120,
             decoration: const BoxDecoration(
@@ -152,15 +187,14 @@ class _SignupScreenState extends State<SignupScreen> {
                   child: GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: const CircleAvatar(
-                        backgroundColor: Colors.black,
-                        child: Icon(Icons.arrow_back, color: Colors.white)
+                      backgroundColor: Colors.black,
+                      child: Icon(Icons.arrow_back, color: Colors.white),
                     ),
                   ),
                 ),
               ),
             ),
           ),
-
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -192,7 +226,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   const SizedBox(height: 20),
 
-                  // Terms Row
                   Row(
                     children: [
                       Checkbox(
@@ -220,14 +253,24 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   const SizedBox(height: 40),
 
-                  // Continue Button
                   GestureDetector(
-                    onTap: _handleSignup,
+                    onTap: _isLoading ? null : _handleSignup,
                     child: Container(
                       width: double.infinity, height: 60,
-                      decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(30)),
-                      child: const Center(
-                          child: Text("Continue", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))
+                      decoration: BoxDecoration(
+                        color: _isLoading ? Colors.grey : Colors.black,
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: Center(
+                        child: _isLoading
+                            ? const SizedBox(
+                          width: 20, height: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                            : const Text(
+                          "Continue",
+                          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
                   ),
@@ -255,16 +298,14 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  // Reusable helper function for TextFields
   Widget _buildTextField({
     required String label,
     required IconData icon,
     required TextEditingController controller,
     bool isPassword = false,
     bool? obscure,
-    VoidCallback? onToggle
+    VoidCallback? onToggle,
   }) {
-    // Determine the keyboard type based on the hint text
     TextInputType keyboardType = TextInputType.text;
     if (label.toLowerCase().contains("email")) {
       keyboardType = TextInputType.emailAddress;
@@ -279,8 +320,8 @@ class _SignupScreenState extends State<SignupScreen> {
         prefixIcon: Icon(icon, color: Colors.grey),
         suffixIcon: isPassword
             ? IconButton(
-            icon: Icon((obscure ?? true) ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-            onPressed: onToggle
+          icon: Icon((obscure ?? true) ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+          onPressed: onToggle,
         )
             : null,
         filled: true,
@@ -292,8 +333,8 @@ class _SignupScreenState extends State<SignupScreen> {
               : BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Colors.black, width: 1)
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.black, width: 1),
         ),
       ),
     );

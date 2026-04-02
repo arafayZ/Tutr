@@ -6,17 +6,22 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'login_screen.dart';
 import 'tutor_verification_screen.dart';
+import '../services/api_service.dart';
 
 class ProfileCreationScreen extends StatefulWidget {
   final String role;
-  const ProfileCreationScreen({super.key, required this.role});
+  final int userId;
+  const ProfileCreationScreen({
+    super.key,
+    required this.role,
+    required this.userId,
+  });
 
   @override
   State<ProfileCreationScreen> createState() => _ProfileCreationScreenState();
 }
 
 class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
-  // Controllers for input fields
   final TextEditingController _headlineController = TextEditingController();
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
@@ -31,6 +36,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   final ImagePicker _picker = ImagePicker();
   String? _selectedGender;
   bool _showErrors = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -90,10 +96,13 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
           ),
           child: child!),
     );
-    if (picked != null) setState(() => _dobController.text = "${picked.day}/${picked.month}/${picked.year}");
+    if (picked != null) {
+      String formattedDate = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      setState(() => _dobController.text = formattedDate);
+    }
   }
 
-  void _validateAndContinue() {
+  Future<void> _validateAndContinue() async {
     setState(() {
       bool isHeadlineValid = widget.role == "Student" || _headlineController.text.trim().isNotEmpty;
       bool isPhoneValid = _phoneController.text.length == 10;
@@ -111,13 +120,98 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         _showErrorPopup("Please fill in all mandatory fields correctly.");
       } else {
         _showErrors = false;
-        if (widget.role == "Tutor") {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const TutorVerificationScreen()));
-        } else {
-          _showCongratulationsDialog();
-        }
       }
     });
+
+    if (_showErrors) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      if (widget.role == "Tutor") {
+        await _createTutorProfile();
+      } else {
+        await _createStudentProfile();
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showErrorPopup(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  Future<void> _createTutorProfile() async {
+    try {
+      String phoneNumber = '+92${_phoneController.text}';
+
+      Map<String, dynamic> profileData = {
+        'userId': widget.userId,
+        'firstName': _firstNameController.text.trim(),
+        'lastName': _lastNameController.text.trim(),
+        'phoneNumber': phoneNumber,
+        'headline': _headlineController.text.trim(),
+        'gender': _selectedGender,
+        'dateOfBirth': _dobController.text.trim(),
+        'location': _locationController.text.trim(),
+        'universityName': _uniController.text.trim(),
+        'collegeName': _schoolController.text.trim(),
+        'workExperience': _workController.text.trim(),
+      };
+
+      final response = await ApiService.createTutorProfile(profileData);
+      final int tutorProfileId = response['id'];
+
+      if (_image != null) {
+        try {
+          await ApiService.uploadTutorImage(tutorProfileId, _image!.path);
+        } catch (e) {
+          // Continue even if image fails
+        }
+      }
+
+      setState(() => _isLoading = false);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TutorVerificationScreen(userId: widget.userId),
+        ),
+      );
+
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showErrorPopup(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  Future<void> _createStudentProfile() async {
+    String phoneNumber = '+92${_phoneController.text}';
+
+    Map<String, dynamic> profileData = {
+      'userId': widget.userId,
+      'firstName': _firstNameController.text.trim(),
+      'lastName': _lastNameController.text.trim(),
+      'phoneNumber': phoneNumber,
+      'gender': _selectedGender,
+      'dateOfBirth': _dobController.text.trim(),
+      'location': _locationController.text.trim(),
+      'schoolName': _uniController.text.trim(),
+      'gradeLevel': _schoolController.text.trim(),
+      'subjects': '',
+    };
+
+    final response = await ApiService.createStudentProfile(profileData);
+
+    setState(() => _isLoading = false);
+
+    if (_image != null) {
+      try {
+        await ApiService.uploadStudentImage(response['id'], _image!.path);
+      } catch (e) {
+        // Continue even if image fails
+      }
+    }
+
+    _showCongratulationsDialog();
   }
 
   void _showCongratulationsDialog() {
@@ -125,7 +219,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => Dialog(
-        backgroundColor: Colors.white, // Strictly white per requirement
+        backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
         child: Padding(
@@ -162,13 +256,42 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   }
 
   void _showErrorPopup(String message) {
+    String cleanMessage = message
+        .replaceFirst('Exception: ', '')
+        .replaceAll(RegExp(r'[{}[\]"\\]'), '')
+        .trim();
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
-        content: Text(message, textAlign: TextAlign.center),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        content: Text(
+          cleanMessage,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Colors.black87,
+          ),
+        ),
         actions: [
-          Center(child: TextButton(onPressed: () => Navigator.pop(context), child: const Text("OK"))),
+          Center(
+            child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.black,
+              ),
+              child: const Text(
+                "OK",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -178,167 +301,178 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
-      body: Column(
+      body: Stack(
         children: [
-          // Header
-          Container(
-            width: double.infinity,
-            height: 120,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
-            ),
-            child: SafeArea(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 24.0),
-                  child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const CircleAvatar(
-                      backgroundColor: Colors.black,
-                      child: Icon(Icons.arrow_back, color: Colors.white),
+          Column(
+            children: [
+              Container(
+                width: double.infinity,
+                height: 120,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
+                ),
+                child: SafeArea(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 24.0),
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const CircleAvatar(
+                          backgroundColor: Colors.black,
+                          child: Icon(Icons.arrow_back, color: Colors.white),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
 
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Profile Photo
-                  Center(
-                    child: Stack(
-                      children: [
-                        CircleAvatar(
-                          radius: 60,
-                          backgroundColor: const Color(0xFFE0E0E0),
-                          backgroundImage: _image != null ? FileImage(_image!) : null,
-                          child: _image == null ? const Icon(Icons.person, size: 60, color: Colors.grey) : null,
-                        ),
-                        Positioned(
-                          bottom: 0, right: 0,
-                          child: GestureDetector(
-                            onTap: _pickImage,
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
-                              child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 60,
+                              backgroundColor: const Color(0xFFE0E0E0),
+                              backgroundImage: _image != null ? FileImage(_image!) : null,
+                              child: _image == null ? const Icon(Icons.person, size: 60, color: Colors.grey) : null,
                             ),
+                            Positioned(
+                              bottom: 0, right: 0,
+                              child: GestureDetector(
+                                onTap: _pickImage,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
+                                  child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+
+                      if (widget.role == "Tutor") ...[
+                        _buildSectionHeader("Headline"),
+                        _buildTextField(hint: "e.g., Math Tutor", controller: _headlineController),
+                        const SizedBox(height: 20),
+                      ],
+
+                      _buildSectionHeader("Personal Details"),
+                      _buildTextField(hint: "First Name", controller: _firstNameController),
+                      const SizedBox(height: 12),
+                      _buildTextField(hint: "Last Name", controller: _lastNameController),
+                      const SizedBox(height: 12),
+                      GestureDetector(
+                        onTap: _selectDate,
+                        child: AbsorbPointer(child: _buildTextField(hint: "Date of Birth (YYYY-MM-DD)", icon: Icons.calendar_today_outlined, controller: _dobController)),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildTextField(hint: "Area, City", icon: Icons.location_on_outlined, controller: _locationController),
+                      const SizedBox(height: 12),
+
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white, borderRadius: BorderRadius.circular(12),
+                          border: _showErrors && _selectedGender == null ? Border.all(color: Colors.red, width: 1.5) : null,
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedGender,
+                            hint: const Text("Gender"),
+                            isExpanded: true,
+                            items: ["Male", "Female", "Other"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                            onChanged: (val) => setState(() => _selectedGender = val),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-
-                  if (widget.role == "Tutor") ...[
-                    _buildSectionHeader("Headline"),
-                    _buildTextField(hint: "e.g., Math Tutor", controller: _headlineController),
-                    const SizedBox(height: 20),
-                  ],
-
-                  _buildSectionHeader("Personal Details"),
-                  _buildTextField(hint: "First Name", controller: _firstNameController),
-                  const SizedBox(height: 12),
-                  _buildTextField(hint: "Last Name", controller: _lastNameController),
-                  const SizedBox(height: 12),
-                  GestureDetector(
-                    onTap: _selectDate,
-                    child: AbsorbPointer(child: _buildTextField(hint: "Date of Birth", icon: Icons.calendar_today_outlined, controller: _dobController)),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTextField(hint: "Area, City", icon: Icons.location_on_outlined, controller: _locationController),
-                  const SizedBox(height: 12),
-
-                  // Gender Dropdown
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white, borderRadius: BorderRadius.circular(12),
-                      border: _showErrors && _selectedGender == null ? Border.all(color: Colors.red, width: 1.5) : null,
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedGender,
-                        hint: const Text("Gender"),
-                        isExpanded: true,
-                        items: ["Male", "Female", "Other"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                        onChanged: (val) => setState(() => _selectedGender = val),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+                      const SizedBox(height: 12),
 
-                  _buildTextField(
-                    hint: "xxxxxxxxxx",
-                    controller: _phoneController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
-                    prefixWidget: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(width: 12),
-                        Text("🇵🇰", style: TextStyle(fontSize: 20)),
-                        SizedBox(width: 8),
-                        Text("( +92 ) ", style: TextStyle(fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-                  // Education Section - Dynamic Hints
-                  _buildSectionHeader("Education"),
-                  _buildTextField(
-                      hint: widget.role == "Student" ? "School" : "University",
-                      icon: Icons.school_outlined,
-                      controller: _uniController,
-                      isOptionalGroup: true
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTextField(
-                      hint: widget.role == "Student" ? "College" : "High School",
-                      icon: Icons.account_balance_outlined,
-                      controller: _schoolController,
-                      isOptionalGroup: true
-                  ),
-
-                  // Work Section - Only for Tutors
-                  if (widget.role == "Tutor") ...[
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        _buildSectionHeader("Work"),
-                        const SizedBox(width: 8),
-                        const Text("(Optional)", style: TextStyle(color: Colors.grey, fontSize: 14)),
-                      ],
-                    ),
-                    _buildTextField(hint: "Work Experience", icon: Icons.work_outline, controller: _workController, isOptional: true),
-                  ],
-
-                  const SizedBox(height: 40),
-
-                  GestureDetector(
-                    onTap: _validateAndContinue,
-                    child: Container(
-                      width: double.infinity,
-                      height: 60,
-                      decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(30)),
-                      child: const Center(
-                        child: Text("Continue", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      _buildTextField(
+                        hint: "xxxxxxxxxx",
+                        controller: _phoneController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
+                        prefixWidget: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(width: 12),
+                            Text("🇵🇰", style: TextStyle(fontSize: 20)),
+                            SizedBox(width: 8),
+                            Text("( +92 ) ", style: TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
                       ),
-                    ),
+
+                      const SizedBox(height: 20),
+                      _buildSectionHeader("Education"),
+                      _buildTextField(
+                          hint: widget.role == "Student" ? "School" : "University",
+                          icon: Icons.school_outlined,
+                          controller: _uniController,
+                          isOptionalGroup: true
+                      ),
+                      const SizedBox(height: 12),
+                      _buildTextField(
+                          hint: widget.role == "Student" ? "College" : "High School",
+                          icon: Icons.account_balance_outlined,
+                          controller: _schoolController,
+                          isOptionalGroup: true
+                      ),
+
+                      if (widget.role == "Tutor") ...[
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            _buildSectionHeader("Work"),
+                            const SizedBox(width: 8),
+                            const Text("(Optional)", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                          ],
+                        ),
+                        _buildTextField(hint: "Work Experience", icon: Icons.work_outline, controller: _workController, isOptional: true),
+                      ],
+
+                      const SizedBox(height: 40),
+
+                      GestureDetector(
+                        onTap: _isLoading ? null : _validateAndContinue,
+                        child: Container(
+                          width: double.infinity,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: _isLoading ? Colors.grey : Colors.black,
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: Center(
+                            child: _isLoading
+                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : const Text("Continue", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+                    ],
                   ),
-                  const SizedBox(height: 30),
-                ],
+                ),
+              ),
+            ],
+          ),
+          if (_isLoading)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
               ),
             ),
-          ),
         ],
       ),
     );

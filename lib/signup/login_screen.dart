@@ -3,6 +3,7 @@ import 'role_selection_screen.dart';
 import '../tutor/tutor_dashboard.dart';
 import '../student/student_dashboard.dart';
 import 'forgot_password_screen.dart';
+import '../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _obscureText = true;
   bool _showErrors = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -25,69 +27,99 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // Logic to validate email format using RegEx
   bool _isValidEmail(String email) {
-    return RegExp(
-        r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
-        .hasMatch(email);
+    return RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(email);
   }
 
-  void _validateAndLogin() {
+  Future<void> _validateAndLogin() async {
+    String email = _emailController.text.trim().toLowerCase();
+    String password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      setState(() => _showErrors = true);
+      _showErrorPopup("Please enter your email and password to sign in.");
+      return;
+    }
+
+    if (!_isValidEmail(email)) {
+      setState(() => _showErrors = true);
+      _showErrorPopup("Please enter a valid email address.");
+      return;
+    }
+
     setState(() {
-      String email = _emailController.text.trim().toLowerCase();
-      String password = _passwordController.text.trim();
+      _showErrors = false;
+      _isLoading = true;
+    });
 
-      if (email.isEmpty || password.isEmpty) {
-        _showErrors = true;
-        _showErrorPopup("Please enter your email and password to sign in.");
-      } else if (!_isValidEmail(email)) {
-        _showErrors = true;
-        _showErrorPopup("The email address you entered is not valid. Please check and try again.");
-      } else {
-        _showErrors = false;
+    try {
+      final userData = await ApiService.login(email, password);
 
-        String userRole = email.contains("student") ? "Student" : "Tutor";
+      if (!mounted) return;
+      setState(() => _isLoading = false);
 
-        Widget dashboard = (userRole == "Tutor")
-            ? const TutorDashboard()
-            : const StudentDashboard();
-
+      if (userData['role'] == 'TUTOR') {
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => dashboard),
+          MaterialPageRoute(builder: (context) => const TutorDashboard()),
+              (route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const StudentDashboard()),
               (route) => false,
         );
       }
-    });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      // Clean the error message
+      String errorMsg = e.toString();
+      // Remove "Exception: " prefix if present
+      errorMsg = errorMsg.replaceFirst('Exception: ', '');
+      // Remove any unexpected characters
+      errorMsg = errorMsg.replaceAll(RegExp(r'[^\x20-\x7E]'), '');
+
+      _showErrorPopup(errorMsg);
+    }
   }
 
   void _showErrorPopup(String message) {
+    // Clean the message
+    String cleanMessage = message
+        .replaceFirst('Exception: ', '')
+        .replaceAll(RegExp(r'[{}[\]"\\]'), '')
+        .trim();
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         content: Text(
-          message,
+          cleanMessage,
           textAlign: TextAlign.center,
           style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF0D1B3E),
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Colors.black87,
           ),
         ),
         actions: [
-          Center(
-            child: TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                "OK",
-                style: TextStyle(
-                  color: Color(0xFF0D1B3E),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 18,
-                ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.black,
+            ),
+            child: const Text(
+              "OK",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -109,9 +141,10 @@ class _LoginScreenState extends State<LoginScreen> {
               const Text(
                 "Welcome back",
                 style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0D1B3E)),
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0D1B3E),
+                ),
               ),
               const SizedBox(height: 8),
               const Text(
@@ -143,7 +176,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
 
-              // Updated Row: Removed Checkbox, kept Forget Password aligned to the right
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
@@ -158,16 +190,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       );
                     } else {
-                      _showErrorPopup(
-                          "Please enter a valid email address first to reset your password.");
+                      _showErrorPopup("Please enter a valid email address first.");
                     }
                   },
                   child: const Text(
                     "Forget password?",
                     style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.black,
-                        fontWeight: FontWeight.w600),
+                      fontSize: 12,
+                      color: Colors.black,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -175,20 +207,31 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 40),
 
               GestureDetector(
-                onTap: _validateAndLogin,
+                onTap: _isLoading ? null : _validateAndLogin,
                 child: Container(
                   width: double.infinity,
                   height: 60,
                   decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(15)),
-                  child: const Center(
-                    child: Text(
+                    color: _isLoading ? Colors.grey : Colors.black,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Center(
+                    child: _isLoading
+                        ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                        : const Text(
                       "Sign in",
                       style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold),
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -208,13 +251,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => const RoleSelectionScreen()),
+                          builder: (context) => const RoleSelectionScreen(),
+                        ),
                       );
                     },
                     child: const Text(
                       "Register now",
                       style: TextStyle(
-                          fontWeight: FontWeight.bold, color: Colors.black),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
                     ),
                   ),
                 ],
@@ -245,8 +291,7 @@ class _LoginScreenState extends State<LoginScreen> {
         suffixIcon: suffix,
         filled: true,
         fillColor: Colors.white,
-        contentPadding:
-        const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+        contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
           borderSide: _showErrors && controller.text.isEmpty

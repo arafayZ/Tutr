@@ -1,17 +1,18 @@
 // Import Flutter's material design widgets
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 // Import custom bottom navigation widget
 import '../widgets/custom_bottom_nav.dart';
 // Import the Add Course screen to navigate when FAB is pressed
 import 'add_course_screen.dart';
 // Import the Security screen
 import 'security_screen.dart';
-// --- NEW IMPORT ---
+// Import Unavailable Courses screen
 import 'unavailable_courses_screen.dart';
+import 'edit_profile_screen.dart';
+import '../services/auth_service.dart';
+import '../config/api_config.dart';
 
-// ==============================
-// 1. PROFILE SCREEN (Stateful)
-// ==============================
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -19,20 +20,94 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-// ==============================
-// 2. STATE CLASS
-// ==============================
 class _ProfileScreenState extends State<ProfileScreen> {
-  // User's name
-  final String userName = "Abdul Rafay";
-  // User's email
-  final String userEmail = "rafay123@gmail.com";
-  // User's profile image URL (null means default image will be used)
-  final String? profileImageUrl = null;
+  String userName = "";
+  String userEmail = "";
+  String? profileImageUrl;
+  int profileId = 0;
+  bool isLoading = true;
 
-  // ==============================
-  // LOGOUT POPUP DIALOG FUNCTION
-  // ==============================
+  // Store the original image URL without timestamp
+  String? _originalImageUrl;
+  String? _displayImageUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileData();
+  }
+
+  Future<void> _loadProfileData() async {
+    setState(() => isLoading = true);
+
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      profileId = prefs.getInt('profileId') ?? 0;
+
+      print('Loading profile for ID: $profileId');
+
+      if (profileId != 0) {
+        final profileData = await AuthService.getTutorProfile(profileId);
+
+        String firstName = profileData['firstName'] ?? '';
+        String lastName = profileData['lastName'] ?? '';
+
+        setState(() {
+          userName = "$firstName $lastName".trim();
+          userEmail = profileData['email'] ?? '';
+          _originalImageUrl = profileData['profilePictureUrl'];
+          // Only add timestamp if we're forcing refresh (after edit)
+          _displayImageUrl = _originalImageUrl;
+          isLoading = false;
+        });
+
+        print('Profile loaded - Name: $userName');
+        print('Image URL: $_originalImageUrl');
+      } else {
+        print('No profileId found');
+        setState(() => isLoading = false);
+      }
+    } catch (e) {
+      print('Error loading profile: $e');
+      setState(() => isLoading = false);
+    }
+  }
+
+  // Call this method only after editing profile
+  Future<void> _refreshProfileAfterEdit() async {
+    setState(() => isLoading = true);
+
+    try {
+      final profileData = await AuthService.getTutorProfile(profileId);
+
+      String firstName = profileData['firstName'] ?? '';
+      String lastName = profileData['lastName'] ?? '';
+
+      setState(() {
+        userName = "$firstName $lastName".trim();
+        userEmail = profileData['email'] ?? '';
+        _originalImageUrl = profileData['profilePictureUrl'];
+        // Add timestamp only when image actually changed
+        if (_originalImageUrl != null && _originalImageUrl!.isNotEmpty) {
+          String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+          _displayImageUrl = '${ApiConfig.baseUrl}$_originalImageUrl?t=$timestamp';
+        } else {
+          _displayImageUrl = _originalImageUrl;
+        }
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error refreshing profile: $e');
+      setState(() => isLoading = false);
+    }
+  }
+
+  String getFullImageUrl() {
+    if (_displayImageUrl == null || _displayImageUrl!.isEmpty) return '';
+    if (_displayImageUrl!.startsWith('http')) return _displayImageUrl!;
+    return '${ApiConfig.baseUrl}$_displayImageUrl';
+  }
+
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -82,7 +157,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
+                          await AuthService.logout();
                           Navigator.pushNamedAndRemoveUntil(
                             context,
                             '/login',
@@ -107,11 +183,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ==============================
-  // BUILD METHOD
-  // ==============================
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F9FB),
+        body: const Center(child: CircularProgressIndicator()),
+        bottomNavigationBar: const CustomBottomNav(currentIndex: 3),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       extendBody: true,
@@ -135,9 +216,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             const SizedBox(height: 80),
 
-            // -----------------------------
-            // PROFILE CARD WITH AVATAR
-            // -----------------------------
             Center(
               child: Stack(
                 clipBehavior: Clip.none,
@@ -162,7 +240,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          userName,
+                          userName.isEmpty ? "User" : userName,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 22,
@@ -172,7 +250,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          userEmail,
+                          userEmail.isEmpty ? "No email" : userEmail,
                           style: const TextStyle(
                             fontSize: 14,
                             color: Colors.grey,
@@ -180,21 +258,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         const SizedBox(height: 35),
 
-                        // -----------------------------
-                        // PROFILE OPTIONS
-                        // -----------------------------
                         _buildProfileOption(
                           Icons.person_outline,
                           "Edit Profile",
-                          onTap: () {
-                            Navigator.pushNamed(
+                          onTap: () async {
+                            final result = await Navigator.push(
                               context,
-                              '/edit_profile',
-                              arguments: {
-                                'name': userName,
-                                'email': userEmail,
-                              },
+                              MaterialPageRoute(
+                                builder: (context) => EditProfileScreen(profileId: profileId),
+                              ),
                             );
+                            if (result == true) {
+                              await _refreshProfileAfterEdit();
+                            }
                           },
                         ),
                         _buildProfileOption(
@@ -214,7 +290,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Navigator.pushNamed(context, '/terms_conditions');
                           },
                         ),
-                        // --- UPDATED UNAVAILABLE COURSES NAVIGATION ---
                         _buildProfileOption(
                           Icons.remove_circle_outline,
                           "Unavailable Courses",
@@ -225,7 +300,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             );
                           },
                         ),
-
                         _buildProfileOption(
                           Icons.logout,
                           "Logout",
@@ -235,22 +309,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
 
-                  // -----------------------------
-                  // PROFILE AVATAR
-                  // -----------------------------
                   Positioned(
                     top: 0,
                     child: Container(
+                      width: 120,
+                      height: 120,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.black, width: 2),
                       ),
-                      child: CircleAvatar(
-                        radius: 60,
-                        backgroundColor: Colors.grey[200],
-                        backgroundImage: profileImageUrl != null
-                            ? NetworkImage(profileImageUrl!)
-                            : const AssetImage('assets/images/rafay.jpeg') as ImageProvider,
+                      child: ClipOval(
+                        child: _buildProfileImage(),
                       ),
                     ),
                   ),
@@ -263,6 +332,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       bottomNavigationBar: const CustomBottomNav(currentIndex: 3),
     );
+  }
+
+  Widget _buildProfileImage() {
+    String fullUrl = getFullImageUrl();
+    print('Displaying image from URL: $fullUrl');
+
+    if (fullUrl.isNotEmpty) {
+      return Image.network(
+        fullUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          print('Image load error: $error');
+          return const Icon(Icons.person, size: 60, color: Colors.grey);
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return const Center(
+            child: CircularProgressIndicator(strokeWidth: 2),
+          );
+        },
+      );
+    } else {
+      return const Icon(Icons.person, size: 60, color: Colors.grey);
+    }
   }
 
   Widget _buildProfileOption(IconData icon, String label, {required VoidCallback onTap}) {

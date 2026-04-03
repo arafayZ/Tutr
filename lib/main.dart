@@ -119,7 +119,10 @@ class TutrApp extends StatelessWidget {
         '/my_bids': (context) => const MyBidsScreen(),
         '/student_category': (context) => const StudentCategoryScreen(),
         '/course_category': (context) => const CourseCategoryScreen(),
-        '/edit_profile': (context) => const EditProfileScreen(),
+        '/edit_profile': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+          return EditProfileScreen(profileId: args['profileId']);
+        },
         '/terms_conditions': (context) => const TermsConditionsScreen(),
         '/chat_details': (context) => const ChatDetailsScreen(userName: 'User'),
         '/security': (context) => const SecurityScreen(),

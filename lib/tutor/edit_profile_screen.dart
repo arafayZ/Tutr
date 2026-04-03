@@ -12,9 +12,12 @@ import 'package:image_picker/image_picker.dart';
 
 // Import your custom header widget
 import '../widgets/custom_tab_header.dart';
+import '../services/auth_service.dart';
+import '../config/api_config.dart';
 
 class EditProfileScreen extends StatefulWidget {
-  const EditProfileScreen({super.key});
+  final int profileId;
+  const EditProfileScreen({super.key, required this.profileId});
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
@@ -37,21 +40,74 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   File? _image;
   final ImagePicker _picker = ImagePicker();
   String? _selectedGender;
-  bool _isInitialized = false;
+  bool _isLoading = false;
+  bool _isDataLoaded = false;
+  String? _currentImageUrl;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_isInitialized) {
-      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-      if (args != null) {
-        List<String> nameParts = (args['name'] ?? "").split(" ");
-        _firstNameController.text = nameParts.isNotEmpty ? nameParts[0] : "";
-        _lastNameController.text = nameParts.length > 1 ? nameParts.sublist(1).join(" ") : "";
-        _emailController.text = args['email'] ?? "";
+  void initState() {
+    super.initState();
+    _loadProfileData();
+  }
+
+  Future<void> _loadProfileData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final profileData = await AuthService.getTutorProfile(widget.profileId);
+
+      _firstNameController.text = profileData['firstName'] ?? '';
+      _lastNameController.text = profileData['lastName'] ?? '';
+      _emailController.text = profileData['email'] ?? '';
+      _phoneController.text = _formatPhoneNumber(profileData['phoneNumber'] ?? '');
+      _headlineController.text = profileData['headline'] ?? '';
+      _selectedGender = profileData['gender'];
+      _locationController.text = profileData['location'] ?? '';
+      _uniController.text = profileData['universityName'] ?? '';
+      _schoolController.text = profileData['collegeName'] ?? '';
+      _workController.text = profileData['workExperience'] ?? '';
+      _currentImageUrl = profileData['profilePictureUrl'];
+
+      if (profileData['dateOfBirth'] != null) {
+        _dobController.text = _formatDateForDisplay(profileData['dateOfBirth']);
       }
-      _isInitialized = true;
+
+      setState(() => _isDataLoaded = true);
+    } catch (e) {
+      _showErrorDialog(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      setState(() => _isLoading = false);
     }
+  }
+
+  String _formatPhoneNumber(String phone) {
+    if (phone.startsWith('+92')) {
+      return phone.substring(3);
+    }
+    return phone;
+  }
+
+  String _formatDateForDisplay(String date) {
+    if (date.length >= 10) {
+      var parts = date.split('-');
+      if (parts.length == 3) {
+        return "${parts[2]}/${parts[1]}/${parts[0]}";
+      }
+    }
+    return date;
+  }
+
+  String _formatDateForBackend(String date) {
+    if (date.contains('-') && date.length == 10) {
+      return date;
+    }
+    if (date.contains('/')) {
+      var parts = date.split('/');
+      if (parts.length == 3) {
+        return "${parts[2]}-${parts[1].padLeft(2, '0')}-${parts[0].padLeft(2, '0')}";
+      }
+    }
+    return date;
   }
 
   @override
@@ -69,14 +125,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
-  // --- VALIDATION HELPERS ---
-
-  // Checks if the email format is valid
   bool _isValidEmail(String email) {
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
   }
-
-  // --- METHODS ---
 
   Future<void> _pickImage() async {
     try {
@@ -116,23 +167,53 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  void _handleSave() {
+  Future<void> _handleSave() async {
     String email = _emailController.text.trim();
 
-    // 1. Check if email is empty
     if (email.isEmpty) {
       _showErrorDialog("Email address cannot be empty.");
       return;
     }
 
-    // 2. Validate email format
     if (!_isValidEmail(email)) {
-      _showErrorDialog("Please enter a valid email address (e.g., name@example.com).");
+      _showErrorDialog("Please enter a valid email address.");
       return;
     }
 
-    // 3. If valid, show success
-    _showSuccessPopup();
+    setState(() => _isLoading = true);
+
+    try {
+      String phoneNumber = '+92${_phoneController.text.trim()}';
+
+      Map<String, dynamic> profileData = {
+        'profileId': widget.profileId,
+        'firstName': _firstNameController.text.trim(),
+        'lastName': _lastNameController.text.trim(),
+        'phoneNumber': phoneNumber,
+        'headline': _headlineController.text.trim(),
+        'gender': _selectedGender,
+        'dateOfBirth': _formatDateForBackend(_dobController.text.trim()),
+        'location': _locationController.text.trim(),
+        'universityName': _uniController.text.trim(),
+        'collegeName': _schoolController.text.trim(),
+        'workExperience': _workController.text.trim().isEmpty ? "Not specified" : _workController.text.trim(),
+      };
+
+      // 1. Update profile text fields
+      await AuthService.editTutorProfile(profileData);
+
+      // 2. Upload new image and delete old one
+      if (_image != null) {
+        await AuthService.uploadTutorImage(widget.profileId, _image!.path, oldImageUrl: _currentImageUrl);
+      }
+
+      setState(() => _isLoading = false);
+      _showSuccessPopup();
+
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showErrorDialog(e.toString().replaceFirst('Exception: ', ''));
+    }
   }
 
   void _showErrorDialog(String message) {
@@ -174,8 +255,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               const SizedBox(height: 30),
               GestureDetector(
                 onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pop(context);
+                  Navigator.pop(context); // Close dialog
+                  Navigator.pop(context, true); // Return to profile with refresh flag
                 },
                 child: Container(
                   width: double.infinity, height: 50,
@@ -190,8 +271,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
+  String getFullImageUrl(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) return '';
+    if (imageUrl.startsWith('http')) return imageUrl;
+    return '${ApiConfig.baseUrl}$imageUrl';
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading && !_isDataLoaded) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F9FB),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       body: Column(
@@ -214,7 +308,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           backgroundColor: const Color(0xFFE0E0E0),
                           backgroundImage: _image != null
                               ? FileImage(_image!)
-                              : const AssetImage('assets/images/rafay.jpeg') as ImageProvider,
+                              : (_currentImageUrl != null ? NetworkImage(getFullImageUrl(_currentImageUrl)) : null),
+                          child: _image == null && _currentImageUrl == null
+                              ? const Icon(Icons.person, size: 60, color: Colors.grey)
+                              : null,
                         ),
                         Positioned(
                           bottom: 0, right: 0,
@@ -241,11 +338,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   const SizedBox(height: 12),
                   _buildTextField(hint: "Last Name", controller: _lastNameController),
                   const SizedBox(height: 12),
+
                   _buildTextField(
                     hint: "Email Address",
                     controller: _emailController,
                     icon: Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress,
+                    readOnly: true,
                   ),
                   const SizedBox(height: 12),
 
@@ -282,11 +381,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   const SizedBox(height: 40),
 
                   GestureDetector(
-                    onTap: _handleSave, // Uses validation logic
+                    onTap: _isLoading ? null : _handleSave,
                     child: Container(
                       width: double.infinity, height: 60,
-                      decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(30)),
-                      child: const Center(child: Text("Save Changes", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
+                      decoration: BoxDecoration(
+                        color: _isLoading ? Colors.grey : Colors.black,
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: Center(
+                        child: _isLoading
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text("Save Changes", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 30),
@@ -298,8 +404,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
     );
   }
-
-  // --- SUB-WIDGETS ---
 
   Widget _buildSectionHeader(String title) {
     return Padding(
@@ -315,18 +419,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     required TextEditingController controller,
     TextInputType keyboardType = TextInputType.text,
     List<TextInputFormatter>? inputFormatters,
+    bool readOnly = false,
   }) {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
+      readOnly: readOnly,
+      style: readOnly ? TextStyle(color: Colors.grey[600]) : null,
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
         prefixIcon: icon != null ? Icon(icon, color: Colors.black87, size: 20) : prefixWidget,
-        filled: true, fillColor: Colors.white,
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.black, width: 1)),
+        filled: true,
+        fillColor: readOnly ? Colors.grey[100] : Colors.white,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.black, width: 1),
+        ),
       ),
     );
   }

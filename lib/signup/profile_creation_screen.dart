@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'login_screen.dart';
 import 'tutor_verification_screen.dart';
-import '../services/api_service.dart';
+import '../services/auth_service.dart';
 
 class ProfileCreationScreen extends StatefulWidget {
   final String role;
@@ -157,12 +157,12 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         'workExperience': _workController.text.trim(),
       };
 
-      final response = await ApiService.createTutorProfile(profileData);
+      final response = await AuthService.createTutorProfile(profileData);
       final int tutorProfileId = response['id'];
 
       if (_image != null) {
         try {
-          await ApiService.uploadTutorImage(tutorProfileId, _image!.path);
+          await AuthService.uploadTutorImage(tutorProfileId, _image!.path);
         } catch (e) {
           // Continue even if image fails
         }
@@ -199,13 +199,13 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
       'subjects': '',
     };
 
-    final response = await ApiService.createStudentProfile(profileData);
+    final response = await AuthService.createStudentProfile(profileData);
 
     setState(() => _isLoading = false);
 
     if (_image != null) {
       try {
-        await ApiService.uploadStudentImage(response['id'], _image!.path);
+        await AuthService.uploadStudentImage(response['id'], _image!.path);
       } catch (e) {
         // Continue even if image fails
       }

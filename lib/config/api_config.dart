@@ -1,6 +1,6 @@
 class ApiConfig {
   // ============ SET THIS TO CONTROL API MODE ============
-  static const bool useRealApi = false;  // true = real backend, false = dummy data
+  static const bool useRealApi = true;  // true = real backend, false = dummy data
   // ============ BASE URL ============
   // Change this when switching environments
   static const String baseUrl = 'http://192.168.100.10:8080'; // Android Emulator
@@ -18,6 +18,8 @@ class ApiConfig {
   static const String studentProfile = '/api/register/student/profile';
   static const String editTutorProfile = '/api/register/tutor/profile/edit';
   static const String editStudentProfile = '/api/register/student/profile/edit';
+  static const String getTutorProfile = '/api/register/tutor/profile';
+  static const String editTutorProfileJson = '/api/register/tutor/profile/edit-json';
   static const String uploadTutorImage = '/api/profile-image/upload';
   static const String uploadStudentImage = '/api/student-image/upload';
   static const String uploadDocuments = '/api/documents/upload';

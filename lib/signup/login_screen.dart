@@ -3,7 +3,7 @@ import 'role_selection_screen.dart';
 import '../tutor/tutor_dashboard.dart';
 import '../student/student_dashboard.dart';
 import 'forgot_password_screen.dart';
-import '../services/api_service.dart';
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -53,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final userData = await ApiService.login(email, password);
+      final userData = await AuthService.login(email, password);
 
       if (!mounted) return;
       setState(() => _isLoading = false);

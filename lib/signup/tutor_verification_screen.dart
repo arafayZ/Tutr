@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'login_screen.dart';
-import '../services/api_service.dart';  // ADD THIS
+import '../services/auth_service.dart';  // ADD THIS
 
 class TutorVerificationScreen extends StatefulWidget {
   final int userId;  // ADD THIS - to know which tutor is uploading
@@ -95,7 +95,7 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
 
     try {
       // Call API to upload documents
-      await ApiService.uploadDocuments(
+      await AuthService.uploadDocuments(
         widget.userId,
         _idFile!,
         _degreeFile!,

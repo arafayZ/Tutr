@@ -4,7 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'profile_creation_screen.dart';
 import 'login_screen.dart';
-import '../services/api_service.dart';  // ADD THIS
+import '../services/auth_service.dart';
 
 class SignupScreen extends StatefulWidget {
   final String role;
@@ -24,10 +24,63 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _obscureConfirmPassword = true;
   bool _agreeToTerms = false;
   bool _showErrors = false;
-  bool _isLoading = false;  // ADD THIS
+  bool _isLoading = false;
+
+  // Password strength tracking
+  bool _hasMinLength = false;
+  bool _hasUppercase = false;
+  bool _hasLowercase = false;
+  bool _hasDigit = false;
+  bool _hasSpecialChar = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(_validatePasswordStrength);
+  }
+
+  void _validatePasswordStrength() {
+    String password = _passwordController.text;
+    setState(() {
+      _hasMinLength = password.length >= 8;
+      _hasUppercase = password.contains(RegExp(r'[A-Z]'));
+      _hasLowercase = password.contains(RegExp(r'[a-z]'));
+      _hasDigit = password.contains(RegExp(r'[0-9]'));
+      _hasSpecialChar = password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+    });
+  }
+
+  bool get isPasswordValid {
+    return _hasMinLength && _hasUppercase && _hasLowercase && _hasDigit && _hasSpecialChar;
+  }
+
+  int get passwordStrength {
+    int strength = 0;
+    if (_hasMinLength) strength++;
+    if (_hasUppercase) strength++;
+    if (_hasLowercase) strength++;
+    if (_hasDigit) strength++;
+    if (_hasSpecialChar) strength++;
+    return strength;
+  }
+
+  String get passwordStrengthText {
+    int strength = passwordStrength;
+    if (strength <= 2) return 'Weak';
+    if (strength <= 4) return 'Medium';
+    return 'Strong';
+  }
+
+  Color get passwordStrengthColor {
+    int strength = passwordStrength;
+    if (strength <= 2) return Colors.red;
+    if (strength <= 4) return Colors.orange;
+    return Colors.green;
+  }
 
   @override
   void dispose() {
+    _passwordController.removeListener(_validatePasswordStrength);
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -53,11 +106,11 @@ class _SignupScreenState extends State<SignupScreen> {
             children: [
               const Text("Condition & Attending", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
-              const Text("By signing up, you confirm that you are at least 18 years old and that all the information you provide is accurate and up-to-date."),
+              const Text("By signing up, you confirm that you are at least 18 years old and that all the information you provide is accurate and up-to-date. Both students and tutors agree to communicate respectfully and follow all guidelines provided within the app. Tutors are responsible for the correctness of their course details, schedules, and availability."),
               const SizedBox(height: 20),
               const Text("Terms & Use", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
-              const Text("All payments and fees made through the app are final."),
+              const Text("All payments and fees made through the app are final. The platform is not responsible for any content or interactions shared between users. By creating an account, you acknowledge and accept these terms and conditions."),
             ],
           ),
         ),
@@ -90,6 +143,19 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
+    // Password strength validation
+    if (!isPasswordValid) {
+      _showDialogPopup(
+          "Password must contain:\n"
+              "• At least 8 characters\n"
+              "• One uppercase letter\n"
+              "• One lowercase letter\n"
+              "• One number\n"
+              "• One special character (!@#%^&*)"
+      );
+      return;
+    }
+
     if (!_agreeToTerms) {
       _showDialogPopup("You must agree to the terms and conditions to sign up.");
       return;
@@ -98,7 +164,7 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final userData = await ApiService.register(
+      final userData = await AuthService.register(
         _emailController.text.trim(),
         _passwordController.text,
         widget.role,
@@ -125,7 +191,6 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   void _showDialogPopup(String message) {
-    // Clean the message
     String cleanMessage = message
         .replaceFirst('Exception: ', '')
         .replaceAll(RegExp(r'[{}[\]"\\]'), '')
@@ -210,12 +275,68 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 16),
                   _buildTextField(label: "Valid email", icon: Icons.email_outlined, controller: _emailController),
                   const SizedBox(height: 16),
-                  _buildTextField(
-                    label: "Strong password", icon: Icons.lock_outline,
-                    isPassword: true, controller: _passwordController,
-                    obscure: _obscurePassword,
-                    onToggle: () => setState(() => _obscurePassword = !_obscurePassword),
+
+                  // Password field with strength indicator
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTextField(
+                        label: "Strong password", icon: Icons.lock_outline,
+                        isPassword: true, controller: _passwordController,
+                        obscure: _obscurePassword,
+                        onToggle: () => setState(() => _obscurePassword = !_obscurePassword),
+                      ),
+                      if (_passwordController.text.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    "Password Strength: ",
+                                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                  ),
+                                  Text(
+                                    passwordStrengthText,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: passwordStrengthColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              LinearProgressIndicator(
+                                value: passwordStrength / 5,
+                                backgroundColor: Colors.grey[200],
+                                color: passwordStrengthColor,
+                                minHeight: 4,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "Requirements:",
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey[700]),
+                              ),
+                              _buildRequirementTile("At least 8 characters", _hasMinLength),
+                              _buildRequirementTile("Uppercase letter (A-Z)", _hasUppercase),
+                              _buildRequirementTile("Lowercase letter (a-z)", _hasLowercase),
+                              _buildRequirementTile("Number (0-9)", _hasDigit),
+                              _buildRequirementTile("Special character (!@#\$%^&*)", _hasSpecialChar),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
+
                   const SizedBox(height: 16),
                   _buildTextField(
                     label: "Confirm password", icon: Icons.lock_outline,
@@ -295,6 +416,27 @@ class _SignupScreenState extends State<SignupScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildRequirementTile(String text, bool isMet) {
+    return Row(
+      children: [
+        Icon(
+          isMet ? Icons.check_circle : Icons.circle_outlined,
+          size: 12,
+          color: isMet ? Colors.green : Colors.grey,
+        ),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 10,
+            color: isMet ? Colors.green : Colors.grey[600],
+            decoration: isMet ? TextDecoration.lineThrough : null,
+          ),
+        ),
+      ],
     );
   }
 

@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'role_selection_screen.dart';
 import '../tutor/tutor_dashboard.dart';
@@ -28,7 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
   // Logic to validate email format using RegEx
   bool _isValidEmail(String email) {
     return RegExp(
-        r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
+        r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
         .hasMatch(email);
   }
 
@@ -46,11 +47,11 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         _showErrors = false;
 
-        String userRole = email.contains("student") ? "Student" : "Tutor";
+        String userRole = email.contains("Tutor") ? "Tutor" : "Student";
 
-        Widget dashboard = (userRole == "Tutor")
-            ? const TutorDashboard()
-            : const StudentDashboard();
+        Widget dashboard = (userRole == "Student")
+            ? const StudentDashboard()
+            : const TutorDashboard();
 
         Navigator.pushAndRemoveUntil(
           context,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -30,6 +31,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       "text": "Learn, teach, and grow together, all in one app."
     },
   ];
+
+
+  Future<void> _completeOnboarding() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('hasSeenOnboarding', true);
+
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,10 +102,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   curve: Curves.easeInOut,
                 );
               } else {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
+                _completeOnboarding();
               }
             },
           ),
@@ -114,25 +125,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  // UPDATED: Removed circle decoration and used simple icons
   Widget _navButton({required IconData icon, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
-      behavior: HitTestBehavior.opaque, // Makes the empty space around the icon clickable
+      behavior: HitTestBehavior.opaque,
       child: SizedBox(
         width: 56,
         height: 56,
         child: Icon(
           icon,
-          color: Colors.black, // Clean black icon on your white background
-          size: 30, // Increased size slightly to make up for the missing circle
+          color: Colors.black,
+          size: 30,
         ),
       ),
     );
   }
-} // <--- End of State class
+}
 
-// --- CONTENT WIDGET ---
 class OnboardingContent extends StatelessWidget {
   final String image, text;
   const OnboardingContent({super.key, required this.image, required this.text});

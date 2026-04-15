@@ -1,35 +1,78 @@
 import 'package:flutter/material.dart';
-
-// Import custom screen files for navigation
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/dashboard_service.dart';
 import 'student_category_screen.dart';
 import 'my_bids_screen.dart';
 import 'course_category_screen.dart';
 import 'reviews_screen.dart';
 import 'add_course_screen.dart';
 import 'search_screen.dart';
-import 'course_detail_screen.dart'; // Ensure this matches your filename
+import 'course_detail_screen.dart';
 import 'notifications_screen.dart';
 import '../widgets/custom_bottom_nav.dart';
+import '../services/auth_service.dart';
+import '../services/course_service.dart';
+import '../services/connection_service.dart';
+import '../config/api_config.dart';
+import '../utils/status_bar_config.dart';
+import 'edit_profile_screen.dart';
+
+class CourseColors {
+  static const List<Color> colors = [
+    Color(0xFF1A1A2E), // Dark Navy
+    Color(0xFF16213E), // Deep Navy
+    Color(0xFF0F3460), // Dark Blue
+    Color(0xFF8B1E3F), // Dark Crimson
+    Color(0xFF2C3E50), // Dark Slate
+    Color(0xFF1B4F72), // Deep Teal
+    Color(0xFF145A32), // Dark Green
+    Color(0xFF7B2C3E), // Deep Maroon
+    Color(0xFF4A235A), // Dark Violet
+    Color(0xFF1C2833), // Almost Black Blue
+    Color(0xFF6E2C00), // Dark Orange-Brown
+    Color(0xFF0B5345), // Dark Cyan-Green
+    Color(0xFF424949), // Dark Gray
+    Color(0xFF5D4037), // Dark Brown
+    Color(0xFF283747), // Dark Steel Blue
+    Color(0xFF7E5109), // Dark Gold
+    Color(0xFF4A4A4A), // Dark Gray
+    Color(0xFF3E2723), // Very Dark Brown
+    Color(0xFF1A237E), // Deep Indigo
+  ];
+
+  static Color getCourseColor(int courseId) {
+    return colors[courseId % colors.length];
+  }
+}
 
 // --- 1. DATA MODEL ---
 class Course {
-  final String tutorName, subject, grade, price, rating, mode;
-  final Color fallbackColor;
+  final int id;
+  final String tutorName;
+  final String subject;
+  final String grade;
+  final String price;
+  final String rating;
+  final String mode;
+  final Color courseColor;
   final String? backgroundImage;
+  final bool isAvailable;
 
   Course({
+    required this.id,
     required this.tutorName,
     required this.subject,
     required this.grade,
     required this.price,
     required this.rating,
     required this.mode,
-    required this.fallbackColor,
+    required this.courseColor,
     this.backgroundImage,
+    required this.isAvailable,
   });
 }
 
-enum TutorStatus { pending, approvedEmpty, active }
+enum TutorStatus { pending, active }
 
 // --- 2. MAIN DASHBOARD ---
 class TutorDashboard extends StatefulWidget {
@@ -39,12 +82,148 @@ class TutorDashboard extends StatefulWidget {
   State<TutorDashboard> createState() => _TutorDashboardState();
 }
 
-class _TutorDashboardState extends State<TutorDashboard> {
+class _TutorDashboardState extends State<TutorDashboard> with WidgetsBindingObserver {
   TutorStatus currentStatus = TutorStatus.active;
-  String userName = "Abdul Rafay";
-  String? profilePicPath = 'assets/images/rafay.jpeg';
-  int activeStudents = 30;
-  int activeCourses = 10;
+  String userName = "";
+  String? profileImageUrl;
+  int activeStudents = 0;
+  int activeCourses = 0;
+  List<Course> topCourses = [];
+  bool _isLoading = true;
+  int profileId = 0;
+  String _accountStatus = "";
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Set status bar after frame is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      StatusBarConfig.setLightStatusBar();
+    });
+    _loadDashboardData();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      StatusBarConfig.setLightStatusBar();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    StatusBarConfig.setLightStatusBar();
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    StatusBarConfig.setLightStatusBar();
+  }
+
+  String _formatMode(String? mode) {
+    if (mode == null || mode.isEmpty) return "Online";
+    String formatted = mode.replaceAll('_', ' ');
+    List<String> words = formatted.split(' ');
+    for (int i = 0; i < words.length; i++) {
+      if (words[i].isNotEmpty) {
+        words[i] = words[i][0].toUpperCase() + words[i].substring(1).toLowerCase();
+      }
+    }
+    return words.join(' ');
+  }
+
+  Future<void> _loadDashboardData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      profileId = prefs.getInt('profileId') ?? 0;
+
+      String savedStatus = prefs.getString('accountStatus') ?? 'ACTIVE';
+      _accountStatus = savedStatus;
+
+      if (savedStatus.toUpperCase() == 'PENDING') {
+        final profileData = await AuthService.getTutorProfile(profileId);
+
+        setState(() {
+          currentStatus = TutorStatus.pending;
+          userName = (profileData['firstName'] ?? '') + " " + (profileData['lastName'] ?? '');
+          profileImageUrl = profileData['profilePictureUrl'];
+          _isLoading = false;
+        });
+        return;
+      }
+
+      currentStatus = TutorStatus.active;
+
+      final profileData = await AuthService.getTutorProfile(profileId);
+
+      String serverStatus = profileData['accountStatus'] ??
+          profileData['status'] ??
+          profileData['verificationStatus'] ??
+          'ACTIVE';
+      await prefs.setString('accountStatus', serverStatus);
+
+      final dashboardData = await DashboardService.getTutorDashboard(profileId);
+      List<dynamic> courses = await CourseService.getTutorCourses(profileId);
+
+      List<Course> availableCourses = [];
+      for (var course in courses) {
+        if (course['isAvailable'] == true) {
+          availableCourses.add(Course(
+            id: course['id'],
+            tutorName: (profileData['firstName'] ?? '') + " " + (profileData['lastName'] ?? ''),
+            subject: course['subject'] ?? '',
+            grade: course['category'] ?? '',
+            price: "Rs ${course['price']}",
+            rating: (course['averageRating'] ?? 0.0).toString(),
+            mode: _formatMode(course['teachingMode']),
+            courseColor: CourseColors.getCourseColor(course['id']),
+            isAvailable: course['isAvailable'] ?? true,
+          ));
+        }
+      }
+
+      int uniqueStudentsCount = await _getUniqueActiveStudentsCount();
+
+      setState(() {
+        userName = (profileData['firstName'] ?? '') + " " + (profileData['lastName'] ?? '');
+        profileImageUrl = profileData['profilePictureUrl'];
+        activeStudents = uniqueStudentsCount;
+        activeCourses = dashboardData['totalActiveCourses'] ?? 0;
+        topCourses = availableCourses.take(5).toList();
+        _isLoading = false;
+      });
+
+    } catch (e) {
+      print('Error loading dashboard: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<int> _getUniqueActiveStudentsCount() async {
+    try {
+      List<Map<String, dynamic>> connections = await ConnectionService.getTutorConfirmedConnections(profileId);
+      Set<String> uniqueStudentIds = {};
+      for (var connection in connections) {
+        if (connection['status']?.toString().toUpperCase() == 'CONFIRMED') {
+          uniqueStudentIds.add(connection['studentId'].toString());
+        }
+      }
+      return uniqueStudentIds.length;
+    } catch (e) {
+      return 0;
+    }
+  }
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -53,66 +232,266 @@ class _TutorDashboardState extends State<TutorDashboard> {
     return "Good Evening";
   }
 
+  Future<void> _refreshDashboard() async {
+    await _loadDashboardData();
+  }
+
+  void _showPendingPopup(String featureName) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.hourglass_bottom_rounded,
+                  size: 56,
+                  color: Colors.orange.shade700,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                "Account Under Review",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange.shade800,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: 60,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade200,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                featureName,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "is not available while your account is pending approval.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.info_outline, size: 18, color: Colors.orange),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "Please wait for admin approval. You can edit your profile in the meantime.",
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange.shade700,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    "Got it",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      StatusBarConfig.setLightStatusBar();
+    });
+
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F9FB),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final String displayStudents = activeStudents.toString().padLeft(2, '0');
     final String displayCourses = activeCourses.toString().padLeft(2, '0');
 
+    // PENDING STATE - No bottom navigation bar
+    if (currentStatus == TutorStatus.pending) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F9FB),
+        body: RefreshIndicator(
+          onRefresh: _refreshDashboard,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Stack(
+              children: [
+                Container(
+                  height: 220,
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1A1A1A),
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(35),
+                      bottomRight: Radius.circular(35),
+                    ),
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 50),
+                    _TopProfileRow(
+                      greeting: _getGreeting(),
+                      name: userName,
+                      profileImageUrl: profileImageUrl,
+                      isPending: true,
+                      onPendingTap: _showPendingPopup,
+                    ),
+                    const SizedBox(height: 60),
+                    _PendingReviewView(
+                      onPendingTap: _showPendingPopup,
+                      profileId: profileId,
+                    ),
+                    const SizedBox(height: 120),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // ACTIVE STATE - Full dashboard with bottom navigation
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       extendBody: true,
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          final result = await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AddCourseScreen()),
           );
+          if (result == true) {
+            _refreshDashboard();
+          }
         },
         backgroundColor: Colors.black,
         shape: const CircleBorder(),
         child: const Icon(Icons.add, color: Colors.white, size: 35),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Stack(
-          children: [
-            Container(
-              height: 220,
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Color(0xFF1A1A1A),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(35),
-                  bottomRight: Radius.circular(35),
-                ),
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 50),
-                _TopProfileRow(greeting: _getGreeting(), name: userName, profilePic: profilePicPath),
-                const SizedBox(height: 25),
-                _StatCardsGrid(students: displayStudents, courses: displayCourses),
-                const SizedBox(height: 35),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text("Activity Center", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 15),
-                      const _ActivityCenterRow(),
-                      const SizedBox(height: 40),
-                      _buildDynamicContent(),
-                      const SizedBox(height: 120),
-                    ],
+      body: RefreshIndicator(
+        onRefresh: _refreshDashboard,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Stack(
+            children: [
+              Container(
+                height: 220,
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(35),
+                    bottomRight: Radius.circular(35),
                   ),
                 ),
-              ],
-            ),
-          ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 50),
+                  _TopProfileRow(
+                    greeting: _getGreeting(),
+                    name: userName,
+                    profileImageUrl: profileImageUrl,
+                    isPending: false,
+                    onPendingTap: _showPendingPopup,
+                  ),
+                  const SizedBox(height: 25),
+                  _StatCardsGrid(students: displayStudents, courses: displayCourses),
+                  const SizedBox(height: 35),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("Activity Center", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 15),
+                        _ActivityCenterRow(
+                          isPending: false,
+                          onPendingTap: _showPendingPopup,
+                        ),
+                        const SizedBox(height: 40),
+                        _buildDynamicContent(),
+                        const SizedBox(height: 120),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: const CustomBottomNav(currentIndex: 0),
@@ -120,14 +499,15 @@ class _TutorDashboardState extends State<TutorDashboard> {
   }
 
   Widget _buildDynamicContent() {
-    switch (currentStatus) {
-      case TutorStatus.pending:
-        return const _PendingReviewView();
-      case TutorStatus.approvedEmpty:
-        return const _EmptyCoursesView();
-      case TutorStatus.active:
-        return const _ActiveCoursesListView();
+    if (topCourses.isEmpty) {
+      return const _EmptyCoursesView();
     }
+    return _ActiveCoursesListView(
+      courses: topCourses,
+      onCourseUpdated: _refreshDashboard,
+      isPending: false,
+      onPendingTap: _showPendingPopup,
+    );
   }
 }
 
@@ -174,7 +554,7 @@ class _StatCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(25),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15), // Updated syntax
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 10,
               offset: const Offset(0, 5),
             )
@@ -194,41 +574,41 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-// --- 4. COURSE CARD (INTEGRATED NAVIGATION) ---
+// --- 4. COURSE CARD ---
 class CourseCard extends StatelessWidget {
   final Course course;
-  const CourseCard({super.key, required this.course});
+  final VoidCallback onCourseUpdated;
+  final bool isPending;
+  final Function(String) onPendingTap;
+
+  const CourseCard({
+    super.key,
+    required this.course,
+    required this.onCourseUpdated,
+    required this.isPending,
+    required this.onPendingTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        // Convert Course object to Map for Detail Screen compatibility
-        final Map<String, dynamic> courseMap = {
-          'title': course.subject,
-          'rating': course.rating,
-          'level': course.grade,
-          'price': course.price,
-          'mode': course.mode,
-          'color': course.fallbackColor,
-          'about': "Master ${course.subject} with expert guidance and personalized sessions.",
-          'students': "12",
-          'location': "Nazimabad, Karachi",
-        };
-
-        Navigator.push(
+      onTap: () async {
+        if (isPending) {
+          onPendingTap("Course Details");
+          return;
+        }
+        final result = await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => CourseDetailScreen(
-              course: courseMap,
-              showAvailableBtn: false, // Hides button for Dashboard view
-              onAvailableTap: () {},
-              onDelete: (deletedCourse) {
-                // Future implementation: remove from dashboard list
-              },
+              courseId: course.id,
+              onCourseUpdated: onCourseUpdated,
             ),
           ),
         );
+        if (result == true) {
+          onCourseUpdated();
+        }
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 20),
@@ -243,49 +623,64 @@ class CourseCard extends StatelessWidget {
             ),
           ],
         ),
-        child: Column(
-          children: [
-            Container(
-              height: 120,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: course.fallbackColor,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-                image: course.backgroundImage != null
-                    ? DecorationImage(image: AssetImage(course.backgroundImage!), fit: BoxFit.cover)
-                    : null,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(18.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(course.tutorName,
-                      style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 13)),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(course.subject, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text(course.grade, style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500)),
-                    ],
+        child: Opacity(
+          opacity: isPending ? 0.6 : 1.0,
+          child: Column(
+            children: [
+              Container(
+                height: 120,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: course.courseColor,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+                ),
+                child: Center(
+                  child: Image.asset(
+                    'assets/icon/app_icon.png',
+                    height: 60,
+                    width: 60,
+                    color: Colors.white,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(
+                        Icons.school,
+                        size: 50,
+                        color: Colors.white.withOpacity(0.8),
+                      );
+                    },
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Text(course.price, style: const TextStyle(color: Color(0xFF0961F5), fontWeight: FontWeight.bold, fontSize: 15)),
-                      _buildDivider(),
-                      const Icon(Icons.star, color: Colors.amber, size: 18),
-                      Text(" ${course.rating}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                      _buildDivider(),
-                      Text(course.mode.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.all(18.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(course.tutorName,
+                        style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(course.subject, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text(course.grade, style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500)),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Text(course.price, style: const TextStyle(color: Color(0xFF0961F5), fontWeight: FontWeight.bold, fontSize: 15)),
+                        _buildDivider(),
+                        const Icon(Icons.star, color: Colors.amber, size: 18),
+                        Text(" ${course.rating}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                        _buildDivider(),
+                        Text(course.mode.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -299,45 +694,280 @@ class CourseCard extends StatelessWidget {
 
 // --- 5. DYNAMIC VIEWS ---
 class _ActiveCoursesListView extends StatelessWidget {
-  const _ActiveCoursesListView();
+  final List<Course> courses;
+  final VoidCallback onCourseUpdated;
+  final bool isPending;
+  final Function(String) onPendingTap;
+
+  const _ActiveCoursesListView({
+    required this.courses,
+    required this.onCourseUpdated,
+    required this.isPending,
+    required this.onPendingTap,
+  });
+
   @override
   Widget build(BuildContext context) {
-    final List<Course> mockDbData = [
-      Course(tutorName: "Asim Ali Khan", subject: "Mathematics", grade: "Matric", price: "1800/-", rating: "4.2", mode: "Online", fallbackColor: const Color(0xFFAD1457)),
-      Course(tutorName: "Abdul Rafay", subject: "Sindhi", grade: "Matric", price: "1000/-", rating: "3.2", mode: "Physical", fallbackColor: const Color(0xFFAD8E14)),
-      Course(tutorName: "Anzala Abid", subject: "English", grade: "O Level", price: "2000/-", rating: "4.2", mode: "Tutor Home", fallbackColor: const Color(0xFF0D47A1)),
-    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text("Top Courses", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 15),
-        ...mockDbData.map((course) => CourseCard(course: course)),
+        ...courses.map((course) => CourseCard(
+          course: course,
+          onCourseUpdated: onCourseUpdated,
+          isPending: isPending,
+          onPendingTap: onPendingTap,
+        )),
       ],
     );
   }
 }
 
-// --- REST OF UI (Pending, Empty, Profile Row, Activity Icons) ---
+// --- PENDING REVIEW VIEW ---
 class _PendingReviewView extends StatelessWidget {
-  const _PendingReviewView();
+  final Function(String) onPendingTap;
+  final int profileId;
+
+  const _PendingReviewView({
+    required this.onPendingTap,
+    required this.profileId,
+  });
+
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.hourglass_bottom_rounded, size: 100, color: Color(0xFFE0E0E0)),
-          SizedBox(height: 15),
-          Text("Your account is under review.", style: TextStyle(color: Colors.grey)),
-          Text("Some features are limited until approval.", style: TextStyle(color: Colors.grey)),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.hourglass_bottom_rounded,
+              size: 70,
+              color: Colors.orange.shade700,
+            ),
+          ),
+          const SizedBox(height: 28),
+          Text(
+            "Account Under Review",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.orange.shade800,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: 80,
+            height: 3,
+            decoration: BoxDecoration(
+              color: Colors.orange.shade200,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            "Your account is currently being reviewed by our admin team.",
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            "This process usually takes 24-48 hours.",
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.edit_note, size: 24, color: Colors.orange.shade700),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    "You can still edit your profile information while waiting for approval.",
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 120,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EditProfileScreen(
+                          profileId: profileId,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.edit, size: 18),
+                  label: const Text("Edit"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    side: BorderSide(color: Colors.grey.shade300),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              SizedBox(
+                width: 120,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showLogoutDialog(context),
+                  icon: const Icon(Icons.logout, size: 18),
+                  label: const Text("Logout"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade50,
+                    foregroundColor: Colors.red,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    side: BorderSide(color: Colors.red.shade200),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 80),
         ],
       ),
     );
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.logout, color: Colors.red, size: 40),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  "Logout",
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  "Are you sure you want to logout from your account?",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 15, color: Colors.grey),
+                ),
+                const SizedBox(height: 30),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.grey),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text("Cancel", style: TextStyle(color: Colors.black)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          Navigator.pop(dialogContext);
+                          await _performLogout(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text("Logout", style: TextStyle(color: Colors.white)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _performLogout(BuildContext context) async {
+    try {
+      await AuthService.logout();
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      if (context.mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/login',
+              (route) => false,
+        );
+      }
+    } catch (e) {
+      print('Logout error: $e');
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text("Error", style: TextStyle(fontWeight: FontWeight.bold)),
+          content: const Text("Failed to logout. Please try again."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text("OK", style: TextStyle(color: Colors.black)),
+            ),
+          ],
+        ),
+      );
+    }
   }
 }
 
 class _EmptyCoursesView extends StatelessWidget {
   const _EmptyCoursesView();
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -349,9 +979,19 @@ class _EmptyCoursesView extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset('assets/images/cancel.png', height: 180, width: 180, fit: BoxFit.contain),
+              Image.asset(
+                'assets/images/cancel.png',
+                height: 180,
+                width: 180,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(Icons.hourglass_empty, size: 100, color: Colors.grey.shade400);
+                },
+              ),
               const SizedBox(height: 20),
-              const Text("Nothing Here Yet", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const Text("No Courses Yet", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 10),
+              const Text("Tap the + button to add your first course", style: TextStyle(color: Colors.grey)),
             ],
           ),
         ),
@@ -360,10 +1000,26 @@ class _EmptyCoursesView extends StatelessWidget {
   }
 }
 
+// --- TOP PROFILE ROW ---
 class _TopProfileRow extends StatelessWidget {
   final String greeting, name;
-  final String? profilePic;
-  const _TopProfileRow({required this.greeting, required this.name, this.profilePic});
+  final String? profileImageUrl;
+  final bool isPending;
+  final Function(String) onPendingTap;
+
+  const _TopProfileRow({
+    required this.greeting,
+    required this.name,
+    this.profileImageUrl,
+    required this.isPending,
+    required this.onPendingTap,
+  });
+
+  String getFullImageUrl(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) return '';
+    if (imageUrl.startsWith('http')) return imageUrl;
+    return '${ApiConfig.baseUrl}$imageUrl';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -374,8 +1030,12 @@ class _TopProfileRow extends StatelessWidget {
           CircleAvatar(
             radius: 30,
             backgroundColor: Colors.white,
-            backgroundImage: profilePic != null ? AssetImage(profilePic!) : null,
-            child: profilePic == null ? const Icon(Icons.person) : null,
+            backgroundImage: profileImageUrl != null && profileImageUrl!.isNotEmpty
+                ? NetworkImage(getFullImageUrl(profileImageUrl))
+                : null,
+            child: profileImageUrl == null || profileImageUrl!.isEmpty
+                ? const Icon(Icons.person, color: Colors.black54)
+                : null,
           ),
           const SizedBox(width: 15),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -383,14 +1043,29 @@ class _TopProfileRow extends StatelessWidget {
             Text(name, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
           ]),
           const Spacer(),
+          // Search icon - shows pending popup when pending
           GestureDetector(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SearchScreen())),
-            child: const _CircleIconButton(icon: Icons.search),
+            onTap: isPending
+                ? () => onPendingTap("Search")
+                : () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SearchScreen())),
+            child: Opacity(
+              opacity: isPending ? 0.5 : 1.0,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(color: Colors.white12, shape: BoxShape.circle),
+                child: const Icon(Icons.search, color: Colors.white, size: 22),
+              ),
+            ),
           ),
           const SizedBox(width: 10),
+          // Notification icon - works normally even in pending state (no popup, full opacity)
           GestureDetector(
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsScreen())),
-            child: const _CircleIconButton(icon: Icons.notifications_none),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(color: Colors.white12, shape: BoxShape.circle),
+              child: const Icon(Icons.notifications_none, color: Colors.white, size: 22),
+            ),
           ),
         ],
       ),
@@ -398,30 +1073,41 @@ class _TopProfileRow extends StatelessWidget {
   }
 }
 
-class _CircleIconButton extends StatelessWidget {
-  final IconData icon;
-  const _CircleIconButton({required this.icon});
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: const BoxDecoration(color: Colors.white12, shape: BoxShape.circle),
-      child: Icon(icon, color: Colors.white, size: 22),
-    );
-  }
-}
-
+// --- ACTIVITY CENTER ROW ---
 class _ActivityCenterRow extends StatelessWidget {
-  const _ActivityCenterRow();
+  final bool isPending;
+  final Function(String) onPendingTap;
+
+  const _ActivityCenterRow({
+    required this.isPending,
+    required this.onPendingTap,
+  });
+
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _ActIcon(icon: Icons.person_outline, label: "Students", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const StudentCategoryScreen()))),
-        _ActIcon(icon: Icons.book_outlined, label: "Courses", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CourseCategoryScreen()))),
-        _ActIcon(icon: Icons.gavel, label: "Bids", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MyBidsScreen()))),
-        _ActIcon(icon: Icons.star_border, label: "Reviews", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ReviewsScreen()))),
+        _ActIcon(
+          icon: Icons.person_outline,
+          label: "Students",
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const StudentCategoryScreen())),
+        ),
+        _ActIcon(
+          icon: Icons.book_outlined,
+          label: "Courses",
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CourseCategoryScreen())),
+        ),
+        _ActIcon(
+          icon: Icons.gavel,
+          label: "Bids",
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MyBidsScreen())),
+        ),
+        _ActIcon(
+          icon: Icons.star_border,
+          label: "Reviews",
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ReviewsScreen())),
+        ),
       ],
     );
   }
@@ -432,7 +1118,11 @@ class _ActIcon extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
 
-  const _ActIcon({required this.icon, required this.label, this.onTap});
+  const _ActIcon({
+    required this.icon,
+    required this.label,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -448,10 +1138,21 @@ class _ActIcon extends StatelessWidget {
               borderRadius: BorderRadius.circular(15),
               boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
             ),
-            child: Icon(icon, color: Colors.black, size: 28),
+            child: Icon(
+              icon,
+              color: Colors.black,
+              size: 28,
+            ),
           ),
           const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
+          ),
         ],
       ),
     );

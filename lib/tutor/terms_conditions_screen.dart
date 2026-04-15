@@ -18,14 +18,17 @@ class TermsConditionsScreen extends StatelessWidget {
 
       body: Column(
         children: [
-          // Header using your reusable CustomTabHeader widget
-          const CustomTabHeader(
-            title: Text(
-              "Terms & Conditions",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
+          // Header with increased vertical length - wrapped in Container with padding
+          Container(
+            padding: const EdgeInsets.only(top: 16, bottom: 8),
+            child: const CustomTabHeader(
+              title: Text(
+                "Terms & Conditions",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
               ),
             ),
           ),

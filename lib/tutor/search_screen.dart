@@ -1,11 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/custom_tab_header.dart';
 import 'course_detail_screen.dart';
 import 'student_profile_screen.dart';
+import '../services/course_service.dart';
+import '../services/connection_service.dart';
+import '../config/api_config.dart';
+import '../utils/status_bar_config.dart';
+
+// --- COURSE COLORS (Same as dashboard) ---
+class CourseColors {
+  static const List<Color> colors = [
+    Color(0xFF1A1A2E), // Dark Navy
+    Color(0xFF16213E), // Deep Navy
+    Color(0xFF0F3460), // Dark Blue
+    Color(0xFF8B1E3F), // Dark Crimson
+    Color(0xFF2C3E50), // Dark Slate
+    Color(0xFF1B4F72), // Deep Teal
+    Color(0xFF145A32), // Dark Green
+    Color(0xFF7B2C3E), // Deep Maroon
+    Color(0xFF4A235A), // Dark Violet
+    Color(0xFF1C2833), // Almost Black Blue
+    Color(0xFF6E2C00), // Dark Orange-Brown
+    Color(0xFF0B5345), // Dark Cyan-Green
+    Color(0xFF424949), // Dark Gray
+    Color(0xFF5D4037), // Dark Brown
+    Color(0xFF283747), // Dark Steel Blue
+    Color(0xFF7E5109), // Dark Gold
+    Color(0xFF4A4A4A), // Dark Gray
+    Color(0xFF3E2723), // Very Dark Brown
+    Color(0xFF1A237E), // Deep Indigo
+  ];
+
+  static Color getCourseColor(int courseId) {
+    return colors[courseId % colors.length];
+  }
+}
 
 // --- DATA MODELS ---
 class CourseData {
-  final String id, tutorName, subject, grade, price, rating, mode;
+  final int id;
+  final String tutorName;
+  final String subject;
+  final String grade;
+  final String price;
+  final String rating;
+  final String mode;
   final Color color;
 
   CourseData({
@@ -18,25 +58,32 @@ class CourseData {
     required this.mode,
     required this.color,
   });
-
-  // Helper to convert object to Map to satisfy your screen's requirement
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'tutorName': tutorName,
-      'subject': subject,
-      'grade': grade,
-      'price': price,
-      'rating': rating,
-      'mode': mode,
-      'color': color,
-    };
-  }
 }
 
 class StudentData {
-  final String id, name;
-  StudentData({required this.id, required this.name});
+  final String studentId;
+  final String name;
+  final String? profilePic;
+  final String? location;
+  final String? phone;
+  final String? email;
+  final String connectionId;
+  final List<Map<String, dynamic>> courses;
+  final String? category;
+  final String? teachingMode;
+
+  StudentData({
+    required this.studentId,
+    required this.name,
+    this.profilePic,
+    this.location,
+    this.phone,
+    this.email,
+    required this.connectionId,
+    this.courses = const [],
+    this.category,
+    this.teachingMode,
+  });
 }
 
 class SearchScreen extends StatefulWidget {
@@ -49,6 +96,7 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   bool isSearchingCourses = true;
   String searchQuery = "";
+  bool _isLoading = true;
 
   Map<String, bool> selectedCategories = {
     "Matric": false,
@@ -64,32 +112,251 @@ class _SearchScreenState extends State<SearchScreen> {
     "Tutor Home": false,
   };
 
-  final List<CourseData> _allCourses = [
-    CourseData(id: "c1", tutorName: "Asim Ali Khan", subject: "Physics", grade: "Matric", price: "2000", rating: "4.2", mode: "Online", color: Colors.red.shade900),
-    CourseData(id: "c2", tutorName: "Ali Imran", subject: "Physics", grade: "Intermediate", price: "2200", rating: "4.0", mode: "Tutor Home", color: Colors.brown),
-    CourseData(id: "c3", tutorName: "Hiba Khan", subject: "Physics", grade: "O Level", price: "2500", rating: "4.3", mode: "Student Home", color: Colors.pink.shade900),
-  ];
+  List<CourseData> _allCourses = [];
+  List<StudentData> _allStudents = [];
+  List<StudentData> _filteredStudents = [];
+  int _tutorProfileId = 0;
 
-  final List<StudentData> _allStudents = [
-    StudentData(id: "s1", name: "Asim Ali Khan"),
-    StudentData(id: "s2", name: "Asim Furqan"), // Corrected spelling
-    StudentData(id: "s3", name: "Asim Ayub"),   // Corrected spelling
-  ];
+  @override
+  void initState() {
+    super.initState();
+    StatusBarConfig.setLightStatusBar();
+    _loadData();
+  }
 
-  List<dynamic> get _filteredResults {
-    if (isSearchingCourses) {
-      return _allCourses.where((c) {
-        bool matchesSearch = c.subject.toLowerCase().contains(searchQuery.toLowerCase()) ||
-            c.tutorName.toLowerCase().contains(searchQuery.toLowerCase());
-        bool noCategoryFilter = !selectedCategories.values.contains(true);
-        bool matchesCategory = noCategoryFilter || selectedCategories[c.grade] == true;
-        bool noModeFilter = !selectedModes.values.contains(true);
-        bool matchesMode = noModeFilter || selectedModes[c.mode] == true;
-        return matchesSearch && matchesCategory && matchesMode;
-      }).toList();
-    } else {
-      return _allStudents.where((s) => s.name.toLowerCase().contains(searchQuery.toLowerCase())).toList();
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    _tutorProfileId = prefs.getInt('profileId') ?? 0;
+
+    await Future.wait([
+      _loadCourses(),
+      _loadAllStudents(),
+    ]);
+    setState(() => _isLoading = false);
+  }
+
+  Future<void> _loadCourses() async {
+    try {
+      List<dynamic> courses = await CourseService.getTutorCourseCards(_tutorProfileId);
+
+      setState(() {
+        _allCourses = courses.map((course) {
+          int courseId = course['courseId'] ?? course['id'];
+          return CourseData(
+            id: courseId,
+            tutorName: course['tutorName'] ?? 'Tutor',
+            subject: course['subject'] ?? 'Course',
+            grade: _mapBackendCategoryToDisplay(course['category']),
+            price: course['price']?.toString() ?? '0',
+            rating: (course['averageRating'] ?? 0.0).toString(),
+            mode: _mapBackendModeToDisplay(course['teachingMode']),
+            color: CourseColors.getCourseColor(courseId), // Using dynamic color
+          );
+        }).toList();
+      });
+    } catch (e) {
+      print('Error loading courses: $e');
     }
+  }
+
+  Future<void> _loadAllStudents() async {
+    try {
+      List<Map<String, dynamic>> connections = await ConnectionService.getTutorConfirmedConnections(_tutorProfileId);
+
+      // Group connections by studentId (each student appears only once)
+      Map<String, Map<String, dynamic>> groupedStudents = {};
+
+      for (var conn in connections) {
+        String studentId = conn['studentId'].toString();
+
+        if (groupedStudents.containsKey(studentId)) {
+          // Student already exists, add course to their list
+          groupedStudents[studentId]!['courses'].add({
+            'courseName': conn['courseName'] ?? conn['subject'] ?? 'Course',
+            'agreedPrice': conn['agreedPrice'] ?? 0,
+            'originalPrice': conn['originalPrice'] ?? 0,
+            'connectionId': conn['connectionId'],
+          });
+        } else {
+          // New student, create entry with courses list
+          groupedStudents[studentId] = {
+            'studentId': studentId,
+            'name': conn['studentName'] ?? 'Unknown Student',
+            'profilePic': conn['studentImage'],
+            'location': conn['location'],
+            'phone': conn['phoneNumber'],
+            'email': conn['studentEmail'],
+            'category': conn['category'],
+            'teachingMode': conn['teachingMode'],
+            'courses': [{
+              'courseName': conn['courseName'] ?? conn['subject'] ?? 'Course',
+              'agreedPrice': conn['agreedPrice'] ?? 0,
+              'originalPrice': conn['originalPrice'] ?? 0,
+              'connectionId': conn['connectionId'],
+            }],
+          };
+        }
+      }
+
+      // Convert grouped map to list
+      List<StudentData> groupedList = [];
+      for (var entry in groupedStudents.values) {
+        groupedList.add(StudentData(
+          studentId: entry['studentId'],
+          name: entry['name'],
+          profilePic: entry['profilePic'],
+          location: entry['location'],
+          phone: entry['phone'],
+          email: entry['email'],
+          connectionId: entry['courses'].isNotEmpty ? entry['courses'][0]['connectionId'].toString() : "0",
+          courses: entry['courses'],
+          category: entry['category'],
+          teachingMode: entry['teachingMode'],
+        ));
+      }
+
+      setState(() {
+        _allStudents = groupedList;
+        _filteredStudents = List.from(_allStudents);
+      });
+    } catch (e) {
+      print('Error loading students: $e');
+    }
+  }
+
+  Future<void> _filterStudents() async {
+    setState(() => _isLoading = true);
+
+    final selectedCats = selectedCategories.entries.where((e) => e.value).map((e) => e.key).toList();
+    final selectedModesList = selectedModes.entries.where((e) => e.value).map((e) => e.key).toList();
+
+    try {
+      if (selectedCats.isEmpty && selectedModesList.isEmpty) {
+        // No filters - show all students
+        setState(() {
+          _filteredStudents = List.from(_allStudents);
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Get filtered connection IDs from API
+      String? categoryBackend;
+      String? modeBackend;
+
+      if (selectedCats.isNotEmpty) {
+        categoryBackend = _mapDisplayCategoryToBackend(selectedCats.first);
+      }
+      if (selectedModesList.isNotEmpty) {
+        modeBackend = _mapDisplayModeToBackend(selectedModesList.first);
+      }
+
+      List<Map<String, dynamic>> filteredConnections = await ConnectionService.filterStudents(
+        _tutorProfileId,
+        category: categoryBackend,
+        teachingMode: modeBackend,
+      );
+
+      // Get filtered student IDs
+      Set<String> filteredStudentIds = {};
+      for (var conn in filteredConnections) {
+        filteredStudentIds.add(conn['studentId'].toString());
+      }
+
+      // Filter from _allStudents (preserving all course data)
+      List<StudentData> filteredList = _allStudents.where((student) =>
+          filteredStudentIds.contains(student.studentId)
+      ).toList();
+
+      setState(() {
+        _filteredStudents = filteredList;
+        _isLoading = false;
+      });
+
+    } catch (e) {
+      print('Error filtering students: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _searchStudents(String query) async {
+    if (query.isEmpty) {
+      await _filterStudents();
+      return;
+    }
+
+    // Filter from _allStudents based on name search
+    setState(() {
+      _filteredStudents = _allStudents.where((s) =>
+          s.name.toLowerCase().contains(query.toLowerCase())
+      ).toList();
+    });
+  }
+
+  String _mapBackendCategoryToDisplay(String? backendCategory) {
+    if (backendCategory == null) return "";
+    switch (backendCategory.toUpperCase()) {
+      case "MATRIC": return "Matric";
+      case "INTERMEDIATE": return "Intermediate";
+      case "O_LEVEL": return "O Level";
+      case "A_LEVEL": return "A Level";
+      case "ENTRY_TEST": return "Entrance Test";
+      default: return backendCategory;
+    }
+  }
+
+  String _mapBackendModeToDisplay(String? backendMode) {
+    if (backendMode == null) return "Online";
+    switch (backendMode.toUpperCase()) {
+      case "ONLINE": return "Online";
+      case "STUDENT_HOME": return "Student Home";
+      case "TUTOR_HOME": return "Tutor Home";
+      default: return backendMode;
+    }
+  }
+
+  String _mapDisplayCategoryToBackend(String displayCategory) {
+    switch (displayCategory) {
+      case "Matric": return "MATRIC";
+      case "Intermediate": return "INTERMEDIATE";
+      case "O Level": return "O_LEVEL";
+      case "A Level": return "A_LEVEL";
+      case "Entrance Test": return "ENTRY_TEST";
+      default: return displayCategory.toUpperCase();
+    }
+  }
+
+  String _mapDisplayModeToBackend(String displayMode) {
+    switch (displayMode) {
+      case "Online": return "ONLINE";
+      case "Student Home": return "STUDENT_HOME";
+      case "Tutor Home": return "TUTOR_HOME";
+      default: return displayMode.toUpperCase();
+    }
+  }
+
+  List<CourseData> get _filteredCourses {
+    return _allCourses.where((c) {
+      bool matchesSearch = c.subject.toLowerCase().contains(searchQuery.toLowerCase()) ||
+          c.tutorName.toLowerCase().contains(searchQuery.toLowerCase());
+      bool noCategoryFilter = !selectedCategories.values.contains(true);
+      bool matchesCategory = noCategoryFilter || selectedCategories[c.grade] == true;
+      bool noModeFilter = !selectedModes.values.contains(true);
+      bool matchesMode = noModeFilter || selectedModes[c.mode] == true;
+      return matchesSearch && matchesCategory && matchesMode;
+    }).toList();
+  }
+
+  List<StudentData> get _filteredStudentList {
+    if (searchQuery.isEmpty) return _filteredStudents;
+    return _filteredStudents.where((s) => s.name.toLowerCase().contains(searchQuery.toLowerCase())).toList();
   }
 
   void _showFilterOptions() {
@@ -100,11 +367,12 @@ class _SearchScreenState extends State<SearchScreen> {
       builder: (context) => FilterBottomSheet(
         initialCategories: selectedCategories,
         initialModes: selectedModes,
-        onApply: (newCats, newModes) {
+        onApply: (newCats, newModes) async {
           setState(() {
             selectedCategories = newCats;
             selectedModes = newModes;
           });
+          await _filterStudents();
         },
       ),
     );
@@ -112,17 +380,70 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final results = _filteredResults;
+    final courses = _filteredCourses;
+    final students = _filteredStudentList;
+    final resultsCount = isSearchingCourses ? courses.length : students.length;
+    final hasNoResults = !_isLoading && resultsCount == 0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       body: Column(
         children: [
-          const CustomTabHeader(
-            title: Text("Search", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 15,
+                  offset: Offset(0, 8),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          width: 45,
+                          height: 45,
+                          decoration: const BoxDecoration(
+                            color: Colors.black,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Text(
+                      "Search",
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
+            padding: const EdgeInsets.fromLTRB(20, 30, 20, 20),
             child: Row(
               children: [
                 Expanded(
@@ -133,7 +454,14 @@ class _SearchScreenState extends State<SearchScreen> {
                       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
                     ),
                     child: TextField(
-                      onChanged: (val) => setState(() => searchQuery = val),
+                      onChanged: (val) {
+                        setState(() {
+                          searchQuery = val;
+                        });
+                        if (!isSearchingCourses) {
+                          _searchStudents(val);
+                        }
+                      },
                       decoration: const InputDecoration(
                         hintText: "Search here...",
                         prefixIcon: Icon(Icons.search, color: Colors.grey),
@@ -167,7 +495,16 @@ class _SearchScreenState extends State<SearchScreen> {
               child: Row(
                 children: [
                   _buildTabButton("Courses", isSearchingCourses, () => setState(() => isSearchingCourses = true)),
-                  _buildTabButton("Students", !isSearchingCourses, () => setState(() => isSearchingCourses = false)),
+                  _buildTabButton("Students", !isSearchingCourses, () {
+                    setState(() {
+                      isSearchingCourses = false;
+                      if (searchQuery.isNotEmpty) {
+                        _searchStudents(searchQuery);
+                      } else {
+                        _filterStudents();
+                      }
+                    });
+                  }),
                 ],
               ),
             ),
@@ -184,29 +521,87 @@ class _SearchScreenState extends State<SearchScreen> {
                     children: [
                       const TextSpan(text: "Result for "),
                       TextSpan(
-                          text: "\"${searchQuery.isEmpty ? "All" : searchQuery}\"",
-                          style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                        text: "\"${searchQuery.isEmpty ? "All" : searchQuery}\"",
+                        style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                      ),
                     ],
                   ),
                 ),
-                Text("${results.length} FOUND", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12)),
+                Text("$resultsCount FOUND", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12)),
               ],
             ),
           ),
           Expanded(
-            child: ListView.builder(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : hasNoResults
+                ? _buildNoResultsMessage()
+                : ListView.builder(
               padding: const EdgeInsets.all(20),
-              itemCount: results.length,
+              itemCount: resultsCount,
               itemBuilder: (context, index) {
-                final item = results[index];
-                if (isSearchingCourses && item is CourseData) {
-                  return _buildCourseItem(item);
-                } else if (!isSearchingCourses && item is StudentData) {
-                  return _buildStudentItem(item);
+                if (isSearchingCourses) {
+                  return _buildCourseItem(courses[index]);
+                } else {
+                  return _buildStudentItem(students[index]);
                 }
-                return const SizedBox.shrink();
               },
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoResultsMessage() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            isSearchingCourses ? Icons.search_off : Icons.person_search,
+            size: 80,
+            color: Colors.grey.shade400,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            isSearchingCourses ? "No Courses Found" : "No Students Found",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isSearchingCourses
+                ? "Try adjusting your search or filter criteria"
+                : "No students match your search or filter criteria",
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade400,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                searchQuery = "";
+                selectedCategories.updateAll((k, v) => false);
+                selectedModes.updateAll((k, v) => false);
+                if (isSearchingCourses) {
+                  // Refresh courses
+                } else {
+                  _filterStudents();
+                }
+              });
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text("Clear Filters", style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -220,7 +615,9 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-              color: isActive ? Colors.black : Colors.transparent, borderRadius: BorderRadius.circular(30)),
+            color: isActive ? Colors.black : Colors.transparent,
+            borderRadius: BorderRadius.circular(30),
+          ),
           child: Text(
             label,
             textAlign: TextAlign.center,
@@ -238,10 +635,8 @@ class _SearchScreenState extends State<SearchScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => CourseDetailScreen(
-              course: course.toMap(),
-              onAvailableTap: () {},
-              // Fixed: onDelete expected a function that takes the course map
-              onDelete: (courseMap) {},
+              courseId: course.id,
+              onCourseUpdated: () {},
             ),
           ),
         );
@@ -256,22 +651,90 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
         child: Row(
           children: [
-            Container(width: 80, height: 80, decoration: BoxDecoration(color: course.color, borderRadius: BorderRadius.circular(15))),
+            // Colored container with app icon - using dynamic course color
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: course.color, // Using dynamic course color
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Center(
+                child: Image.asset(
+                  'assets/icon/app_icon.png',
+                  width: 45,
+                  height: 45,
+                  color: Colors.white,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Icon(Icons.school, color: Colors.white, size: 40);
+                  },
+                ),
+              ),
+            ),
             const SizedBox(width: 15),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(course.tutorName, style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
-                  Text(course.subject, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  Text("${course.price} PKR | ${course.grade}", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                  Text(
+                    course.tutorName,
+                    style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  Text(
+                    course.subject,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
                   Row(
                     children: [
-                      const Icon(Icons.star, color: Colors.amber, size: 16),
-                      Text(" ${course.rating}  |  ", style: const TextStyle(fontWeight: FontWeight.bold)),
-                      Text(course.mode.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                      Text(
+                        "Rs ${course.price}",
+                        style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          course.grade,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
                     ],
-                  )
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.star, color: Colors.amber, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        course.rating,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          course.mode.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             )
@@ -282,6 +745,11 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildStudentItem(StudentData student) {
+    final int courseCount = student.courses.length;
+    final String courseNames = student.courses
+        .map((c) => c['courseName']?.toString() ?? 'Course')
+        .join(', ');
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -292,29 +760,59 @@ class _SearchScreenState extends State<SearchScreen> {
       child: ListTile(
         onTap: () {
           final details = StudentDetails(
-            id: student.id,
+            id: student.studentId,
+            connectionId: student.connectionId,
             name: student.name,
-            profilePic: "assets/images/user.png",
-            location: "Karachi, Pakistan",
-            dob: "Not Available",
-            gender: "Male",
-            college: "KIET", // Corrected
-            school: "Karachi Public School",
-            phone: "+92 300 0000000",
-            email: "${student.name.toLowerCase().replaceAll(' ', '')}@email.com",
+            profilePic: student.profilePic ?? '',
+            location: student.location ?? "Not specified",
+            dob: "Not specified",
+            gender: "Not specified",
+            college: "Not specified",
+            school: "Not specified",
+            phone: student.phone ?? "Not available",
+            email: student.email ?? "Not available",
           );
           Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => StudentProfileScreen(
-                    student: details,
-                    onDisconnect: (id) {},
-                  )
-              )
+            context,
+            MaterialPageRoute(
+              builder: (context) => StudentProfileScreen(
+                student: details,
+                onDisconnect: (id) {},
+              ),
+            ),
           );
         },
-        leading: const CircleAvatar(backgroundColor: Colors.black, radius: 25, child: Icon(Icons.person, color: Colors.white)),
-        title: Text(student.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+        leading: CircleAvatar(
+          radius: 25,
+          backgroundColor: Colors.grey.shade300,
+          backgroundImage: student.profilePic != null && student.profilePic!.isNotEmpty
+              ? NetworkImage('${ApiConfig.baseUrl}${student.profilePic}')
+              : null,
+          child: student.profilePic == null || student.profilePic!.isEmpty
+              ? const Icon(Icons.person, color: Colors.grey, size: 25)
+              : null,
+        ),
+        title: Text(
+          student.name,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text(
+              "$courseCount course${courseCount != 1 ? 's' : ''}",
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              courseNames,
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
         trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
       ),
     );

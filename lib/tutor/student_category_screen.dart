@@ -163,7 +163,7 @@ class StudentCategoryScreen extends StatelessWidget {
 
                   // Metric category card
                   _CategoryCard(
-                    label: "Metric",
+                    label: "Matric",
                     imagePath: 'assets/images/metric_boy.png',
                   ),
 

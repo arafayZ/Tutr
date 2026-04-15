@@ -50,7 +50,7 @@ class NotificationsScreen extends StatelessWidget {
                   _buildNotificationItem(
                     icon: Icons.lock_open_outlined,
                     title: "Account Approved",
-                    subtitle: "Congratulations! Your account has been approved.\nYou now have full access to all features.",
+                    subtitle: "Congratulations! Your account is approved. Please log in again to see updates and features.",
                   ),
                   const SizedBox(height: 100), // Space for bottom nav
                 ],

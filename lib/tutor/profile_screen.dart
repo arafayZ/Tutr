@@ -1,17 +1,13 @@
-// Import Flutter's material design widgets
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// Import custom bottom navigation widget
 import '../widgets/custom_bottom_nav.dart';
-// Import the Add Course screen to navigate when FAB is pressed
 import 'add_course_screen.dart';
-// Import the Security screen
 import 'security_screen.dart';
-// Import Unavailable Courses screen
 import 'unavailable_courses_screen.dart';
 import 'edit_profile_screen.dart';
 import '../services/auth_service.dart';
 import '../config/api_config.dart';
+import '../utils/status_bar_config.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -34,7 +30,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    StatusBarConfig.setLightStatusBar();
     _loadProfileData();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   Future<void> _loadProfileData() async {
@@ -56,7 +58,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           userName = "$firstName $lastName".trim();
           userEmail = profileData['email'] ?? '';
           _originalImageUrl = profileData['profilePictureUrl'];
-          // Only add timestamp if we're forcing refresh (after edit)
           _displayImageUrl = _originalImageUrl;
           isLoading = false;
         });
@@ -106,6 +107,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_displayImageUrl == null || _displayImageUrl!.isEmpty) return '';
     if (_displayImageUrl!.startsWith('http')) return _displayImageUrl!;
     return '${ApiConfig.baseUrl}$_displayImageUrl';
+  }
+
+  Future<void> _performLogout() async {
+    setState(() => isLoading = true);
+
+    try {
+      // Call logout API
+      await AuthService.logout();
+
+      // // Clear SharedPreferences
+       SharedPreferences prefs = await SharedPreferences.getInstance();
+
+      // Navigate to login screen
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/login',
+              (route) => false,
+        );
+      }
+    } catch (e) {
+      print('Logout error: $e');
+      setState(() => isLoading = false);
+
+      // Show error dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text("Error", style: TextStyle(fontWeight: FontWeight.bold)),
+          content: const Text("Failed to logout. Please try again."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK", style: TextStyle(color: Colors.black)),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   void _showLogoutDialog(BuildContext context) {
@@ -158,12 +201,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () async {
-                          await AuthService.logout();
-                          Navigator.pushNamedAndRemoveUntil(
-                            context,
-                            '/login',
-                                (route) => false,
-                          );
+                          Navigator.pop(context);
+                          await _performLogout();
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.black,
@@ -196,7 +235,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       extendBody: true,
-
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
@@ -209,13 +247,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: const Icon(Icons.add, color: Colors.white, size: 35),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         child: Column(
           children: [
             const SizedBox(height: 80),
-
             Center(
               child: Stack(
                 clipBehavior: Clip.none,
@@ -257,7 +293,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 35),
-
                         _buildProfileOption(
                           Icons.person_outline,
                           "Edit Profile",
@@ -308,7 +343,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                   ),
-
                   Positioned(
                     top: 0,
                     child: Container(

@@ -1,5 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'course_detail_screen.dart';
+import '../services/course_service.dart';
+import '../config/api_config.dart';
+
+// --- COURSE COLORS (Same as dashboard) ---
+class CourseColors {
+  static const List<Color> colors = [
+    Color(0xFF1A1A2E), // Dark Navy
+    Color(0xFF16213E), // Deep Navy
+    Color(0xFF0F3460), // Dark Blue
+    Color(0xFF8B1E3F), // Dark Crimson
+    Color(0xFF2C3E50), // Dark Slate
+    Color(0xFF1B4F72), // Deep Teal
+    Color(0xFF145A32), // Dark Green
+    Color(0xFF7B2C3E), // Deep Maroon
+    Color(0xFF4A235A), // Dark Violet
+    Color(0xFF1C2833), // Almost Black Blue
+    Color(0xFF6E2C00), // Dark Orange-Brown
+    Color(0xFF0B5345), // Dark Cyan-Green
+    Color(0xFF424949), // Dark Gray
+    Color(0xFF5D4037), // Dark Brown
+    Color(0xFF283747), // Dark Steel Blue
+    Color(0xFF7E5109), // Dark Gold
+    Color(0xFF4A4A4A), // Dark Gray
+    Color(0xFF3E2723), // Very Dark Brown
+    Color(0xFF1A237E), // Deep Indigo
+  ];
+
+  static Color getCourseColor(int courseId) {
+    return colors[courseId % colors.length];
+  }
+}
 
 class UnavailableCoursesScreen extends StatefulWidget {
   const UnavailableCoursesScreen({super.key});
@@ -9,58 +42,125 @@ class UnavailableCoursesScreen extends StatefulWidget {
 }
 
 class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
-  // Your course list remains the same
-  final List<Map<String, dynamic>> _courses = [
-    {
-      "title": "Physics",
-      "price": "2000 PKR",
-      "rating": "4.2",
-      "level": "Matric",
-      "students": 23,
-      "color": const Color(0xFF8C1414),
-      "mode": "Online",
-      "location": "Nazimabad, Karachi",
-      "about": "Advanced Physics concepts for Matric students."
-    },
-    {
-      "title": "Chemistry",
-      "price": "2500 PKR",
-      "rating": "4.5",
-      "level": "Inter",
-      "students": 45,
-      "color": const Color(0xFF144D8C),
-      "mode": "Online",
-      "location": "Gulshan, Karachi",
-      "about": "Organic and Inorganic chemistry deep dive."
-    },
-    {
-      "title": "Maths",
-      "price": "1800 PKR",
-      "rating": "4.8",
-      "level": "Matric",
-      "students": 12,
-      "color": const Color(0xFF148C4E),
-      "mode": "Online",
-      "location": "DHA, Karachi",
-      "about": "Algebra and Geometry simplified."
-    },
-  ];
+  List<Map<String, dynamic>> _courses = [];
+  bool _isLoading = true;
+  int _tutorProfileId = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUnavailableCourses();
+    // Set status bar to white text with black background
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.black,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    // DO NOT reset status bar here - let the dashboard handle it
+    // Removing this prevents the status bar from changing when returning to dashboard
+    super.dispose();
+  }
+
+  // Format mode to remove underscores and capitalize
+  String _formatMode(String? mode) {
+    if (mode == null || mode.isEmpty) return "Online";
+    String formatted = mode.replaceAll('_', ' ');
+    List<String> words = formatted.split(' ');
+    for (int i = 0; i < words.length; i++) {
+      if (words[i].isNotEmpty) {
+        words[i] = words[i][0].toUpperCase() + words[i].substring(1).toLowerCase();
+      }
+    }
+    return words.join(' ');
+  }
+
+  Future<void> _loadUnavailableCourses() async {
+    setState(() => _isLoading = true);
+
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      _tutorProfileId = prefs.getInt('profileId') ?? 0;
+
+      List<dynamic> courses = await CourseService.getTutorCourses(_tutorProfileId);
+
+      List<Map<String, dynamic>> unavailableCourses = [];
+      for (var course in courses) {
+        if (course['isAvailable'] == false) {
+          int courseId = course['id'];
+          unavailableCourses.add({
+            'id': courseId,
+            'title': course['subject'] ?? 'Unknown',
+            'price': course['price']?.toString() ?? '0',
+            'rating': course['averageRating']?.toString() ?? '0.0',
+            'level': course['category'] ?? 'N/A',
+            'students': course['totalStudents'] ?? 0,
+            'color': CourseColors.getCourseColor(courseId),
+            'mode': _formatMode(course['teachingMode']),
+            'location': course['location'] ?? 'N/A',
+            'about': course['about'] ?? 'No description available',
+            'startTime': course['startTime'],
+            'endTime': course['endTime'],
+            'fromDay': course['fromDay'],
+            'toDay': course['toDay'],
+            'classesPerMonth': course['classesPerMonth'],
+            'isAvailable': course['isAvailable'],
+          });
+        }
+      }
+
+      setState(() {
+        _courses = unavailableCourses;
+        _isLoading = false;
+      });
+
+    } catch (e) {
+      print('Error loading unavailable courses: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _makeAvailable(int courseId, int index) async {
+    setState(() => _isLoading = true);
+
+    try {
+      await CourseService.toggleAvailability(courseId);
+
+      setState(() {
+        _courses.removeAt(index);
+        _isLoading = false;
+      });
+
+      _showSuccessDialog();
+
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showErrorDialog("Failed to make course available: ${e.toString().replaceFirst('Exception: ', '')}");
+    }
+  }
 
   void _showAvailablePopup(BuildContext context, int index) {
+    final course = _courses[index];
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white, // Ensures consistent white background
+          surfaceTintColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text(
-            "Make Yourself Available?",
+            "Make Course Available?",
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
           ),
-          content: const Text(
-            "Are you sure you want to become available? New students will be able to book sessions.",
-            style: TextStyle(color: Colors.black87, fontSize: 14),
+          content: Text(
+            "Are you sure you want to make '${course['title']}' available? New students will be able to book this course.",
+            style: const TextStyle(color: Colors.black87, fontSize: 14),
           ),
           actions: [
             TextButton(
@@ -73,14 +173,11 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                setState(() {
-                  _courses.removeAt(index);
-                });
-                _showSuccessDialog(context);
+                _makeAvailable(course['id'], index);
               },
               child: const Text(
                 "CONFIRM",
-                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -89,12 +186,12 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
     );
   }
 
-  void _showSuccessDialog(BuildContext context) {
+  void _showSuccessDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        Future.delayed(const Duration(seconds: 5), () {
+        Future.delayed(const Duration(seconds: 2), () {
           if (Navigator.canPop(context)) {
             Navigator.pop(context);
           }
@@ -116,18 +213,33 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
               ),
               SizedBox(height: 10),
               Text(
-                "Course marked as Available!",
+                "Course is now available to students!",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey),
               ),
-              SizedBox(height: 30),
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-                strokeWidth: 3,
-              ),
-              SizedBox(height: 10),
+              SizedBox(height: 20),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text("Error", style: TextStyle(color: Colors.red)),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK", style: TextStyle(color: Colors.black)),
+            ),
+          ],
         );
       },
     );
@@ -137,49 +249,56 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        toolbarHeight: 0,
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.black,
+          statusBarIconBrightness: Brightness.light,
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: [
             _buildHeader(context),
             Expanded(
-              child: _courses.isEmpty
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _courses.isEmpty
                   ? Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: _buildEmptyState(),
               )
-                  : ListView.builder(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                physics: const BouncingScrollPhysics(),
-                itemCount: _courses.length,
-                itemBuilder: (context, index) {
-                  return GestureDetector(
-                    onTap: () async {
-                      // --- CRITICAL FIX START ---
-                      // Create a copy of the course and set the status to 'Unavailable'
-                      final Map<String, dynamic> courseData = Map.from(_courses[index]);
-                      courseData['status'] = 'Unavailable';
-                      // --- CRITICAL FIX END ---
-
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CourseDetailScreen(
-                            course: courseData, // Pass the data with the status key
-                            onAvailableTap: () => _showAvailablePopup(context, index),
-                            onDelete: (courseToDelete) {
-                              setState(() {
-                                _courses.removeAt(index);
-                              });
-                            },
-                            showAvailableBtn: true,
+                  : RefreshIndicator(
+                onRefresh: _loadUnavailableCourses,
+                color: Colors.black,
+                child: ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: _courses.length,
+                  itemBuilder: (context, index) {
+                    return GestureDetector(
+                      onTap: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CourseDetailScreen(
+                              courseId: _courses[index]['id'],
+                              onCourseUpdated: () {
+                                _loadUnavailableCourses();
+                              },
+                            ),
                           ),
-                        ),
-                      );
-                      setState(() {});
-                    },
-                    child: _buildCourseCard(context, _courses[index], index),
-                  );
-                },
+                        );
+                        if (result == true) {
+                          _loadUnavailableCourses();
+                        }
+                      },
+                      child: _buildCourseCard(context, _courses[index], index),
+                    );
+                  },
+                ),
               ),
             ),
           ],
@@ -187,8 +306,6 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
       ),
     );
   }
-
-  // --- UI Build Methods (No changes needed here) ---
 
   Widget _buildEmptyState() {
     return Center(
@@ -203,7 +320,7 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
           ),
           const SizedBox(height: 12),
           const Text(
-            "All your courses are currently active or haven't been added.",
+            "All your courses are currently active.",
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 16, color: Color(0xFFBDBDBD), letterSpacing: 0.5),
           ),
@@ -282,6 +399,20 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
               color: course['color'] ?? Colors.grey,
               borderRadius: BorderRadius.circular(15),
             ),
+            child: Center(
+              child: Image.asset(
+                'assets/icon/app_icon.png',
+                width: 50,
+                height: 50,
+                color: Colors.white,
+                errorBuilder: (context, error, stackTrace) {
+                  return Text(
+                    course['title']?.substring(0, 1).toUpperCase() ?? '?',
+                    style: const TextStyle(fontSize: 30, color: Colors.white, fontWeight: FontWeight.bold),
+                  );
+                },
+              ),
+            ),
           ),
           const SizedBox(width: 15),
           Expanded(
@@ -291,9 +422,12 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      course['title'] ?? "Unknown",
-                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                    Expanded(
+                      child: Text(
+                        course['title'] ?? "Unknown",
+                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     Row(
                       children: [
@@ -308,17 +442,21 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  "${course['price'] ?? ''} ${course['level'] ?? ''}",
+                  "Rs ${course['price'] ?? 0} | ${course['level'] ?? 'N/A'}",
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blue),
                 ),
                 const SizedBox(height: 5),
                 Row(
                   children: [
-                    const Text("ONLINE", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red)),
+                    Text(
+                      course['mode']?.toUpperCase() ?? "ONLINE",
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red),
+                    ),
                     const Text(" | ", style: TextStyle(color: Colors.grey, fontSize: 10)),
-                    Text("${course['students'] ?? 0} Student", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                    Text("${course['students'] ?? 0} Students", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                   ],
                 ),
+                const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerRight,
                   child: GestureDetector(
@@ -326,11 +464,11 @@ class _UnavailableCoursesScreenState extends State<UnavailableCoursesScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 7),
                       decoration: BoxDecoration(
-                        color: Colors.black,
+                        color: Colors.green,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Text(
-                        "Available",
+                        "Make Available",
                         style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                       ),
                     ),

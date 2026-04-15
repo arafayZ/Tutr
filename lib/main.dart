@@ -1,5 +1,6 @@
 // Import Flutter material design package
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Importing different TUTOR screens
 import 'signup/splash_screen.dart';
@@ -22,6 +23,7 @@ import 'tutor/notifications_screen.dart';
 import 'tutor/student_category_screen.dart';
 import 'tutor/student_details_screen.dart';
 import 'tutor/course_category_screen.dart';
+import 'signup/onboarding_screen.dart';  // ADD THIS IMPORT
 
 // NEW IMPORTS for Student Management
 import 'tutor/my_students_list_screen.dart';
@@ -57,7 +59,7 @@ class TutrApp extends StatelessWidget {
       home: const SplashScreen(),
 
       onGenerateRoute: (settings) {
-        // Handle the Connection Screen route
+       // Handle the Connection Screen route
         if (settings.name == '/connection') {
           final String studentName = settings.arguments as String? ?? "Student";
           return MaterialPageRoute(
@@ -65,20 +67,22 @@ class TutrApp extends StatelessWidget {
           );
         }
 
-        // Handle the Student Details route (Metric, Inter, etc.)
+       // Handle the Student Details route (Metric, Inter, etc.)
         if (settings.name == '/student_details') {
-          final String category = settings.arguments as String? ?? "Metric";
+          final String category = settings.arguments as String? ?? "Matric";
           return MaterialPageRoute(
             builder: (context) => StudentDetailsScreen(categoryName: category),
           );
         }
 
-        // Handle My Students List (Passing the connection data)
+        // Handle My Students List (Passing courseId and courseName)
         if (settings.name == '/my_students_list') {
-          final List<Map<String, dynamic>> connections =
-              settings.arguments as List<Map<String, dynamic>>? ?? [];
+          final args = settings.arguments as Map<String, dynamic>?;
           return MaterialPageRoute(
-            builder: (context) => MyStudentsListScreen(connections: connections),
+            builder: (context) => MyStudentsListScreen(
+              courseId: args?['courseId'] ?? 0,
+              courseName: args?['courseName'] ?? '',
+            ),
           );
         }
 
@@ -98,17 +102,16 @@ class TutrApp extends StatelessWidget {
 
       routes: {
         '/login': (context) => const LoginScreen(),
+        '/onboarding': (context) => const OnboardingScreen(),  // ADD THIS ROUTE
         '/role_selection': (context) => const RoleSelectionScreen(),
         '/tutor_dashboard': (context) => const TutorDashboard(),
         '/student_dashboard': (context) => const StudentDashboard(),
-        // FIXED: Added arguments for tutor_verification
         '/tutor_verification': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
           return TutorVerificationScreen(userId: args?['userId'] ?? 0);
         },
         '/profile': (context) => const ProfileScreen(),
         '/inbox': (context) => const InboxScreen(),
-        // FIXED: Added arguments for profile_creation
         '/profile_creation': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
           return ProfileCreationScreen(
@@ -116,9 +119,9 @@ class TutrApp extends StatelessWidget {
             userId: args['userId'],
           );
         },
-        '/my_bids': (context) => const MyBidsScreen(),
-        '/student_category': (context) => const StudentCategoryScreen(),
-        '/course_category': (context) => const CourseCategoryScreen(),
+        // '/my_bids': (context) => const MyBidsScreen(),
+         '/student_category': (context) => const StudentCategoryScreen(),
+         '/course_category': (context) => const CourseCategoryScreen(),
         '/edit_profile': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
           return EditProfileScreen(profileId: args['profileId']);

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'role_selection_screen.dart';
 import '../tutor/tutor_dashboard.dart';
 import '../student/student_dashboard.dart';
 import 'forgot_password_screen.dart';
+import 'profile_creation_screen.dart';
+import 'tutor_verification_screen.dart';
 import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -56,8 +59,25 @@ class _LoginScreenState extends State<LoginScreen> {
       final userData = await AuthService.login(email, password);
 
       if (!mounted) return;
+
+      // ✅ Save user data to SharedPreferences
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('userId', userData['id']);
+      await prefs.setInt('profileId', userData['profileId']);
+      await prefs.setString('role', userData['role']);
+      await prefs.setString('accountStatus', userData['accountStatus']);
+      await prefs.setInt('registrationStep', userData['registrationStep']);
+
+      // ✅ Save email for later use
+      await prefs.setString('email', userData['email']);
+
+      // ✅ For PENDING accounts, we'll fetch name from profile API in dashboard
+      // No need to save name here as login response doesn't have it
+
       setState(() => _isLoading = false);
 
+      // ✅ For PENDING tutor accounts, still navigate to dashboard
+      // Dashboard will handle showing pending screen
       if (userData['role'] == 'TUTOR') {
         Navigator.pushAndRemoveUntil(
           context,
@@ -75,19 +95,204 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       setState(() => _isLoading = false);
 
-      // Clean the error message
       String errorMsg = e.toString();
-      // Remove "Exception: " prefix if present
       errorMsg = errorMsg.replaceFirst('Exception: ', '');
-      // Remove any unexpected characters
       errorMsg = errorMsg.replaceAll(RegExp(r'[^\x20-\x7E]'), '');
 
+      _handleErrorWithNavigation(errorMsg);
+    }
+  }
+
+  void _handleErrorWithNavigation(String errorMsg) async {
+    String lowerMsg = errorMsg.toLowerCase();
+
+    // First check for invalid credentials - don't call getUserByEmail
+    if (lowerMsg.contains('invalid') || lowerMsg.contains('incorrect')) {
+      _showErrorPopup("Invalid email or password. Please try again.");
+      return;
+    }
+
+    // Get email from login form
+    String email = _emailController.text.trim();
+
+    // Show loading indicator while fetching user
+    setState(() => _isLoading = true);
+
+    // Fetch userId and role from backend using email
+    int userId = 0;
+    String userRole = "";
+    try {
+      final userData = await AuthService.getUserByEmail(email);
+      userId = userData['id'] ?? 0;
+      userRole = userData['role'] ?? "";
+      setState(() => _isLoading = false);
+    } catch (e) {
+      setState(() => _isLoading = false);
+      // If we can't fetch user info, show the original error
+      _showErrorPopup(errorMsg);
+      return;
+    }
+
+    // Check if it's a profile completion error
+    if (lowerMsg.contains('profile') && lowerMsg.contains('complete')) {
+      if (userRole == 'TUTOR') {
+        _showActionDialog(
+          title: "Complete Your Tutor Profile",
+          message: errorMsg,
+          buttonText: "Complete Profile",
+          destination: ProfileCreationScreen(role: 'TUTOR', userId: userId),
+        );
+      } else {
+        _showActionDialog(
+          title: "Complete Your Student Profile",
+          message: errorMsg,
+          buttonText: "Complete Profile",
+          destination: ProfileCreationScreen(role: 'STUDENT', userId: userId),
+        );
+      }
+    }
+    // Verification Documents Required (Tutor only)
+    else if (lowerMsg.contains('verification') || lowerMsg.contains('documents')) {
+      if (userRole == 'TUTOR') {
+        _showActionDialog(
+          title: "Verification Required",
+          message: errorMsg,
+          buttonText: "Upload Documents",
+          destination: TutorVerificationScreen(userId: userId),
+        );
+      } else {
+        _showErrorPopup(errorMsg);
+      }
+    }
+    // Account Pending Approval
+    else if (lowerMsg.contains('pending') || lowerMsg.contains('approval')) {
+      _showInfoDialog(
+        title: "Account Under Review",
+        message: errorMsg,
+        icon: Icons.hourglass_empty,
+      );
+    }
+    // Account Blocked
+    else if (lowerMsg.contains('blocked') || lowerMsg.contains('disabled')) {
+      _showInfoDialog(
+        title: "Account Blocked",
+        message: errorMsg,
+        icon: Icons.block,
+        iconColor: Colors.red,
+      );
+    }
+    // Default Error
+    else {
       _showErrorPopup(errorMsg);
     }
   }
 
+  void _showActionDialog({
+    required String title,
+    required String message,
+    required String buttonText,
+    required Widget destination,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(fontSize: 14, color: Colors.grey),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => destination),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text(
+              buttonText,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInfoDialog({
+    required String title,
+    required String message,
+    required IconData icon,
+    Color iconColor = Colors.orange,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(icon, color: iconColor, size: 28),
+            const SizedBox(width: 10),
+            Text(
+              title,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title == "Account Under Review"
+                  ? "You will be notified once your account is approved."
+                  : "Please contact support for assistance.",
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              "OK",
+              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showErrorPopup(String message) {
-    // Clean the message
     String cleanMessage = message
         .replaceFirst('Exception: ', '')
         .replaceAll(RegExp(r'[{}[\]"\\]'), '')

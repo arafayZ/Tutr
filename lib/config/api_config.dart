@@ -8,21 +8,22 @@ class ApiConfig {
   // static const String baseUrl = 'http://192.168.1.100:8080'; // Physical Device
 
   // ============ AUTHENTICATION APIS ============
-  static const String login = '/api/auth/login';
-  static const String logout = '/api/auth/logout';
-  static const String register = '/api/register/role';
-  static const String changePassword = '/api/password/change';
+  static const String login = '/api/auth/login';//done
+  static const String logout = '/api/auth/logout';//done
+  static const String register = '/api/register/role';//done
+  static const String changePassword = '/api/password/change';//done
+  static const String getUserByEmail = '/api/auth/user'; // + ?email={email}
 
   // ============ PROFILE APIS ============
-  static const String tutorProfile = '/api/register/tutor/profile';
-  static const String studentProfile = '/api/register/student/profile';
-  static const String editTutorProfile = '/api/register/tutor/profile/edit';
+  static const String tutorProfile = '/api/register/tutor/profile';//done
+  static const String studentProfile = '/api/register/student/profile';//done
+  static const String editTutorProfile = '/api/register/tutor/profile/edit';//done
   static const String editStudentProfile = '/api/register/student/profile/edit';
-  static const String getTutorProfile = '/api/register/tutor/profile';
-  static const String editTutorProfileJson = '/api/register/tutor/profile/edit-json';
-  static const String uploadTutorImage = '/api/profile-image/upload';
-  static const String uploadStudentImage = '/api/student-image/upload';
-  static const String uploadDocuments = '/api/documents/upload';
+  static const String getTutorProfile = '/api/register/tutor/profile';//done
+  static const String editTutorProfileJson = '/api/register/tutor/profile/edit-json';//done
+  static const String uploadTutorImage = '/api/profile-image/upload';//done
+  static const String uploadStudentImage = '/api/student-image/upload';//done
+  static const String uploadDocuments = '/api/documents/upload';//done
 
   // ============ COURSE APIS ============
   static const String createCourse = '/api/courses';
@@ -60,7 +61,7 @@ class ApiConfig {
   static const String getCourseReviews = '/api/student/ratings/course'; // + /{courseId}/reviews
   static const String getTutorRatingSummary = '/api/tutor/ratings'; // + /{tutorId}/summary
   static const String getTutorFilterOptions = '/api/tutor/ratings'; // + /{tutorId}/filter-options
-  static const String getTopCourses = '/api/tutor/ratings'; // + /{tutorId}/top-courses
+  static const String getTopRatedCourses = '/api/tutor/ratings'; // + /{tutorId}/top-courses
   static const String getReviewDetail = '/api/tutor/ratings/review'; // + /{reviewId}
 
   // ============ CONNECTION APIS ============
@@ -71,6 +72,7 @@ class ApiConfig {
   static const String studentCancel = '/api/connections'; // + /{connectionId}/student-cancel
   static const String getStudentConnections = '/api/connections/student'; // + /{studentId}
   static const String getTutorConnections = '/api/connections/tutor'; // + /{tutorId}
+  static const String getTutorConfirmedConnections = '/api/connections/tutor'; // + /{tutorId}/confirmed
   static const String getPendingRequests = '/api/connections/tutor'; // + /{tutorId}/pending
   static const String getNegotiations = '/api/connections/tutor'; // + /{tutorId}/negotiations
   static const String getTutorBids = '/api/connections/tutor'; // + /{tutorId}/bids-with-cards

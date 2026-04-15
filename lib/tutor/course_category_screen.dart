@@ -99,7 +99,7 @@ class CourseCategoryScreen extends StatelessWidget {
                 mainAxisSpacing: 20,
                 children: const [
                   _CategoryCard(
-                    label: "Metric",
+                    label: "Matric",
                     imagePath: 'assets/images/metric_course.png',
                   ),
                   _CategoryCard(

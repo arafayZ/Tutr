@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../widgets/custom_tab_header.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/course_service.dart';
 
 class AddCourseScreen extends StatefulWidget {
   const AddCourseScreen({super.key});
@@ -10,7 +11,7 @@ class AddCourseScreen extends StatefulWidget {
 }
 
 class _AddCourseScreenState extends State<AddCourseScreen> {
-  bool isPending = false;
+  bool _isSubmitting = false;
 
   final TextEditingController _aboutController = TextEditingController();
   final TextEditingController _subjectController = TextEditingController();
@@ -56,7 +57,6 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
   }
 
   Future<void> _pickTime(bool isStart) async {
-    // Ensure the result is explicitly treated as TimeOfDay?
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: isStart ? _startTime : _endTime,
@@ -64,20 +64,19 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
         return Theme(
           data: ThemeData.light().copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Colors.black, // Hand, selected circle, and AM/PM toggle
-              onPrimary: Colors.white, // Text inside the selection
-              surface: Colors.white, // Background of the picker
-              onSurface: Colors.black, // Default numbers/text
+              primary: Colors.black,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
             ),
-            // Specifically targets the AM/PM toggle box style
             timePickerTheme: TimePickerThemeData(
               dayPeriodColor: WidgetStateColor.resolveWith((states) =>
               states.contains(WidgetState.selected)
-                  ? Colors.black.withValues(alpha: 0.2) // Highlighted box bg
+                  ? Colors.black.withValues(alpha: 0.2)
                   : Colors.transparent),
               dayPeriodTextColor: WidgetStateColor.resolveWith((states) =>
               states.contains(WidgetState.selected)
-                  ? Colors.black // Selected AM/PM text color
+                  ? Colors.black
                   : Colors.black),
               dayPeriodBorderSide: const BorderSide(color: Colors.black),
             ),
@@ -105,12 +104,62 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const CustomTabHeader(
-              title: Text("Add Course",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+
+            Container(
+              width: double.infinity,
+              height: 80,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(30),
+                  bottomRight: Radius.circular(30),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    offset: Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                bottom: false,
+                child: Stack(
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 24.0),
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: const CircleAvatar(
+                            backgroundColor: Colors.black,
+                            radius: 20,
+                            child: Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Center(
+                      child: Text(
+                        "Add Course",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
             Expanded(
-              child: isPending ? _buildPendingView() : _buildFormView(),
+              child: _buildFormView(),
             ),
           ],
         ),
@@ -134,7 +183,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
           _buildField("Subject", _subjectController, "e.g. Maths"),
           _buildDropdown(
               "Category",
-              const ["Metric", "Intermediate", "O Level", "A Level", "Entrance Test"],
+              const ["Matric", "Intermediate", "O Level", "A Level", "Entrance Test"],
               _selectedCategory,
                   (v) => setState(() => _selectedCategory = v)),
           _buildDropdown(
@@ -193,7 +242,17 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
                       Colors.black, () => Navigator.pop(context))),
               const SizedBox(width: 15),
               Expanded(
-                  child: _buildButton(
+                  child: _isSubmitting
+                      ? SizedBox(
+                    height: 55,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: Colors.black,
+                        strokeWidth: 2,
+                      ),
+                    ),
+                  )
+                      : _buildButton(
                       "Add", Colors.black, Colors.white, _validateAndSubmit)),
             ],
           ),
@@ -219,7 +278,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(time.format(context), style: const TextStyle(fontSize: 12)),
+                Text(_formatTimeOfDay(time), style: const TextStyle(fontSize: 12)),
                 const Icon(Icons.access_time, size: 16, color: Colors.grey),
               ],
             ),
@@ -390,64 +449,97 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
     );
   }
 
-  void _validateAndSubmit() {
-    setState(() {
-      int? fee = int.tryParse(_feeController.text);
-      int? classes = int.tryParse(_classesController.text);
-      int wordCount = _aboutController.text.trim().isEmpty
-          ? 0
-          : _aboutController.text.trim().split(RegExp(r'\s+')).length;
+  String _formatTimeOfDay(TimeOfDay time) {
+    String hour = (time.hour % 12 == 0 ? 12 : (time.hour % 12)).toString();
+    String minute = time.minute.toString().padLeft(2, '0');
+    String period = time.hour >= 12 ? "PM" : "AM";
+    return "$hour:$minute $period";
+  }
 
-      // Convert time to double for comparison
-      double startDouble = _startTime.hour + _startTime.minute / 60.0;
-      double endDouble = _endTime.hour + _endTime.minute / 60.0;
+  Future<void> _validateAndSubmit() async {
+    int? fee = int.tryParse(_feeController.text);
+    int? classes = int.tryParse(_classesController.text);
+    int wordCount = _aboutController.text.trim().isEmpty
+        ? 0
+        : _aboutController.text.trim().split(RegExp(r'\s+')).length;
 
-      // 1. Check for Range/Limit Errors (Classes and Fee)
-      if ((classes != null && classes > 25) || (fee != null && fee > 50000)) {
-        String errorTitle = (classes ?? 0) > 25 ? "Invalid Class Count" : "Invalid Fee";
-        String errorMsg = (classes ?? 0) > 25
-            ? "You cannot add more than 25 classes per month."
-            : "The tuition fee cannot exceed 50,000 PKR.";
-        _showErrorPopup(errorTitle, errorMsg);
-        _showErrors = true;
-        return;
+    double startDouble = _startTime.hour + _startTime.minute / 60.0;
+    double endDouble = _endTime.hour + _endTime.minute / 60.0;
+
+    if ((classes != null && classes > 25) || (fee != null && fee > 50000)) {
+      String errorTitle = (classes ?? 0) > 25 ? "Invalid Class Count" : "Invalid Fee";
+      String errorMsg = (classes ?? 0) > 25
+          ? "You cannot add more than 25 classes per month."
+          : "The tuition fee cannot exceed 50,000 PKR.";
+      _showErrorPopup(errorTitle, errorMsg);
+      setState(() => _showErrors = true);
+      return;
+    }
+
+    if (endDouble <= startDouble) {
+      _showErrorPopup("Invalid Time", "The end time must be strictly after the start time.");
+      setState(() => _showErrors = true);
+      return;
+    }
+
+    if (wordCount > 100) {
+      _showErrorPopup("Text Too Long", "The 'About' section cannot exceed 100 words.");
+      setState(() => _showErrors = true);
+      return;
+    }
+
+    if (_aboutController.text.isEmpty ||
+        _subjectController.text.isEmpty ||
+        _selectedCategory == null ||
+        _selectedMode == null ||
+        fee == null ||
+        classes == null) {
+      setState(() => _showErrors = true);
+      _showErrorPopup("Missing Info", "Please fill in all the required fields.");
+    } else {
+      setState(() => _showErrors = false);
+      await _submitCourse();
+    }
+  }
+
+  Future<void> _submitCourse() async {
+    setState(() => _isSubmitting = true);
+
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      int tutorProfileId = prefs.getInt('profileId') ?? 0;
+
+      if (tutorProfileId == 0) {
+        throw Exception('Tutor profile not found. Please login again.');
       }
 
-      // 2. Check for Time Logic Errors (End time must be after Start time)
-      if (endDouble <= startDouble) {
-        _showErrorPopup(
-            "Invalid Time",
-            "The end time must be strictly after the start time."
-        );
-        _showErrors = true;
-        return;
-      }
+      String startTimeStr = _formatTimeOfDay(_startTime);
+      String endTimeStr = _formatTimeOfDay(_endTime);
 
-      // 3. Check for Word Count Errors
-      if (wordCount > 100) {
-        _showErrorPopup(
-            "Text Too Long",
-            "The 'About' section cannot exceed 100 words."
-        );
-        _showErrors = true;
-        return;
-      }
+      Map<String, dynamic> courseData = {
+        'tutorProfileId': tutorProfileId,
+        'about': _aboutController.text.trim(),
+        'subject': _subjectController.text.trim(),
+        'category': _selectedCategory,
+        'teachingMode': _selectedMode,
+        'location': _locationController.text.trim(),
+        'fromDay': _startDay.toUpperCase(),
+        'toDay': _endDay.toUpperCase(),
+        'startTime': startTimeStr,
+        'endTime': endTimeStr,
+        'classesPerMonth': int.parse(_classesController.text),
+        'price': double.parse(_feeController.text),
+      };
 
-      // 4. Standard empty field validation
-      if (_aboutController.text.isEmpty ||
-          _subjectController.text.isEmpty ||
-          _selectedCategory == null ||
-          _selectedMode == null || // Added mode check
-          fee == null ||
-          classes == null) {
-        _showErrors = true;
-        // Optionally show a popup for missing fields too
-        _showErrorPopup("Missing Info", "Please fill in all the required fields.");
-      } else {
-        _showErrors = false;
-        _showSuccessPopup();
-      }
-    });
+      await CourseService.createCourse(courseData);
+
+      setState(() => _isSubmitting = false);
+      _showSuccessPopup();
+
+    } catch (e) {
+      setState(() => _isSubmitting = false);
+      _showErrorPopup("Error", e.toString().replaceFirst('Exception: ', ''));
+    }
   }
 
   void _showErrorPopup(String title, String message) {
@@ -512,40 +604,5 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
         Navigator.pop(context);
       }
     });
-  }
-
-  Widget _buildPendingView() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(30),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)
-                ],
-              ),
-              child: Icon(Icons.hourglass_empty_rounded,
-                  size: 100, color: Colors.grey[300]),
-            ),
-            const SizedBox(height: 30),
-            const Text("Under Review",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            const Text(
-              "Your account is currently under review by the admin.",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey, fontSize: 16, height: 1.5),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

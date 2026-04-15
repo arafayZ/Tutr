@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'profile_creation_screen.dart';
 import 'login_screen.dart';
 import '../services/auth_service.dart';
@@ -15,7 +16,6 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
@@ -81,7 +81,6 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   void dispose() {
     _passwordController.removeListener(_validatePasswordStrength);
-    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -126,8 +125,9 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> _handleSignup() async {
     // Validation
-    if (_nameController.text.isEmpty || _emailController.text.isEmpty ||
-        _passwordController.text.isEmpty || _confirmPasswordController.text.isEmpty) {
+    if (_emailController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        _confirmPasswordController.text.isEmpty) {
       setState(() => _showErrors = true);
       _showDialogPopup("Please fill in all mandatory fields to continue.");
       return;
@@ -238,11 +238,24 @@ class _SignupScreenState extends State<SignupScreen> {
       backgroundColor: const Color(0xFFF8F9FB),
       body: Column(
         children: [
+          // Header with shadow
           Container(
-            width: double.infinity, height: 120,
-            decoration: const BoxDecoration(
+            width: double.infinity,
+            height: 120,
+            decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
+              borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(30),
+                  bottomRight: Radius.circular(30)
+              ),
+              // Added shadow
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
             child: SafeArea(
               child: Align(
@@ -271,8 +284,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   Text("as a ${widget.role}", style: const TextStyle(fontSize: 18, color: Colors.black54)),
                   const SizedBox(height: 40),
 
-                  _buildTextField(label: "Full name", icon: Icons.person_outline, controller: _nameController),
-                  const SizedBox(height: 16),
                   _buildTextField(label: "Valid email", icon: Icons.email_outlined, controller: _emailController),
                   const SizedBox(height: 16),
 

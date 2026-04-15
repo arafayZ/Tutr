@@ -1,7 +1,39 @@
 import 'package:flutter/material.dart';
-import '../widgets/custom_bottom_nav.dart'; // Ensure this path is correct
+import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/custom_bottom_nav.dart';
 import 'course_detail_screen.dart';
 import 'add_course_screen.dart';
+import '../services/course_service.dart';
+import '../config/api_config.dart';
+
+// Add the CourseColors class (same as dashboard)
+class CourseColors {
+  static const List<Color> colors = [
+    Color(0xFF1A1A2E), // Dark Navy
+    Color(0xFF16213E), // Deep Navy
+    Color(0xFF0F3460), // Dark Blue
+    Color(0xFF8B1E3F), // Dark Crimson
+    Color(0xFF2C3E50), // Dark Slate
+    Color(0xFF1B4F72), // Deep Teal
+    Color(0xFF145A32), // Dark Green
+    Color(0xFF7B2C3E), // Deep Maroon
+    Color(0xFF4A235A), // Dark Violet
+    Color(0xFF1C2833), // Almost Black Blue
+    Color(0xFF6E2C00), // Dark Orange-Brown
+    Color(0xFF0B5345), // Dark Cyan-Green
+    Color(0xFF424949), // Dark Gray
+    Color(0xFF5D4037), // Dark Brown
+    Color(0xFF283747), // Dark Steel Blue
+    Color(0xFF7E5109), // Dark Gold
+    Color(0xFF4A4A4A), // Dark Gray
+    Color(0xFF3E2723), // Very Dark Brown
+    Color(0xFF1A237E), // Deep Indigo
+  ];
+
+  static Color getCourseColor(int courseId) {
+    return colors[courseId % colors.length];
+  }
+}
 
 class SelectedCourseCategoryScreen extends StatefulWidget {
   final String categoryName;
@@ -15,76 +47,180 @@ class _SelectedCourseCategoryScreenState extends State<SelectedCourseCategoryScr
   String _selectedMode = "Online";
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _courses = [];
 
-  List<Map<String, dynamic>> _allStudents = [
-    {"subject": "Physics", "price": "2000 PKR", "rating": "4.2", "students": 23, "mode": "Online", "category": "Metric"},
-    {"subject": "Maths", "price": "2500 PKR", "rating": "4.5", "students": 15, "mode": "Student Home", "category": "Metric"},
-    {"subject": "Biology", "price": "3000 PKR", "rating": "4.7", "students": 8, "mode": "Online", "category": "Intermediate"},
-    {"subject": "English", "price": "1800 PKR", "rating": "4.0", "students": 10, "mode": "Tutor Home", "category": "Metric"},
-  ];
+  // Map backend mode to display mode for filtering
+  String _mapBackendModeToFilter(String? backendMode) {
+    if (backendMode == null) return "Online";
+    switch (backendMode.toUpperCase()) {
+      case "ONLINE": return "Online";
+      case "STUDENT_HOME": return "Student Home";
+      case "TUTOR_HOME": return "Tutor Home";
+      default: return "Online";
+    }
+  }
 
-  // Update this in SelectedCourseCategoryScreen
-  void _deleteCourse(Map<String, dynamic> course) {
-    setState(() {
-      // This finds the exact original object and removes it
-      _allStudents.remove(course);
-    });
+  // Map backend category to display category
+  String _mapBackendCategoryToDisplay(String? backendCategory) {
+    if (backendCategory == null) return "";
+    switch (backendCategory.toUpperCase()) {
+      case "MATRIC": return "Matric";
+      case "INTERMEDIATE": return "Intermediate";
+      case "O_LEVEL": return "O Level";
+      case "A_LEVEL": return "A Level";
+      case "ENTRY_TEST": return "Entrance Test";
+      default: return backendCategory;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCourses();
+  }
+
+  Future<void> _loadCourses() async {
+    setState(() => _isLoading = true);
+
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      int tutorProfileId = prefs.getInt('profileId') ?? 0;
+
+      // Get course cards with totalStudents
+      List<dynamic> courses =
+      await CourseService.getTutorCourseCards(tutorProfileId);
+
+      // Filter only available courses
+      List<dynamic> availableCourses = courses
+          .where((course) => course['isAvailable'] == true)
+          .toList();
+
+      List<Map<String, dynamic>> filteredCourses = [];
+
+      for (var course in availableCourses) {
+        String displayCategory =
+        _mapBackendCategoryToDisplay(course['category']);
+
+
+        bool shouldAdd = false;
+
+        //  FIX: O/A Level special case
+        if (widget.categoryName == "O/A Level" || widget.categoryName == "O & A Level") {
+          shouldAdd =
+              displayCategory == "O Level" ||
+                  displayCategory == "A Level";
+        } else {
+          shouldAdd = displayCategory == widget.categoryName;
+        }
+
+        if (shouldAdd) {
+          filteredCourses.add({
+            'id': course['courseId'] ?? course['id'],
+            'subject': course['subject'] ?? '',
+            'price': "Rs ${course['price'] ?? 0}",
+            'rating': (course['averageRating'] ?? 0.0).toString(),
+            'students': course['totalStudents'] ?? 0,
+            'mode': _mapBackendModeToFilter(course['teachingMode']),
+            'category': displayCategory,
+            'tutorName': course['tutorName'] ?? 'Tutor',
+            'location': course['location'] ?? 'Location not specified',
+            'about': course['about'] ?? 'No description available.',
+            'isAvailable': course['isAvailable'] ?? true,
+          });
+        }
+      }
+
+      setState(() {
+        _courses = filteredCourses;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading courses: $e');
+      setState(() => _isLoading = false);
+      _showErrorDialog(
+        "Failed to load courses: ${e.toString().replaceFirst('Exception: ', '')}",
+      );
+    }
+  }
+
+  Future<void> _refreshCourses() async {
+    await _loadCourses();
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Error", style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(message),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK", style: TextStyle(color: Colors.black)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final filteredList = _allStudents.where((s) {
-      final matchesCategory = s['category'] == widget.categoryName;
-      final matchesMode = s['mode'] == _selectedMode;
-      final matchesSearch = s['subject'].toLowerCase().contains(_searchQuery.toLowerCase());
-      return matchesCategory && matchesMode && matchesSearch;
+    final filteredList = _courses.where((course) {
+      final matchesMode = course['mode'] == _selectedMode;
+      final matchesSearch = course['subject'].toLowerCase().contains(_searchQuery.toLowerCase());
+      return matchesMode && matchesSearch;
     }).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       extendBody: true,
-      // ---------------- FLOATING ACTION BUTTON ----------------
+      resizeToAvoidBottomInset: true,
       floatingActionButton: FloatingActionButton(
-        // Updated: Navigation logic added here
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          final result = await Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => const AddCourseScreen(), // Ensure this screen is imported
-            ),
+            MaterialPageRoute(builder: (context) => const AddCourseScreen()),
           );
+          if (result == true) {
+            _loadCourses();
+          }
         },
-
-        // Button color
         backgroundColor: Colors.black,
-
-        // Circular shape
         shape: const CircleBorder(),
-
-        // Plus icon inside button
-        child: const Icon(
-          Icons.add,
-          color: Colors.white,
-          size: 35,
-        ),
+        child: const Icon(Icons.add, color: Colors.white, size: 35),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      body: Column(
-        children: [
-          _buildHeader(context),
-          const SizedBox(height: 20),
-          _buildSearchBar(),
-          _buildModeSlider(),
-          Expanded(
-            child: filteredList.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 140),
-              itemCount: filteredList.length,
-              itemBuilder: (context, index) => _buildStudentCard(filteredList[index]),
+      body: RefreshIndicator(
+        onRefresh: _refreshCourses,
+        color: Colors.black,
+        child: Column(
+          children: [
+            _buildHeader(context),
+            const SizedBox(height: 20),
+            _buildSearchBar(),
+            _buildModeSlider(),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : filteredList.isEmpty
+                  ? _buildEmptyState()
+                  : ListView.builder(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                itemCount: filteredList.length,
+                itemBuilder: (context, index) => _buildCourseCard(filteredList[index]),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: const CustomBottomNav(currentIndex: -1),
     );
@@ -132,7 +268,7 @@ class _SelectedCourseCategoryScreenState extends State<SelectedCourseCategoryScr
           controller: _searchController,
           onChanged: (value) => setState(() => _searchQuery = value),
           decoration: const InputDecoration(
-            hintText: "Search students...",
+            hintText: "Search courses...",
             hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
             prefixIcon: Icon(Icons.search, color: Colors.black54),
             border: InputBorder.none,
@@ -172,98 +308,138 @@ class _SelectedCourseCategoryScreenState extends State<SelectedCourseCategoryScr
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-              color: isSelected ? Colors.black : Colors.transparent, borderRadius: BorderRadius.circular(25)),
+            color: isSelected ? Colors.black : Colors.transparent,
+            borderRadius: BorderRadius.circular(25),
+          ),
           alignment: Alignment.center,
-          child: Text(label,
-              style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.black,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildEmptyState() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.cancel_outlined, size: 100, color: Colors.black12),
-          SizedBox(height: 10),
-          Text("Nothing Here Yet", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black26)),
-          Text("You haven’t added any items yet.", style: TextStyle(fontSize: 15, fontWeight: FontWeight.normal, color: Colors.black26)),
-          SizedBox(height: 80),
-        ],
+    return SingleChildScrollView(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.cancel_outlined, size: 100, color: Colors.black12),
+            const SizedBox(height: 10),
+            const Text(
+              "Nothing Here Yet",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black26),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "No courses available in this category.",
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.normal, color: Colors.black26),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 80),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildStudentCard(Map<String, dynamic> data) {
+  Widget _buildCourseCard(Map<String, dynamic> data) {
+    // Get the course color based on course ID
+    final Color courseColor = CourseColors.getCourseColor(data['id']);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)]),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
+      ),
       child: Row(
         children: [
+          // Colored container with app icon - using dynamic course color
           Container(
-              width: 80, height: 80, decoration: BoxDecoration(color: Colors.red[900], borderRadius: BorderRadius.circular(15))),
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: courseColor, // Using dynamic course color
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Center(
+              child: Image.asset(
+                'assets/icon/app_icon.png',
+                width: 40,
+                height: 40,
+                color: Colors.white,
+              ),
+            ),
+          ),
           const SizedBox(width: 15),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Text(data['subject'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  Row(children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 14),
-                    Text(" ${data['rating']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))
-                  ]),
-                ]),
-                Text("${data['price']} ${widget.categoryName}",
-                    style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        data['subject'],
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        const Icon(Icons.star, color: Colors.amber, size: 14),
+                        Text(" ${data['rating']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      ],
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 4),
-                Row(children: [
-                  Text(data['mode'].toUpperCase(),
-                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 9)),
-                  const Text(" | ", style: TextStyle(color: Colors.grey)),
-                  Text("${data['students']} Student", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 9)),
-                ]),
-                // Locate this inside your _buildStudentCard widget
+                Text(data['price'], style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12)),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(data['mode'].toUpperCase(), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 9)),
+                    const Text(" | ", style: TextStyle(color: Colors.grey)),
+                    Expanded(
+                      child: Text(
+                        "${data['students']} Student${data['students'] != 1 ? 's' : ''}",
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 9),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerRight,
                   child: ElevatedButton(
-                    onPressed: () async { // 1. Added async here
-                      final Map<String, dynamic> courseData = {
-                        "title": data['subject'],
-                        "rating": data['rating'],
-                        "level": widget.categoryName,
-                        "price": data['price'],
-                        "students": data['students'],
-                        "mode": data['mode'],
-                        "color": Colors.red[900],
-                        "about": "Master ${data['subject']} with expert guidance in ${data['mode']} mode.",
-                        "tutorName": "Abdul Rafay",
-                        "location": "Nazimabad, Karachi",
-                      };
-
-                      // 2. Await the navigation
-                      await Navigator.push(
+                    onPressed: () async {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => CourseDetailScreen(
-                            course: courseData,
-                            onDelete: (item) => _deleteCourse(data),
-                            onAvailableTap: () {},
-                            showAvailableBtn: false,
+                            courseId: data['id'],
+                            onCourseUpdated: () {
+                              _loadCourses();
+                            },
                           ),
                         ),
                       );
-
-                      // 3. This runs AFTER the Detail screen is popped.
-                      // It forces the list to rebuild with the updated _allStudents data.
-                      setState(() {});
+                      if (result == true) {
+                        _loadCourses();
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
@@ -273,7 +449,7 @@ class _SelectedCourseCategoryScreenState extends State<SelectedCourseCategoryScr
                     ),
                     child: const Text("Details", style: TextStyle(color: Colors.white, fontSize: 10)),
                   ),
-                )
+                ),
               ],
             ),
           ),

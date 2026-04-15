@@ -1,13 +1,13 @@
-// Import standard Dart and Flutter libraries
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'login_screen.dart';
-import '../services/auth_service.dart';  // ADD THIS
+import 'profile_creation_screen.dart';
+import '../services/auth_service.dart';
 
 class TutorVerificationScreen extends StatefulWidget {
-  final int userId;  // ADD THIS - to know which tutor is uploading
+  final int userId;
   const TutorVerificationScreen({super.key, required this.userId});
 
   @override
@@ -17,10 +17,10 @@ class TutorVerificationScreen extends StatefulWidget {
 class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
   String? _idFileName;
   String? _degreeFileName;
-  File? _idFile;      // ADD THIS - store actual file
-  File? _degreeFile;  // ADD THIS - store actual file
+  File? _idFile;
+  File? _degreeFile;
   bool _showErrors = false;
-  bool _isLoading = false;  // ADD THIS
+  bool _isLoading = false;
 
   Future<void> _pickFile(String type) async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -42,7 +42,6 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
   }
 
   void _showErrorPopup(String message) {
-    // Clean the message
     String cleanMessage = message
         .replaceFirst('Exception: ', '')
         .replaceAll(RegExp(r'[{}[\]"\\]'), '')
@@ -83,8 +82,8 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
       ),
     );
   }
+
   Future<void> _submitDocuments() async {
-    // Check if both files are uploaded
     if (_idFile == null || _degreeFile == null) {
       setState(() => _showErrors = true);
       _showErrorPopup("Please upload both ID Card and Degree Certificate.");
@@ -94,7 +93,6 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Call API to upload documents
       await AuthService.uploadDocuments(
         widget.userId,
         _idFile!,
@@ -175,15 +173,24 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
         children: [
           Column(
             children: [
+              // Header with shadow
               Container(
                 width: double.infinity,
                 height: 120,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.only(
+                  borderRadius: const BorderRadius.only(
                     bottomLeft: Radius.circular(30),
                     bottomRight: Radius.circular(30),
                   ),
+                  // Added shadow
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
                 ),
                 child: SafeArea(
                   child: Padding(
@@ -191,7 +198,17 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
+                        onTap: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ProfileCreationScreen(
+                                role: 'TUTOR',
+                                userId: widget.userId,
+                              ),
+                            ),
+                          );
+                        },
                         child: const CircleAvatar(
                           backgroundColor: Colors.black,
                           child: Icon(Icons.arrow_back, color: Colors.white),
@@ -218,22 +235,18 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
                         style: TextStyle(color: Colors.grey),
                       ),
                       const SizedBox(height: 40),
-
                       _buildUploadField(
                         label: _idFileName ?? "+ Identity Card (ID)",
                         onTap: () => _pickFile("ID"),
                         isUploaded: _idFileName != null,
                       ),
                       const SizedBox(height: 20),
-
                       _buildUploadField(
                         label: _degreeFileName ?? "+ Degree / Certificate",
                         onTap: () => _pickFile("Degree"),
                         isUploaded: _degreeFileName != null,
                       ),
-
                       const SizedBox(height: 100),
-
                       Center(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -263,7 +276,6 @@ class _TutorVerificationScreenState extends State<TutorVerificationScreen> {
                         ),
                       ),
                       const SizedBox(height: 20),
-
                       GestureDetector(
                         onTap: _isLoading ? null : _submitDocuments,
                         child: Container(

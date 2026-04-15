@@ -1,9 +1,10 @@
-// Import standard Dart and Flutter libraries
-import 'dart:io';
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../config/api_config.dart';
 import 'login_screen.dart';
 import 'tutor_verification_screen.dart';
 import '../services/auth_service.dart';
@@ -37,6 +38,79 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   String? _selectedGender;
   bool _showErrors = false;
   bool _isLoading = false;
+  bool _isProfileCreated = false;
+  int? _profileId;
+  String? _currentImageUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkExistingProfile();
+  }
+
+  Future<void> _checkExistingProfile() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String profileIdKey = 'tutorProfileId_${widget.userId}';
+      int? savedProfileId = prefs.getInt(profileIdKey);
+
+      if (savedProfileId != null) {
+        final profile = await AuthService.getTutorProfile(savedProfileId);
+
+        if (profile != null && profile['profileId'] != null) {
+          setState(() {
+            _isProfileCreated = true;
+            _profileId = profile['profileId'];
+            _currentImageUrl = profile['profilePictureUrl'];
+            _firstNameController.text = profile['firstName'] ?? '';
+            _lastNameController.text = profile['lastName'] ?? '';
+            _locationController.text = profile['location'] ?? '';
+            _phoneController.text = _formatPhoneNumber(profile['phoneNumber'] ?? '');
+            _selectedGender = profile['gender'];
+            _dobController.text = _formatDateForDisplay(profile['dateOfBirth'] ?? '');
+            _uniController.text = profile['universityName'] ?? '';
+            _schoolController.text = profile['collegeName'] ?? '';
+            _workController.text = profile['workExperience'] ?? '';
+            _headlineController.text = profile['headline'] ?? '';
+          });
+        }
+      }
+    } catch (e) {
+      // No existing profile
+    }
+  }
+
+  String _formatPhoneNumber(String phone) {
+    if (phone.startsWith('+92')) {
+      return phone.substring(3);
+    }
+    return phone;
+  }
+
+  String _formatDateForDisplay(String date) {
+    if (date.isEmpty) return '';
+    if (date.contains('-') && date.length >= 10) {
+      var parts = date.split('-');
+      if (parts.length == 3) {
+        return "${parts[2]}/${parts[1]}/${parts[0]}";
+      }
+    }
+    return date;
+  }
+
+  String _formatDateForBackend(String date) {
+    if (date.isEmpty) return '';
+    if (date.contains('-') && date.length == 10) {
+      return date;
+    }
+    if (date.contains('/')) {
+      var parts = date.split('/');
+      if (parts.length == 3) {
+        return "${parts[2]}-${parts[1].padLeft(2, '0')}-${parts[0].padLeft(2, '0')}";
+      }
+    }
+    return date;
+  }
 
   @override
   void dispose() {
@@ -97,14 +171,13 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
           child: child!),
     );
     if (picked != null) {
-      String formattedDate = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
-      setState(() => _dobController.text = formattedDate);
+      setState(() => _dobController.text = "${picked.day}/${picked.month}/${picked.year}");
     }
   }
 
   Future<void> _validateAndContinue() async {
     setState(() {
-      bool isHeadlineValid = widget.role == "Student" || _headlineController.text.trim().isNotEmpty;
+      bool isHeadlineValid = widget.role.toUpperCase() == "STUDENT" || _headlineController.text.trim().isNotEmpty;
       bool isPhoneValid = _phoneController.text.length == 10;
       bool isEducationValid = _uniController.text.trim().isNotEmpty || _schoolController.text.trim().isNotEmpty;
 
@@ -128,10 +201,10 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
     setState(() => _isLoading = true);
 
     try {
-      if (widget.role == "Tutor") {
-        await _createTutorProfile();
+      if (widget.role.toUpperCase() == "TUTOR") {
+        await _createOrUpdateTutorProfile();
       } else {
-        await _createStudentProfile();
+        await _createOrUpdateStudentProfile();
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -139,32 +212,46 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
     }
   }
 
-  Future<void> _createTutorProfile() async {
+  Future<void> _createOrUpdateTutorProfile() async {
     try {
       String phoneNumber = '+92${_phoneController.text}';
 
       Map<String, dynamic> profileData = {
-        'userId': widget.userId,
         'firstName': _firstNameController.text.trim(),
         'lastName': _lastNameController.text.trim(),
         'phoneNumber': phoneNumber,
         'headline': _headlineController.text.trim(),
         'gender': _selectedGender,
-        'dateOfBirth': _dobController.text.trim(),
+        'dateOfBirth': _formatDateForBackend(_dobController.text.trim()),
         'location': _locationController.text.trim(),
         'universityName': _uniController.text.trim(),
         'collegeName': _schoolController.text.trim(),
-        'workExperience': _workController.text.trim(),
+        'workExperience': _workController.text.trim().isEmpty ? "Not specified" : _workController.text.trim(),
       };
 
-      final response = await AuthService.createTutorProfile(profileData);
-      final int tutorProfileId = response['id'];
+      Map<String, dynamic> response;
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String profileIdKey = 'tutorProfileId_${widget.userId}';
+      int? savedProfileId = prefs.getInt(profileIdKey);
 
-      if (_image != null) {
+      if (savedProfileId != null) {
+        profileData['profileId'] = savedProfileId;
+        _profileId = savedProfileId;
+        _isProfileCreated = true;
+        response = await AuthService.editTutorProfile(profileData);
+      } else {
+        profileData['userId'] = widget.userId;
+        response = await AuthService.createTutorProfile(profileData);
+        _profileId = response['id'];
+        _isProfileCreated = true;
+        await prefs.setInt(profileIdKey, _profileId!);
+      }
+
+      if (_image != null && _profileId != null) {
         try {
-          await AuthService.uploadTutorImage(tutorProfileId, _image!.path);
+          await AuthService.uploadTutorImage(_profileId!, _image!.path, oldImageUrl: _currentImageUrl);
         } catch (e) {
-          // Continue even if image fails
+          // Image upload failed, continue
         }
       }
 
@@ -183,7 +270,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
     }
   }
 
-  Future<void> _createStudentProfile() async {
+  Future<void> _createOrUpdateStudentProfile() async {
     String phoneNumber = '+92${_phoneController.text}';
 
     Map<String, dynamic> profileData = {
@@ -192,22 +279,30 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
       'lastName': _lastNameController.text.trim(),
       'phoneNumber': phoneNumber,
       'gender': _selectedGender,
-      'dateOfBirth': _dobController.text.trim(),
+      'dateOfBirth': _formatDateForBackend(_dobController.text.trim()),
       'location': _locationController.text.trim(),
       'schoolName': _uniController.text.trim(),
-      'gradeLevel': _schoolController.text.trim(),
+      'collegeName': _schoolController.text.trim(),
       'subjects': '',
     };
 
-    final response = await AuthService.createStudentProfile(profileData);
+    Map<String, dynamic> response;
+
+    if (_isProfileCreated && _profileId != null) {
+      response = await AuthService.editStudentProfile(profileData);
+    } else {
+      response = await AuthService.createStudentProfile(profileData);
+      _profileId = response['id'];
+      _isProfileCreated = true;
+    }
 
     setState(() => _isLoading = false);
 
-    if (_image != null) {
+    if (_image != null && _profileId != null) {
       try {
-        await AuthService.uploadStudentImage(response['id'], _image!.path);
+        await AuthService.uploadStudentImage(_profileId!, _image!.path);
       } catch (e) {
-        // Continue even if image fails
+        // Image upload failed, continue
       }
     }
 
@@ -297,20 +392,42 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
     );
   }
 
+  String getFullImageUrl(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) return '';
+    if (imageUrl.startsWith('http')) return imageUrl;
+    return '${ApiConfig.baseUrl}$imageUrl';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bool isTutor = widget.role.toUpperCase() == "TUTOR";
+    final bool isStudent = widget.role.toUpperCase() == "STUDENT";
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
+      resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
           Column(
             children: [
+              // Header with shadow
               Container(
                 width: double.infinity,
                 height: 120,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
+                  borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(30),
+                      bottomRight: Radius.circular(30)
+                  ),
+                  // Added shadow
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
                 ),
                 child: SafeArea(
                   child: Align(
@@ -332,6 +449,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  physics: const BouncingScrollPhysics(),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -341,8 +459,12 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
                             CircleAvatar(
                               radius: 60,
                               backgroundColor: const Color(0xFFE0E0E0),
-                              backgroundImage: _image != null ? FileImage(_image!) : null,
-                              child: _image == null ? const Icon(Icons.person, size: 60, color: Colors.grey) : null,
+                              backgroundImage: _image != null
+                                  ? FileImage(_image!)
+                                  : (_currentImageUrl != null ? NetworkImage(getFullImageUrl(_currentImageUrl)) : null),
+                              child: _image == null && _currentImageUrl == null
+                                  ? const Icon(Icons.person, size: 60, color: Colors.grey)
+                                  : null,
                             ),
                             Positioned(
                               bottom: 0, right: 0,
@@ -360,7 +482,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
                       ),
                       const SizedBox(height: 30),
 
-                      if (widget.role == "Tutor") ...[
+                      if (isTutor) ...[
                         _buildSectionHeader("Headline"),
                         _buildTextField(hint: "e.g., Math Tutor", controller: _headlineController),
                         const SizedBox(height: 20),
@@ -373,63 +495,40 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
                       const SizedBox(height: 12),
                       GestureDetector(
                         onTap: _selectDate,
-                        child: AbsorbPointer(child: _buildTextField(hint: "Date of Birth (YYYY-MM-DD)", icon: Icons.calendar_today_outlined, controller: _dobController)),
+                        child: AbsorbPointer(
+                          child: _buildTextField(
+                            hint: "Date of Birth",
+                            icon: Icons.calendar_today_outlined,
+                            controller: _dobController,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       _buildTextField(hint: "Area, City", icon: Icons.location_on_outlined, controller: _locationController),
                       const SizedBox(height: 12),
 
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.white, borderRadius: BorderRadius.circular(12),
-                          border: _showErrors && _selectedGender == null ? Border.all(color: Colors.red, width: 1.5) : null,
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedGender,
-                            hint: const Text("Gender"),
-                            isExpanded: true,
-                            items: ["Male", "Female", "Other"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                            onChanged: (val) => setState(() => _selectedGender = val),
-                          ),
-                        ),
-                      ),
+                      _buildGenderDropdown(),
                       const SizedBox(height: 12),
 
-                      _buildTextField(
-                        hint: "xxxxxxxxxx",
-                        controller: _phoneController,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
-                        prefixWidget: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(width: 12),
-                            Text("🇵🇰", style: TextStyle(fontSize: 20)),
-                            SizedBox(width: 8),
-                            Text("( +92 ) ", style: TextStyle(fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      ),
-
+                      _buildPhoneField(),
                       const SizedBox(height: 20),
+
                       _buildSectionHeader("Education"),
                       _buildTextField(
-                          hint: widget.role == "Student" ? "School" : "University",
+                          hint: isStudent ? "School" : "University",
                           icon: Icons.school_outlined,
                           controller: _uniController,
                           isOptionalGroup: true
                       ),
                       const SizedBox(height: 12),
                       _buildTextField(
-                          hint: widget.role == "Student" ? "College" : "High School",
+                          hint: isStudent ? "College" : "High School",
                           icon: Icons.account_balance_outlined,
                           controller: _schoolController,
                           isOptionalGroup: true
                       ),
 
-                      if (widget.role == "Tutor") ...[
+                      if (isTutor) ...[
                         const SizedBox(height: 20),
                         Row(
                           children: [
@@ -524,6 +623,44 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Colors.black, width: 1),
         ),
+      ),
+    );
+  }
+
+  Widget _buildGenderDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: _showErrors && _selectedGender == null ? Border.all(color: Colors.red, width: 1.5) : null,
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedGender,
+          hint: const Text("Gender"),
+          isExpanded: true,
+          items: ["Male", "Female", "Other"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          onChanged: (val) => setState(() => _selectedGender = val),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhoneField() {
+    return _buildTextField(
+      hint: "xxxxxxxxxx",
+      controller: _phoneController,
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
+      prefixWidget: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(width: 12),
+          Text("🇵🇰", style: TextStyle(fontSize: 20)),
+          SizedBox(width: 8),
+          Text("( +92 ) ", style: TextStyle(fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }

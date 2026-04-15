@@ -1,12 +1,55 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'chat_details_screen.dart';
+import '../services/connection_service.dart';
+import '../config/api_config.dart';
+
+// --- COURSE COLORS (Same as dashboard) ---
+class CourseColors {
+  static const List<Color> colors = [
+    Color(0xFF1A1A2E), // Dark Navy
+    Color(0xFF16213E), // Deep Navy
+    Color(0xFF0F3460), // Dark Blue
+    Color(0xFF8B1E3F), // Dark Crimson
+    Color(0xFF2C3E50), // Dark Slate
+    Color(0xFF1B4F72), // Deep Teal
+    Color(0xFF145A32), // Dark Green
+    Color(0xFF7B2C3E), // Deep Maroon
+    Color(0xFF4A235A), // Dark Violet
+    Color(0xFF1C2833), // Almost Black Blue
+    Color(0xFF6E2C00), // Dark Orange-Brown
+    Color(0xFF0B5345), // Dark Cyan-Green
+    Color(0xFF424949), // Dark Gray
+    Color(0xFF5D4037), // Dark Brown
+    Color(0xFF283747), // Dark Steel Blue
+    Color(0xFF7E5109), // Dark Gold
+    Color(0xFF4A4A4A), // Dark Gray
+    Color(0xFF3E2723), // Very Dark Brown
+    Color(0xFF1A237E), // Deep Indigo
+  ];
+
+  static Color getCourseColor(int courseId) {
+    return colors[courseId % colors.length];
+  }
+}
 
 class StudentDetails {
   final String id;
-  final String name, profilePic, location, dob, gender, college, school, phone, email;
+  final String connectionId;
+  final String name;
+  final String profilePic;
+  final String location;
+  final String dob;
+  final String gender;
+  final String college;
+  final String school;
+  final String phone;
+  final String email;
 
   StudentDetails({
     required this.id,
+    required this.connectionId,
     required this.name,
     required this.profilePic,
     required this.location,
@@ -31,6 +74,70 @@ class StudentProfileScreen extends StatefulWidget {
 
 class _StudentProfileScreenState extends State<StudentProfileScreen> {
   String? activeBtn;
+  bool _isLoading = false;
+  Map<String, dynamic>? _studentData;
+  bool _isFetching = true;
+  List<Map<String, dynamic>> _courses = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Set status bar to black with white text
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.black,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+    );
+    _fetchStudentDetails();
+  }
+
+  @override
+  void dispose() {
+    // DO NOT reset status bar here - let the dashboard handle it
+    super.dispose();
+  }
+
+  Future<void> _fetchStudentDetails() async {
+    setState(() => _isFetching = true);
+
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      int tutorProfileId = prefs.getInt('profileId') ?? 0;
+
+      final studentData = await ConnectionService.getStudentDetail(int.parse(widget.student.connectionId));
+
+      List<Map<String, dynamic>> allConnections = await ConnectionService.getTutorConfirmedConnections(tutorProfileId);
+
+      List<Map<String, dynamic>> studentCourses = allConnections.where((conn) =>
+      conn['studentId'].toString() == widget.student.id
+      ).toList();
+
+      List<Map<String, dynamic>> courses = [];
+      int courseIndex = 0;
+      for (var conn in studentCourses) {
+        int courseId = conn['courseId'] ?? courseIndex;
+        courses.add({
+          'courseId': courseId,
+          'courseName': conn['courseName'] ?? conn['subject'] ?? 'Course',
+          'agreedPrice': conn['agreedPrice'] ?? 0,
+          'originalPrice': conn['originalPrice'] ?? 0,
+        });
+        courseIndex++;
+      }
+
+      setState(() {
+        _studentData = studentData;
+        _courses = courses;
+        _isFetching = false;
+      });
+
+    } catch (e) {
+      print('Error fetching student details: $e');
+      setState(() => _isFetching = false);
+    }
+  }
 
   void _showDisconnectDialog() {
     showDialog(
@@ -48,10 +155,9 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
               child: const Text("Cancel", style: TextStyle(color: Colors.black54)),
             ),
             TextButton(
-              onPressed: () {
-                widget.onDisconnect(widget.student.id);
+              onPressed: () async {
                 Navigator.pop(context);
-                Navigator.pop(context);
+                await _performDisconnect();
               },
               child: const Text("Disconnect", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
             ),
@@ -61,10 +167,110 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
     );
   }
 
+  Future<void> _performDisconnect() async {
+    setState(() => _isLoading = true);
+
+    try {
+      await ConnectionService.disconnect(
+        int.parse(widget.student.connectionId),
+        disconnectedBy: "TUTOR",
+      );
+
+      widget.onDisconnect(widget.student.id);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Student disconnected successfully"),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        Navigator.popUntil(context, (route) => route.isFirst);
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showErrorDialog("Failed to disconnect: ${e.toString().replaceFirst('Exception: ', '')}");
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Error", style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(message),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK", style: TextStyle(color: Colors.black)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getFullImageUrl(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) return '';
+    if (imageUrl.startsWith('http')) return imageUrl;
+    return '${ApiConfig.baseUrl}$imageUrl';
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isFetching) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F9FB),
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          elevation: 0,
+          toolbarHeight: 0,
+          systemOverlayStyle: const SystemUiOverlayStyle(
+            statusBarColor: Colors.black,
+            statusBarIconBrightness: Brightness.light,
+          ),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F9FB),
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          elevation: 0,
+          toolbarHeight: 0,
+          systemOverlayStyle: const SystemUiOverlayStyle(
+            statusBarColor: Colors.black,
+            statusBarIconBrightness: Brightness.light,
+          ),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final String displayName = _studentData?['studentName'] as String? ?? widget.student.name;
+    final String displayLocation = _studentData?['location'] as String? ?? widget.student.location;
+    final String displayPhone = _studentData?['phoneNumber'] as String? ?? widget.student.phone;
+    final String displayGender = _studentData?['gender'] as String? ?? widget.student.gender;
+    final String displayEmail = _studentData?['studentEmail'] as String? ?? widget.student.email;
+    final String displayImage = _studentData?['studentImage'] as String? ?? widget.student.profilePic;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        toolbarHeight: 0,
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.black,
+          statusBarIconBrightness: Brightness.light,
+        ),
+      ),
       body: Column(
         children: [
           _buildHeader(context),
@@ -96,7 +302,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                           ),
                           child: Column(
                             children: [
-                              Text(widget.student.name,
+                              Text(displayName,
                                   style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                               const SizedBox(height: 20),
 
@@ -107,7 +313,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                                     onTap: () {
                                       setState(() => activeBtn = "message");
                                       Navigator.push(context, MaterialPageRoute(
-                                          builder: (context) => ChatDetailsScreen(userName: widget.student.name)));
+                                          builder: (context) => ChatDetailsScreen(userName: displayName)));
                                     },
                                     child: _buildAdaptiveButton(label: "Message", id: "message"),
                                   ),
@@ -124,26 +330,23 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                               const SizedBox(height: 40),
 
                               _buildSectionHeader("Personal Details"),
-                              _buildDetailRow(Icons.location_on_outlined, "Location", widget.student.location),
-                              _buildDetailRow(Icons.calendar_month_outlined, "Date Of Birth", widget.student.dob),
-                              _buildDetailRow(Icons.person_outline, "Gender", widget.student.gender),
-
+                              _buildDetailRow(Icons.location_on_outlined, "Location", displayLocation),
+                              _buildDetailRow(Icons.person_outline, "Gender", displayGender),
                               const SizedBox(height: 35),
-                              _buildSectionHeader("Education"),
-                              _buildDetailRow(Icons.school_outlined, "College", widget.student.college),
-                              _buildDetailRow(Icons.business_outlined, "School", widget.student.school),
 
-                              const SizedBox(height: 35),
                               _buildSectionHeader("Contact Info"),
-                              _buildDetailRow(Icons.phone_android_outlined, "Phone", widget.student.phone),
-                              _buildDetailRow(Icons.mail_outline, "Email", widget.student.email),
+                              _buildDetailRow(Icons.phone_android_outlined, "Phone", displayPhone),
+                              _buildDetailRow(Icons.mail_outline, "Email", displayEmail),
+                              const SizedBox(height: 35),
 
-                              const SizedBox(height: 10),
+                              _buildSectionHeader("Enrolled Courses"),
+                              _buildCoursesList(),
+                              const SizedBox(height: 20),
                             ],
                           ),
                         ),
                       ),
-                      Positioned(top: 15, child: _buildAvatar(65, widget.student.profilePic)),
+                      Positioned(top: 15, child: _buildAvatar(65, displayImage)),
                     ],
                   ),
                   const SizedBox(height: 50),
@@ -156,10 +359,110 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
     );
   }
 
+  Widget _buildCoursesList() {
+    if (_courses.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: Text(
+            "No courses enrolled",
+            style: TextStyle(color: Colors.grey, fontSize: 14),
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _courses.length,
+      itemBuilder: (context, index) {
+        final course = _courses[index];
+        final String courseName = course['courseName'] ?? 'Unknown Course';
+        final int agreedPrice = course['agreedPrice'] is double
+            ? (course['agreedPrice'] as double).toInt()
+            : (course['agreedPrice'] ?? 0);
+        final int originalPrice = course['originalPrice'] is double
+            ? (course['originalPrice'] as double).toInt()
+            : (course['originalPrice'] ?? 0);
+
+        final int courseId = course['courseId'] ?? index;
+        final Color courseColor = CourseColors.getCourseColor(courseId);
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: courseColor,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Center(
+                  child: Image.asset(
+                    'assets/icon/app_icon.png',
+                    width: 24,
+                    height: 24,
+                    color: Colors.white,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(Icons.school, color: Colors.white, size: 24);
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      courseName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 16,
+                      runSpacing: 4,
+                      children: [
+                        Text(
+                          "Rs $agreedPrice",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.green,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (originalPrice > 0 && originalPrice != agreedPrice)
+                          Text(
+                            "Rs $originalPrice",
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                              decoration: TextDecoration.lineThrough,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildHeader(BuildContext context) {
     return Container(
-      height: 120,
-      padding: const EdgeInsets.only(top: 50, left: 20, right: 20),
+      height: 80,
+      padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.only(
@@ -234,7 +537,12 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
       child: CircleAvatar(
         radius: radius,
         backgroundColor: Colors.white,
-        backgroundImage: AssetImage(imgPath),
+        backgroundImage: imgPath.isNotEmpty
+            ? NetworkImage(_getFullImageUrl(imgPath))
+            : const AssetImage('assets/images/avatar.png') as ImageProvider,
+        child: imgPath.isEmpty
+            ? const Icon(Icons.person, size: 40, color: Colors.grey)
+            : null,
       ),
     );
   }
@@ -269,7 +577,6 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Label is now Black and Bold
                 Text(label,
                     style: const TextStyle(
                         color: Colors.black,
@@ -278,7 +585,6 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                     )
                 ),
                 const SizedBox(height: 1),
-                // Answer is now Grey
                 Text(value,
                     style: const TextStyle(
                         fontWeight: FontWeight.w500,

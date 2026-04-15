@@ -1,7 +1,7 @@
-// Import the standard Flutter material library for UI widgets
 import 'package:flutter/material.dart';
-// Import the signup screen so we can move to it later
 import 'signup_screen.dart';
+import 'login_screen.dart';
+
 
 // Creating a StatelessWidget because this screen doesn't change its own data
 class RoleSelectionScreen extends StatelessWidget {
@@ -12,87 +12,144 @@ class RoleSelectionScreen extends StatelessWidget {
     return Scaffold(
       // Setting the main background color to white
       backgroundColor: Colors.white,
-      // SafeArea keeps the content away from the phone's notch and status bar
+      // Prevent keyboard from causing overflow issues
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
-        child: Padding(
-          // Adding 24 pixels of space on the left and right sides
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            // Aligning text and cards to the left (start)
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Adding some space at the very top
-              const SizedBox(height: 40),
-
-              // 1. TUTR Logo Section
-              Center(
-                child: Column(
-                  children: [
-                    // Displaying the app logo from the assets folder
-                    Image.asset(
-                      'assets/images/logo_vertical.png',
-                      height: 180, // Size of the logo
-                      fit: BoxFit.contain, // Ensures the logo fits inside the height
+        child: Column(
+          children: [
+            // Custom header with custom back button
+            Container(
+              width: double.infinity,
+              height: 80,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(30),
+                  bottomRight: Radius.circular(30),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    offset: Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                bottom: false,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 24.0),
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        );
+                      },
+                      child: const CircleAvatar(
+                        backgroundColor: Colors.black,
+                        radius: 20,
+                        child: Icon(
+                          Icons.arrow_back,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
                     ),
-                  ],
+                  ),
                 ),
               ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Padding(
+                  // Adding 24 pixels of space on the left and right sides
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    // Aligning text and cards to the left (start)
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Adding some space at the top
+                      const SizedBox(height: 20),
 
-              // Adding space between the logo and the text
-              const SizedBox(height: 50),
+                      // 1. TUTR Logo Section
+                      Center(
+                        child: Column(
+                          children: [
+                            // Displaying the app logo from the assets folder
+                            Image.asset(
+                              'assets/images/logo_vertical.png',
+                              height: 180, // Size of the logo
+                              fit: BoxFit.contain, // Ensures the logo fits inside the height
+                            ),
+                          ],
+                        ),
+                      ),
 
-              // 2. Header Text
-              const Text(
-                "Continue as",
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                      // Adding space between the logo and the text
+                      const SizedBox(height: 40),
+
+                      // 2. Header Text
+                      const Text(
+                        "Continue as",
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      // Small gap between the big title and small subtitle
+                      const SizedBox(height: 8),
+                      const Text(
+                        "Select whether you're here to learn or teach.",
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Colors.black54, // A softer grey-black color
+                        ),
+                      ),
+
+                      // Gap before the cards start
+                      const SizedBox(height: 40),
+
+                      // 3. Tutor Selection Card
+                      _buildRoleCard(
+                        context,
+                        title: "TUTOR",
+                        subtitle: "Let's connect you with\neager students faster.",
+                        imagePath: 'assets/images/teacher_icon.png',
+                        // When tapped, go to SignupScreen and tell it the user is a "Tutor"
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const SignupScreen(role: "Tutor")),
+                        ),
+                      ),
+
+                      // Gap between the two cards
+                      const SizedBox(height: 20),
+
+                      // 4. Student Selection Card
+                      _buildRoleCard(
+                        context,
+                        title: "STUDENT",
+                        subtitle: "Let's help you find the\nbest tutor faster.",
+                        imagePath: 'assets/images/student_icon.png',
+                        // When tapped, go to SignupScreen and tell it the user is a "Student"
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const SignupScreen(role: "Student")),
+                        ),
+                      ),
+
+                      const SizedBox(height: 30),
+                    ],
+                  ),
                 ),
               ),
-              // Small gap between the big title and small subtitle
-              const SizedBox(height: 8),
-              const Text(
-                "Select whether you're here to learn or teach.",
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.black54, // A softer grey-black color
-                ),
-              ),
-
-              // Gap before the cards start
-              const SizedBox(height: 40),
-
-              // 3. Tutor Selection Card
-              _buildRoleCard(
-                context,
-                title: "TUTOR",
-                subtitle: "Let's connect you with\neager students faster.",
-                imagePath: 'assets/images/teacher_icon.png',
-                // When tapped, go to SignupScreen and tell it the user is a "Tutor"
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SignupScreen(role: "Tutor")),
-                ),
-              ),
-
-              // Gap between the two cards
-              const SizedBox(height: 20),
-
-              // 4. Student Selection Card
-              _buildRoleCard(
-                context,
-                title: "STUDENT",
-                subtitle: "Let's help you find the\nbest tutor faster.",
-                imagePath: 'assets/images/student_icon.png',
-                // When tapped, go to SignupScreen and tell it the user is a "Student"
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SignupScreen(role: "Student")),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

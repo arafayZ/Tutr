@@ -197,7 +197,6 @@ class _MyBidsScreenState extends State<MyBidsScreen> {
         color: Colors.black,
         child: Column(
           children: [
-            // Increased vertical length with padding and increased text size to 24
             Container(
               padding: const EdgeInsets.only(top: 16, bottom: 8),
               child: const CustomTabHeader(
@@ -327,35 +326,37 @@ class _MyBidsScreenState extends State<MyBidsScreen> {
         ? "When students negotiate, their bids will appear here"
         : "When students request your courses, they will appear here";
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            _selectedTab == "My Bids" ? Icons.gavel : Icons.pending_actions,
-            size: 80,
-            color: Colors.grey.shade300,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            message,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade400,
+    return SingleChildScrollView(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _selectedTab == "My Bids" ? Icons.gavel : Icons.pending_actions,
+              size: 80,
+              color: Colors.grey.shade300,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            subMessage,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade400,
+            const SizedBox(height: 16),
+            Text(
+              message,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade400,
+              ),
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 80),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              subMessage,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade400,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 80),
+          ],
+        ),
       ),
     );
   }

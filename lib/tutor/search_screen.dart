@@ -554,56 +554,59 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildNoResultsMessage() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            isSearchingCourses ? Icons.search_off : Icons.person_search,
-            size: 80,
-            color: Colors.grey.shade400,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            isSearchingCourses ? "No Courses Found" : "No Students Found",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            isSearchingCourses
-                ? "Try adjusting your search or filter criteria"
-                : "No students match your search or filter criteria",
-            style: TextStyle(
-              fontSize: 14,
+    return SingleChildScrollView(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isSearchingCourses ? Icons.search_off : Icons.person_search,
+              size: 80,
               color: Colors.grey.shade400,
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                searchQuery = "";
-                selectedCategories.updateAll((k, v) => false);
-                selectedModes.updateAll((k, v) => false);
-                if (isSearchingCourses) {
-                  // Refresh courses
-                } else {
-                  _filterStudents();
-                }
-              });
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            const SizedBox(height: 16),
+            Text(
+              isSearchingCourses ? "No Courses Found" : "No Students Found",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade500,
+              ),
             ),
-            child: const Text("Clear Filters", style: TextStyle(color: Colors.white)),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              isSearchingCourses
+                  ? "Try adjusting your search or filter criteria"
+                  : "No students match your search or filter criteria",
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade400,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  searchQuery = "";
+                  selectedCategories.updateAll((k, v) => false);
+                  selectedModes.updateAll((k, v) => false);
+                  if (isSearchingCourses) {
+                    // Refresh courses
+                  } else {
+                    _filterStudents();
+                  }
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text("Clear Filters", style: TextStyle(color: Colors.white)),
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
       ),
     );
   }

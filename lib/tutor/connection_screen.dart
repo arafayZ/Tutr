@@ -279,7 +279,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _filteredConnections.isEmpty
-                  ? _buildEmptyState()
+                  ? _buildEmptyState()  // This already has Center widget
                   : RefreshIndicator(
                 onRefresh: _loadConnections,
                 color: Colors.black,
@@ -360,6 +360,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
             behavior: HitTestBehavior.opaque,
             onTap: () => _navigateToProfile(person),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 CircleAvatar(
                   radius: 28,
@@ -381,22 +382,29 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                       ),
                       const SizedBox(height: 4),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        children: courses.map((course) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              course['courseName'],
-                              style: const TextStyle(fontSize: 11, color: Colors.grey),
-                            ),
-                          );
-                        }).toList(),
+                      // Wrap with ConstrainedBox to prevent overflow
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 80),
+                        child: SingleChildScrollView(
+                          physics: const NeverScrollableScrollPhysics(),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: courses.map((course) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  course['courseName'],
+                                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -443,42 +451,44 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              shape: BoxShape.circle,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.people_outline,
+                size: 60,
+                color: Colors.grey.shade400,
+              ),
             ),
-            child: Icon(
-              Icons.people_outline,
-              size: 60,
-              color: Colors.grey.shade400,
+            const SizedBox(height: 24),
+            const Text(
+              "No Confirmed Connections",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            "No Confirmed Connections",
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
+            const SizedBox(height: 12),
+            const Text(
+              "When students confirm enrollment in your courses,\nthey will appear here.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            "When students confirm enrollment in your courses,\nthey will appear here.",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey,
-            ),
-          ),
-          const SizedBox(height: 80),
-        ],
+            const SizedBox(height: 80),
+          ],
+        ),
       ),
     );
   }

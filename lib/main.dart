@@ -1,14 +1,8 @@
 // Import Flutter material design package
 import 'package:flutter/material.dart';
 
-// Importing different TUTOR screens
-import 'signup/splash_screen.dart';
-import 'signup/login_screen.dart';
-import 'signup/role_selection_screen.dart';
-import 'signup/profile_creation_screen.dart';
-import 'signup/tutor_verification_screen.dart';
+// Importing TUTOR screens
 import 'tutor/tutor_dashboard.dart';
-import 'student/student_dashboard.dart';
 import 'tutor/my_bids_screen.dart';
 import 'tutor/profile_screen.dart';
 import 'tutor/edit_profile_screen.dart';
@@ -22,10 +16,16 @@ import 'tutor/notifications_screen.dart';
 import 'tutor/student_category_screen.dart';
 import 'tutor/student_details_screen.dart';
 import 'tutor/course_category_screen.dart';
-
-// NEW IMPORTS for Student Management
 import 'tutor/my_students_list_screen.dart';
 import 'tutor/student_profile_screen.dart';
+// Importing STUDENT screens
+import 'student/student_dashboard.dart';
+// Importing LOGIN screens
+import 'signup/splash_screen.dart';
+import 'signup/login_screen.dart';
+import 'signup/role_selection_screen.dart';
+import 'signup/profile_creation_screen.dart';
+import 'signup/tutor_verification_screen.dart';
 
 void main() {
   runApp(const TutrApp());

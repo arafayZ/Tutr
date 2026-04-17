@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+
+// --- Imports for your existing screens and widgets ---
 import '../widgets/student_bottom_nav.dart';
-import '../tutor/search_screen.dart';
+import 'search_screen.dart';
 import '../tutor/notifications_screen.dart';
 import 'top_tutors_screen.dart';
+import 'matric_screen.dart';
+import 'intermediate_screen.dart';
+import 'o_a_level_screen.dart';
+import 'entrance_test_screen.dart';
+import 'profile_screen.dart'; // Ensure this matches your file name
 
 // --- 1. DATA MODELS ---
 class Tutor {
@@ -35,8 +42,23 @@ class StudentDashboard extends StatefulWidget {
 }
 
 class _StudentDashboardState extends State<StudentDashboard> {
-  String userName = "Emaz Ali Khan";
+  final String userName = "Abdul Rafay";
   int _selectedIndex = 0;
+
+  // List of screens for the Bottom Navigation Bar
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      _buildHomeContent(),                            // Index 0: Home
+      const Center(child: Text("Connection Screen")),  // Index 1
+      const Center(child: Text("Inbox Screen")),       // Index 2
+      const Center(child: Text("Favourites Screen")),  // Index 3
+      const ProfileScreen(),                          // Index 4: Profile
+    ];
+  }
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -49,39 +71,52 @@ class _StudentDashboardState extends State<StudentDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
-      extendBody: true, // Crucial for floating nav bar design
+      extendBody: true,
+      // Swapping the entire body based on selection
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: StudentBottomNav(
         currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          children: [
-            _HeaderSection(greeting: _getGreeting(), name: userName),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 25),
-                  const _PromoSlider(),
-                  const SizedBox(height: 30),
-                  const _CategorySelector(),
-                  const SizedBox(height: 30),
-                  _buildSectionTitle("Top Tutor", showSeeAll: true),
-                  const SizedBox(height: 15),
-                  const _TopTutorsList(),
-                  const SizedBox(height: 30),
-                  _buildSectionTitle("Recommended Courses", showSeeAll: false),
-                  const SizedBox(height: 15),
-                  const _RecommendedCoursesList(),
-                  const SizedBox(height: 130), // Extra space for nav bar
-                ],
-              ),
+    );
+  }
+
+  // Helper method to keep the Home UI separate from the Scaffold logic
+  Widget _buildHomeContent() {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        children: [
+          _HeaderSection(greeting: _getGreeting(), name: userName),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 25),
+                const _PromoSlider(),
+                const SizedBox(height: 30),
+                const _CategorySelector(),
+                const SizedBox(height: 30),
+                _buildSectionTitle("Top Tutor", showSeeAll: true),
+                const SizedBox(height: 15),
+                const _TopTutorsList(),
+                const SizedBox(height: 30),
+                _buildSectionTitle("Recommended Courses", showSeeAll: false),
+                const SizedBox(height: 15),
+                const _RecommendedCoursesList(),
+                const SizedBox(height: 130), // Space for Nav Bar
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -94,7 +129,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
         if (showSeeAll)
           GestureDetector(
             onTap: () {
-              // Updated navigation logic
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const TopTutorsScreen()),
@@ -133,7 +167,6 @@ class _HeaderSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Row 1: DP and Buttons
           Row(
             children: [
               const CircleAvatar(
@@ -148,16 +181,14 @@ class _HeaderSection extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               _HeaderActionBtn(
-                  icon: Icons.notifications_none,
+                  icon: Icons.notifications_none_outlined,
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const NotificationsScreen()))
               ),
             ],
           ),
           const SizedBox(height: 20),
-          // Row 2: Time-based Greeting
           Text(greeting, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w400)),
           const SizedBox(height: 4),
-          // Row 3: User Name
           Text(name, style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
         ],
       ),
@@ -175,9 +206,12 @@ class _HeaderActionBtn extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-        child: Icon(icon, color: Colors.black, size: 22),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white, size: 21),
       ),
     );
   }
@@ -199,19 +233,19 @@ class _PromoSliderState extends State<_PromoSlider> {
       "title": "Today's Special",
       "subtitle": "25% OFF*",
       "desc": "Get a Discount for Every Course Order only Valid for Today!",
-      "colors": [Color(0xFF2979FF), Color(0xFF0D47A1)]
+      "colors": [const Color(0xFF2979FF), const Color(0xFF0D47A1)]
     },
     {
       "title": "Flash Sale",
       "subtitle": "50% OFF",
       "desc": "Join our premium Mathematics masterclass at half price!",
-      "colors": [Color(0xFFFF5252), Color(0xFFB71C1C)]
+      "colors": [const Color(0xFFFF5252), const Color(0xFFB71C1C)]
     },
     {
       "title": "New Arrival",
       "subtitle": "FREE DEMO",
       "desc": "Check out our new Physics laboratory sessions starting this week.",
-      "colors": [Color(0xFF00BFA5), Color(0xFF004D40)]
+      "colors": [const Color(0xFF00BFA5), const Color(0xFF004D40)]
     },
   ];
 
@@ -268,39 +302,45 @@ class _PromoSliderState extends State<_PromoSlider> {
   }
 }
 
-class _CategorySelector extends StatefulWidget {
+class _CategorySelector extends StatelessWidget {
   const _CategorySelector();
-  @override
-  State<_CategorySelector> createState() => _CategorySelectorState();
-}
-
-class _CategorySelectorState extends State<_CategorySelector> {
-  int selectedIndex = 1;
-  final categories = ["Matric", "Intermediate", "O & A Level", "Entrance Test"];
 
   @override
   Widget build(BuildContext context) {
+    final List<Map<String, dynamic>> categories = [
+      {"name": "Matric", "screen": const MatricScreen()},
+      {"name": "Intermediate", "screen": const IntermediateScreen()},
+      {"name": "O & A Level", "screen": const OALevelScreen()},
+      {"name": "Entrance Test", "screen": const EntranceTestScreen()},
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text("Categories", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         const SizedBox(height: 15),
         SizedBox(
-          height: 30,
+          height: 35,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
             itemCount: categories.length,
             itemBuilder: (context, i) {
-              bool isSelected = selectedIndex == i;
               return GestureDetector(
-                onTap: () => setState(() => selectedIndex = i),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => categories[i]['screen']),
+                  );
+                },
                 child: Padding(
                   padding: const EdgeInsets.only(right: 25),
                   child: Text(
-                    categories[i],
-                    style: TextStyle(
-                      color: isSelected ? const Color(0xFF2979FF) : Colors.grey,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    categories[i]['name'],
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
                     ),
                   ),
                 ),
@@ -340,7 +380,7 @@ class _TopTutorsList extends StatelessWidget {
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                      color: const Color(0xFFE0E0E0), // Light grey background
+                      color: const Color(0xFFE0E0E0),
                       borderRadius: BorderRadius.circular(18),
                       boxShadow: [
                         BoxShadow(
@@ -348,17 +388,10 @@ class _TopTutorsList extends StatelessWidget {
                             blurRadius: 10,
                             offset: const Offset(0, 4))
                       ]),
-                  // --- ADDED PERSON ICON HERE ---
-                  child: const Icon(
-                    Icons.person,
-                    size: 40,
-                    color: Colors.grey,
-                  ),
+                  child: const Icon(Icons.person, size: 40, color: Colors.grey),
                 ),
                 const SizedBox(height: 8),
-                Text(tutors[i].name,
-                    style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w600)),
+                Text(tutors[i].name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
               ],
             ),
           );
@@ -377,9 +410,6 @@ class _RecommendedCoursesList extends StatelessWidget {
       Course(tutorName: "Asim Ali Khan", subject: "Mathematics", level: "Metric", price: "1800/-", rating: "4.2", mode: "ONLINE", themeColor: const Color(0xFF8C1414)),
       Course(tutorName: "Anzala Abid", subject: "English", level: "O Level", price: "2000/-", rating: "4.2", mode: "TUTOR HOME", themeColor: const Color(0xFF1A314D)),
       Course(tutorName: "Hiba Khan", subject: "Chemistry", level: "Intermediate", price: "1900/-", rating: "4.2", mode: "STUDENT HOME", themeColor: const Color(0xFF630A0A)),
-      Course(tutorName: "Asim Ali Khan", subject: "Mathematics", level: "Metric", price: "1800/-", rating: "4.2", mode: "ONLINE", themeColor: const Color(0xFF148C76)),
-      Course(tutorName: "Anzala Abid", subject: "English", level: "O Level", price: "2000/-", rating: "4.2", mode: "TUTOR HOME", themeColor: const Color(0xFF1A318D)),
-      Course(tutorName: "Hiba Khan", subject: "Chemistry", level: "Intermediate", price: "1900/-", rating: "4.2", mode: "STUDENT HOME", themeColor: const Color(0xFF630A5A)),
     ];
 
     return Column(
@@ -399,7 +429,9 @@ class _CourseCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(25),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))
+        ],
       ),
       child: Column(
         children: [
@@ -428,8 +460,7 @@ class _CourseCard extends StatelessWidget {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Text(course.price,
-                        style: const TextStyle(color: Color(0xFF2979FF), fontWeight: FontWeight.bold, fontSize: 15)),
+                    Text(course.price, style: const TextStyle(color: Color(0xFF2979FF), fontWeight: FontWeight.bold, fontSize: 15)),
                     const _CardDivider(),
                     const Icon(Icons.star, color: Colors.amber, size: 16),
                     Text(" ${course.rating}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),

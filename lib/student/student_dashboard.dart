@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-// --- Imports for your existing screens and widgets ---
+// --- Imports ---
 import '../widgets/student_bottom_nav.dart';
 import 'search_screen.dart';
 import '../tutor/notifications_screen.dart';
@@ -9,13 +9,16 @@ import 'matric_screen.dart';
 import 'intermediate_screen.dart';
 import 'o_a_level_screen.dart';
 import 'entrance_test_screen.dart';
-import 'profile_screen.dart'; // Ensure this matches your file name
+import 'profile_screen.dart';
+import 'favourites_screen.dart';
+import 'tutor_profile_screen.dart';
 
 // --- 1. DATA MODELS ---
 class Tutor {
   final String name;
   final String? profilePic;
-  Tutor({required this.name, this.profilePic});
+  final String sub;
+  Tutor({required this.name, this.profilePic, this.sub = "Expert Instructor"});
 }
 
 class Course {
@@ -45,18 +48,17 @@ class _StudentDashboardState extends State<StudentDashboard> {
   final String userName = "Abdul Rafay";
   int _selectedIndex = 0;
 
-  // List of screens for the Bottom Navigation Bar
   late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
     _screens = [
-      _buildHomeContent(),                            // Index 0: Home
-      const Center(child: Text("Connection Screen")),  // Index 1
-      const Center(child: Text("Inbox Screen")),       // Index 2
-      const Center(child: Text("Favourites Screen")),  // Index 3
-      const ProfileScreen(),                          // Index 4: Profile
+      _buildHomeContent(),
+      const Center(child: Text("Connection Screen")),
+      const Center(child: Text("Inbox Screen")),
+      const FavouritesScreen(),
+      const ProfileScreen(),
     ];
   }
 
@@ -72,7 +74,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       extendBody: true,
-      // Swapping the entire body based on selection
       body: IndexedStack(
         index: _selectedIndex,
         children: _screens,
@@ -88,7 +89,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 
-  // Helper method to keep the Home UI separate from the Scaffold logic
   Widget _buildHomeContent() {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -112,7 +112,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 _buildSectionTitle("Recommended Courses", showSeeAll: false),
                 const SizedBox(height: 15),
                 const _RecommendedCoursesList(),
-                const SizedBox(height: 130), // Space for Nav Bar
+                const SizedBox(height: 130),
               ],
             ),
           ),
@@ -208,7 +208,7 @@ class _HeaderActionBtn extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
+          color: Colors.white.withValues(alpha: 0.15),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: Colors.white, size: 21),
@@ -359,10 +359,10 @@ class _TopTutorsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final List<Tutor> tutors = [
-      Tutor(name: "Sana Khan"),
-      Tutor(name: "Ali Khan"),
-      Tutor(name: "Fatima Iqbal"),
-      Tutor(name: "Hassan Javed"),
+      Tutor(name: "Sana Khan", sub: "Math Expert"),
+      Tutor(name: "Ali Khan", sub: "Physics Expert"),
+      Tutor(name: "Fatima Iqbal", sub: "Chemistry Expert"),
+      Tutor(name: "Hassan Javed", sub: "Biology Expert"),
     ];
 
     return SizedBox(
@@ -372,27 +372,42 @@ class _TopTutorsList extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         itemCount: tutors.length,
         itemBuilder: (context, i) {
-          return Padding(
-            padding: const EdgeInsets.only(right: 20),
-            child: Column(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                      color: const Color(0xFFE0E0E0),
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4))
-                      ]),
-                  child: const Icon(Icons.person, size: 40, color: Colors.grey),
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => TutorProfileScreen(
+                    tutorData: {
+                      'name': tutors[i].name,
+                      'sub': tutors[i].sub,
+                    },
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Text(tutors[i].name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-              ],
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.only(right: 20),
+              child: Column(
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFE0E0E0),
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4))
+                        ]),
+                    child: const Icon(Icons.person, size: 40, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(tutors[i].name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                ],
+              ),
             ),
           );
         },
@@ -430,7 +445,7 @@ class _CourseCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(25),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))
         ],
       ),
       child: Column(
@@ -465,7 +480,7 @@ class _CourseCard extends StatelessWidget {
                     const Icon(Icons.star, color: Colors.amber, size: 16),
                     Text(" ${course.rating}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     const _CardDivider(),
-                    Text(course.mode, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                    const Text("ONLINE", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ],

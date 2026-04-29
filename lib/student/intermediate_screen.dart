@@ -87,7 +87,7 @@ class _IntermediateScreenState extends State<IntermediateScreen> {
             activeCategories: _activeCategories,
             activeModes: _activeModes,
             activeBudget: _activeBudget, // Added missing parameter
-            onApplyFilters: (newCats, newModes, newBudget) { // Added 3rd parameter
+            onApplyFilters: (newCats, newModes, newBudget, newLocation) { // Added 3rd parameter
               setState(() {
                 _activeCategories = newCats;
                 _activeModes = newModes;
@@ -95,6 +95,8 @@ class _IntermediateScreenState extends State<IntermediateScreen> {
                 _applyAllFilters();
               });
             },
+            showCategories: false,
+            showLocationFilter: false,
           ),
           Expanded(
             child: filteredTutors.isEmpty

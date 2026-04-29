@@ -57,7 +57,9 @@ Widget buildSharedSearchBar({
   required List<String> activeCategories,
   required List<String> activeModes,
   required String activeBudget,
-  required Function(List<String>, List<String>, String) onApplyFilters,
+  required Function(List<String>, List<String>, String, String) onApplyFilters,
+  bool showCategories = true,
+  bool showLocationFilter = false, // NEW: Controls location filter visibility
 }) {
   return Padding(
     padding: const EdgeInsets.fromLTRB(20, 25, 20, 10),
@@ -85,6 +87,8 @@ Widget buildSharedSearchBar({
               activeModes,
               activeBudget,
               onApplyFilters,
+              showCategories,
+              showLocationFilter, // Pass location filter flag
             ),
             child: const Icon(Icons.tune_rounded, color: Colors.black),
           ),
@@ -96,13 +100,15 @@ Widget buildSharedSearchBar({
   );
 }
 
-// --- 3. FILTER BOTTOM SHEET (SAFE & SCROLLABLE) ---
+// --- 3. FILTER BOTTOM SHEET (WITH CLEAR ALL IN GREY & LOCATION OPTIONAL) ---
 void _showFilterSheet(
     BuildContext context,
     List<String> initialCategories,
     List<String> initialModes,
     String initialBudget,
-    Function(List<String>, List<String>, String) onApply,
+    Function(List<String>, List<String>, String, String) onApply,
+    bool showCategories,
+    bool showLocationFilter, // NEW parameter
     ) {
   showModalBottomSheet(
     context: context,
@@ -116,6 +122,7 @@ void _showFilterSheet(
       List<String> tempCategories = List.from(initialCategories);
       List<String> tempModes = List.from(initialModes);
       String tempBudget = initialBudget;
+      String tempLocation = "";
 
       return StatefulBuilder(builder: (context, setModalState) {
         void toggleCategory(String val) {
@@ -130,8 +137,17 @@ void _showFilterSheet(
           });
         }
 
+        void clearAllFilters() {
+          setModalState(() {
+            tempCategories.clear();
+            tempModes.clear();
+            tempBudget = "";
+            tempLocation = "";
+          });
+        }
+
         return DraggableScrollableSheet(
-          initialChildSize: 0.75,
+          initialChildSize: 0.85,
           minChildSize: 0.5,
           maxChildSize: 0.95,
           expand: false,
@@ -147,6 +163,7 @@ void _showFilterSheet(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Drag handle
                   Center(
                     child: Container(
                       width: 40,
@@ -157,15 +174,66 @@ void _showFilterSheet(
                       ),
                     ),
                   ),
+                  const SizedBox(height: 15),
+
+                  // Header with Title and Clear All button (light black/grey color)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Filter",
+                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
+                      ),
+                      TextButton(
+                        onPressed: clearAllFilters,
+                        child: const Text(
+                          "Clear All",
+                          style: TextStyle(color: Colors.black54, fontSize: 14, fontWeight: FontWeight.w600), // Light black/grey color
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 25),
 
-                  const Text("Categories:",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
-                  const SizedBox(height: 10),
-                  ...["Matric", "Intermediate", "O Level", "A Level", "Entrance Test"]
-                      .map((cat) => _buildFilterOption(cat, tempCategories.contains(cat), (v) => toggleCategory(cat))),
+                  // Location Search Field - ONLY for Search Screen
+                  if (showLocationFilter) ...[
+                    const Text("Location:",
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
+                    const SizedBox(height: 10),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextField(
+                        onChanged: (value) {
+                          setModalState(() {
+                            tempLocation = value;
+                          });
+                        },
+                        decoration: InputDecoration(
+                          hintText: "Enter city or area...",
+                          hintStyle: TextStyle(color: Colors.grey[400]),
+                          prefixIcon: Icon(Icons.location_on_outlined, color: Colors.grey[600]),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 25),
+                  ],
 
-                  const SizedBox(height: 25),
+                  // Categories Section (conditional)
+                  if (showCategories) ...[
+                    const Text("Categories:",
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
+                    const SizedBox(height: 10),
+                    ...["Matric", "Intermediate", "O Level", "A Level", "Entrance Test"]
+                        .map((cat) => _buildFilterOption(cat, tempCategories.contains(cat), (v) => toggleCategory(cat))),
+                    const SizedBox(height: 25),
+                  ],
+
+                  // Teaching Mode Section
                   const Text("Teaching Mode:",
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
                   const SizedBox(height: 10),
@@ -173,6 +241,8 @@ void _showFilterSheet(
                       .map((mode) => _buildFilterOption(mode, tempModes.contains(mode), (v) => toggleMode(mode))),
 
                   const SizedBox(height: 25),
+
+                  // Budget Section
                   const Text("Budget:",
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
                   const SizedBox(height: 10),
@@ -183,30 +253,28 @@ void _showFilterSheet(
 
                   const SizedBox(height: 30),
 
-                  // --- SMALLER APPLY BUTTON ---
+                  // Apply Button
                   GestureDetector(
                     onTap: () {
-                      onApply(tempCategories, tempModes, tempBudget);
+                      onApply(tempCategories, tempModes, tempBudget, tempLocation);
                       Navigator.pop(context);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20), // Reduced vertical padding
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
                       decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(40)),
                       child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Expanded(
-                            child: Center(
-                              child: Text(
-                                  "Apply",
-                                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold) // Reduced font size
-                              ),
-                            ),
+                          const Text(
+                            "Apply Filters",
+                            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                           ),
+                          const SizedBox(width: 12),
                           Container(
-                            padding: const EdgeInsets.all(6), // Reduced icon container padding
+                            padding: const EdgeInsets.all(6),
                             decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                            child: const Icon(Icons.arrow_forward, color: Colors.black, size: 18), // Reduced icon size
-                          )
+                            child: const Icon(Icons.arrow_forward, color: Colors.black, size: 18),
+                          ),
                         ],
                       ),
                     ),
@@ -289,7 +357,13 @@ Widget buildTutorList(List<Map<String, dynamic>> list, Function(int) onFavToggle
                         const Icon(Icons.star, color: Colors.orange, size: 14),
                         Text(" ${t['rating']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
                         const Text("  |  ", style: TextStyle(color: Colors.grey)),
-                        Text(t['location'], style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                        Flexible(
+                          child: Text(
+                            t['location'],
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
                   ],

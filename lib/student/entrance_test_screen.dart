@@ -88,7 +88,7 @@ class _EntranceTestScreenState extends State<EntranceTestScreen> {
             activeCategories: _activeCategories,
             activeModes: _activeModes,
             activeBudget: _activeBudget, // Added missing required parameter
-            onApplyFilters: (newCats, newModes, newBudget) { // Added 3rd parameter
+            onApplyFilters: (newCats, newModes, newBudget,newLocation) { // Added 3rd parameter
               setState(() {
                 _activeCategories = newCats;
                 _activeModes = newModes;
@@ -96,6 +96,8 @@ class _EntranceTestScreenState extends State<EntranceTestScreen> {
                 _applyAllFilters();
               });
             },
+            showCategories: false,
+            showLocationFilter: false,
           ),
 
           Expanded(

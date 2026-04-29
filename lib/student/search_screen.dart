@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'shared_widgets.dart';
+import 'tutor_profile_screen.dart'; // Ensure this file exists in your project
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -15,26 +16,37 @@ class _SearchScreenState extends State<SearchScreen> {
   List<String> activeCategories = [];
   List<String> activeModes = [];
   String activeBudget = "";
+  String activeLocation = "";
 
+  // Tutor Data
   final List<Map<String, dynamic>> allTutors = [
-    {"name": "Asim Ali Khan", "sub": "Chemistry Coach", "img": Colors.black},
-    {"name": "Asim Furqan", "sub": "Biology Expert", "img": Colors.black},
-    {"name": "Asim Ayoob", "sub": "Chemistry Specialist", "img": Colors.black},
-    {"name": "Asim Khan", "sub": "Math Enthusiast", "img": Colors.black},
-    {"name": "Asim", "sub": "Biology Tutor", "img": Colors.black},
-    {"name": "Abdul Rafay", "sub": "CS Instructor", "img": Colors.black},
+    {"name": "Asim Ali Khan", "sub": "Chemistry Coach", "location": "Karachi"},
+    {"name": "Asim Furqan", "sub": "Biology Expert", "location": "Lahore"},
+    {"name": "Asim Ayoob", "sub": "Chemistry Specialist", "location": "Islamabad"},
+    {"name": "Asim Khan", "sub": "Math Enthusiast", "location": "Karachi"},
+    {"name": "Abdul Rafay", "sub": "CS Instructor", "location": "Lahore"},
+  ];
+
+  // Course Data
+  final List<Map<String, dynamic>> allCourses = [
+    {"name": "Advanced Flutter UI", "sub": "Mobile Development", "location": "Online"},
+    {"name": "Organic Chemistry 101", "sub": "Science", "location": "Karachi"},
+    {"name": "Calculus & Algebra", "sub": "Mathematics", "location": "Lahore"},
+    {"name": "Python for Data Science", "sub": "Programming", "location": "Islamabad"},
   ];
 
   List<Map<String, dynamic>> _getFilteredResults() {
-    if (currentSearchQuery.trim().isEmpty) {
-      return allTutors;
-    }
+    final List<Map<String, dynamic>> targetList = isCourseSelected ? allCourses : allTutors;
 
-    return allTutors.where((tutor) {
-      final name = tutor['name'].toString().toLowerCase();
-      final subject = tutor['sub'].toString().toLowerCase();
-      final query = currentSearchQuery.toLowerCase();
-      return name.contains(query) || subject.contains(query);
+    return targetList.where((item) {
+      bool matchesSearch = currentSearchQuery.isEmpty ||
+          item['name'].toString().toLowerCase().contains(currentSearchQuery.toLowerCase()) ||
+          item['sub'].toString().toLowerCase().contains(currentSearchQuery.toLowerCase());
+
+      bool matchesLocation = activeLocation.isEmpty ||
+          item['location'].toString().toLowerCase().contains(activeLocation.toLowerCase());
+
+      return matchesSearch && matchesLocation;
     }).toList();
   }
 
@@ -50,27 +62,26 @@ class _SearchScreenState extends State<SearchScreen> {
           buildSharedSearchBar(
             context: context,
             onSearch: (val) {
-              setState(() {
-                currentSearchQuery = val;
-              });
+              setState(() => currentSearchQuery = val);
             },
             activeCategories: activeCategories,
             activeModes: activeModes,
             activeBudget: activeBudget,
-            onApplyFilters: (newCats, newModes, newBudget) {
+            onApplyFilters: (newCats, newModes, newBudget, newLocation) {
               setState(() {
                 activeCategories = newCats;
                 activeModes = newModes;
                 activeBudget = newBudget;
+                activeLocation = newLocation;
               });
             },
+            showCategories: true,
+            showLocationFilter: true,
           ),
           const SizedBox(height: 10),
           _buildToggleSwitch(),
-
           if (currentSearchQuery.trim().isNotEmpty)
             _buildResultHeader(filteredList.length),
-
           Expanded(child: _buildResultsList(filteredList)),
         ],
       ),
@@ -135,14 +146,14 @@ class _SearchScreenState extends State<SearchScreen> {
                   const TextSpan(text: "Result for "),
                   TextSpan(
                       text: '"$currentSearchQuery"',
-                      style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)
+                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)
                   ),
                 ],
               ),
             ),
           ),
           Text("$count FOUND",
-              style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12)),
+              style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
         ],
       ),
     );
@@ -153,31 +164,71 @@ class _SearchScreenState extends State<SearchScreen> {
       return buildEmptyState();
     }
 
-    // --- ADDED SAFEAREA BOTTOM ---
     return SafeArea(
-      top: false, // Don't add padding at the top, we have an AppBar
+      top: false,
       child: ListView.builder(
         itemCount: results.length,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         physics: const BouncingScrollPhysics(),
         itemBuilder: (context, i) {
           final item = results[i];
+          IconData leadingIcon = isCourseSelected ? Icons.book_rounded : Icons.person;
+
           return Container(
-            margin: const EdgeInsets.only(bottom: 10),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ],
+            ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+              contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 15),
               leading: CircleAvatar(
                 radius: 28,
-                backgroundColor: Colors.grey.shade200,
-                child: const Icon(Icons.person, color: Colors.grey),
+                backgroundColor: const Color(0xFFF1F4F4),
+                child: Icon(leadingIcon, color: Colors.black),
               ),
               title: Text(item['name'],
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              subtitle: Text(item['sub'],
-                  style: const TextStyle(color: Colors.grey, fontSize: 13)),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.black26),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item['sub'],
+                      style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                  if (item['location'] != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.location_on, size: 12, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text(item['location'],
+                              style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.black),
               onTap: () {
-                // Navigate to Tutor Profile
+                // Navigates to Profile ONLY if in Tutor mode
+                if (!isCourseSelected) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TutorProfileScreen(tutorData: item),
+                    ),
+                  );
+                } else {
+                  // You can add navigation to a CourseDetailsScreen here later
+                  debugPrint("Course selected: ${item['name']}");
+                }
               },
             ),
           );

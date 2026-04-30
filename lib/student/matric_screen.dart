@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'shared_widgets.dart';
+import 'course_details_screen.dart'; // Ensure this import exists
 
 class MatricScreen extends StatefulWidget {
   const MatricScreen({super.key});
@@ -73,7 +74,24 @@ class _MatricScreenState extends State<MatricScreen> {
           Expanded(
             child: filteredTutors.isEmpty
                 ? buildEmptyState()
-                : buildTutorList(filteredTutors, _toggleFavorite),
+                : buildTutorList(
+              filteredTutors,
+              _toggleFavorite,
+              onCardTap: (tutor) {
+                // NAVIGATION LOGIC
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CourseDetailsScreen(
+                      courseData: {
+                        ...tutor,
+                        "title": tutor['subject'], // Mapping 'subject' to 'title' for details screen
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),

@@ -12,6 +12,7 @@ import 'entrance_test_screen.dart';
 import 'profile_screen.dart';
 import 'favourites_screen.dart';
 import 'tutor_profile_screen.dart';
+import 'course_details_screen.dart';
 
 // --- 1. DATA MODELS ---
 class Tutor {
@@ -422,13 +423,36 @@ class _RecommendedCoursesList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final List<Course> courses = [
-      Course(tutorName: "Asim Ali Khan", subject: "Mathematics", level: "Metric", price: "1800/-", rating: "4.2", mode: "ONLINE", themeColor: const Color(0xFF8C1414)),
+      Course(tutorName: "Asim Ali Khan", subject: "Mathematics", level: "Matric", price: "2000 PKR", rating: "4.2", mode: "ONLINE", themeColor: const Color(
+          0xFF8C7C14)),
       Course(tutorName: "Anzala Abid", subject: "English", level: "O Level", price: "2000/-", rating: "4.2", mode: "TUTOR HOME", themeColor: const Color(0xFF1A314D)),
-      Course(tutorName: "Hiba Khan", subject: "Chemistry", level: "Intermediate", price: "1900/-", rating: "4.2", mode: "STUDENT HOME", themeColor: const Color(0xFF630A0A)),
+      Course(tutorName: "Hiba Khan", subject: "Chemistry", level: "Intermediate", price: "1900/-", rating: "4.2", mode: "STUDENT HOME", themeColor: const Color(
+          0xFF0A630B)),
     ];
 
     return Column(
-      children: courses.map((c) => _CourseCard(course: c)).toList(),
+      children: courses.map((c) {
+        return GestureDetector(
+          onTap: () {
+            // Navigate to the full course screen
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CourseDetailsScreen(
+                  courseData: {
+                    'title': c.subject,
+                    'level': c.level,
+                    'price': c.price,
+                    'color': c.themeColor,
+                    // You can add more fields here as needed
+                  },
+                ),
+              ),
+            );
+          },
+          child: _CourseCard(course: c),
+        );
+      }).toList(),
     );
   }
 }

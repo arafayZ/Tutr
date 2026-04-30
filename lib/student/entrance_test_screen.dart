@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'shared_widgets.dart';
+import 'course_details_screen.dart'; // Import the details screen
 
 class EntranceTestScreen extends StatefulWidget {
   const EntranceTestScreen({super.key});
@@ -37,7 +38,7 @@ class _EntranceTestScreenState extends State<EntranceTestScreen> {
   String _currentSearchQuery = "";
   List<String> _activeCategories = [];
   List<String> _activeModes = [];
-  String _activeBudget = ""; // Added this to fix the error
+  String _activeBudget = "";
 
   @override
   void initState() {
@@ -56,11 +57,10 @@ class _EntranceTestScreenState extends State<EntranceTestScreen> {
         // 2. Mode Check
         bool matchesMode = _activeModes.isEmpty || _activeModes.contains(tutor['location']);
 
-        // 3. Budget Check (Optional logic depending on how you parse the price string)
-        // For now, we keep it simple so it doesn't break your list
-        bool matchesBudget = _activeBudget.isEmpty || tutor['price'].contains(_activeBudget.split(' ')[1]);
+        // 3. Budget Check (Simple check based on your list data)
+        bool matchesBudget = _activeBudget.isEmpty || tutor['price'].contains(_activeBudget.split(' ')[0]);
 
-        return matchesSearch && matchesMode;
+        return matchesSearch && matchesMode && matchesBudget;
       }).toList();
     });
   }
@@ -78,7 +78,6 @@ class _EntranceTestScreenState extends State<EntranceTestScreen> {
       appBar: buildSharedAppBar(context, "Entrance Test"),
       body: Column(
         children: [
-          // Fixed the call to include required activeBudget and updated callback
           buildSharedSearchBar(
             context: context,
             onSearch: (val) {
@@ -87,12 +86,12 @@ class _EntranceTestScreenState extends State<EntranceTestScreen> {
             },
             activeCategories: _activeCategories,
             activeModes: _activeModes,
-            activeBudget: _activeBudget, // Added missing required parameter
-            onApplyFilters: (newCats, newModes, newBudget,newLocation) { // Added 3rd parameter
+            activeBudget: _activeBudget,
+            onApplyFilters: (newCats, newModes, newBudget, newLocation) {
               setState(() {
                 _activeCategories = newCats;
                 _activeModes = newModes;
-                _activeBudget = newBudget; // Update state with new selection
+                _activeBudget = newBudget;
                 _applyAllFilters();
               });
             },
@@ -103,7 +102,24 @@ class _EntranceTestScreenState extends State<EntranceTestScreen> {
           Expanded(
             child: filteredTutors.isEmpty
                 ? buildEmptyState()
-                : buildTutorList(filteredTutors, _toggleFav),
+                : buildTutorList(
+              filteredTutors,
+              _toggleFav,
+              onCardTap: (tutor) {
+                // Navigate to full details screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CourseDetailsScreen(
+                      courseData: {
+                        ...tutor,
+                        "title": tutor['subject'], // Maps 'subject' to 'title'
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),

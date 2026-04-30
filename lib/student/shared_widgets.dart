@@ -59,7 +59,7 @@ Widget buildSharedSearchBar({
   required String activeBudget,
   required Function(List<String>, List<String>, String, String) onApplyFilters,
   bool showCategories = true,
-  bool showLocationFilter = false, // NEW: Controls location filter visibility
+  bool showLocationFilter = false,
 }) {
   return Padding(
     padding: const EdgeInsets.fromLTRB(20, 25, 20, 10),
@@ -88,7 +88,7 @@ Widget buildSharedSearchBar({
               activeBudget,
               onApplyFilters,
               showCategories,
-              showLocationFilter, // Pass location filter flag
+              showLocationFilter,
             ),
             child: const Icon(Icons.tune_rounded, color: Colors.black),
           ),
@@ -100,7 +100,7 @@ Widget buildSharedSearchBar({
   );
 }
 
-// --- 3. FILTER BOTTOM SHEET (WITH CLEAR ALL IN GREY & LOCATION OPTIONAL) ---
+// --- 3. FILTER BOTTOM SHEET ---
 void _showFilterSheet(
     BuildContext context,
     List<String> initialCategories,
@@ -108,7 +108,7 @@ void _showFilterSheet(
     String initialBudget,
     Function(List<String>, List<String>, String, String) onApply,
     bool showCategories,
-    bool showLocationFilter, // NEW parameter
+    bool showLocationFilter,
     ) {
   showModalBottomSheet(
     context: context,
@@ -163,7 +163,6 @@ void _showFilterSheet(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Drag handle
                   Center(
                     child: Container(
                       width: 40,
@@ -175,100 +174,63 @@ void _showFilterSheet(
                     ),
                   ),
                   const SizedBox(height: 15),
-
-                  // Header with Title and Clear All button (light black/grey color)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        "Filter",
-                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
-                      ),
+                      const Text("Filter", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                       TextButton(
                         onPressed: clearAllFilters,
-                        child: const Text(
-                          "Clear All",
-                          style: TextStyle(color: Colors.black54, fontSize: 14, fontWeight: FontWeight.w600), // Light black/grey color
-                        ),
+                        child: const Text("Clear All", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
                       ),
                     ],
                   ),
                   const SizedBox(height: 25),
-
-                  // Location Search Field - ONLY for Search Screen
                   if (showLocationFilter) ...[
-                    const Text("Location:",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
+                    const Text("Location:", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),
                     Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)),
                       child: TextField(
-                        onChanged: (value) {
-                          setModalState(() {
-                            tempLocation = value;
-                          });
-                        },
+                        onChanged: (value) => setModalState(() => tempLocation = value),
                         decoration: InputDecoration(
                           hintText: "Enter city or area...",
-                          hintStyle: TextStyle(color: Colors.grey[400]),
                           prefixIcon: Icon(Icons.location_on_outlined, color: Colors.grey[600]),
                           border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
                     ),
                     const SizedBox(height: 25),
                   ],
-
-                  // Categories Section (conditional)
                   if (showCategories) ...[
-                    const Text("Categories:",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
+                    const Text("Categories:", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),
                     ...["Matric", "Intermediate", "O Level", "A Level", "Entrance Test"]
                         .map((cat) => _buildFilterOption(cat, tempCategories.contains(cat), (v) => toggleCategory(cat))),
                     const SizedBox(height: 25),
                   ],
-
-                  // Teaching Mode Section
-                  const Text("Teaching Mode:",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
+                  const Text("Teaching Mode:", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
                   ...["Online", "Student's Home", "Tutor's Place"]
                       .map((mode) => _buildFilterOption(mode, tempModes.contains(mode), (v) => toggleMode(mode))),
-
                   const SizedBox(height: 25),
-
-                  // Budget Section
-                  const Text("Budget:",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
+                  const Text("Budget:", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
                   ...["Under 1,000 PKR", "1,000 – 2,000 PKR", "2,000 – 3,000 PKR", "3,000 – 5,000 PKR", "Above 5,000 PKR"]
-                      .map((budget) => _buildFilterOption(budget, tempBudget == budget, (v) {
-                    setModalState(() => tempBudget = budget);
-                  })),
-
+                      .map((budget) => _buildFilterOption(budget, tempBudget == budget, (v) => setModalState(() => tempBudget = budget))),
                   const SizedBox(height: 30),
-
-                  // Apply Button
                   GestureDetector(
                     onTap: () {
                       onApply(tempCategories, tempModes, tempBudget, tempLocation);
                       Navigator.pop(context);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(40)),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
-                            "Apply Filters",
-                            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
+                          const Text("Apply Filters", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                           const SizedBox(width: 12),
                           Container(
                             padding: const EdgeInsets.all(6),
@@ -289,7 +251,6 @@ void _showFilterSheet(
   );
 }
 
-// --- HELPER OPTION ---
 Widget _buildFilterOption(String title, bool isSelected, Function(bool?) onChanged) {
   return InkWell(
     onTap: () => onChanged(!isSelected),
@@ -307,70 +268,77 @@ Widget _buildFilterOption(String title, bool isSelected, Function(bool?) onChang
   );
 }
 
-// --- 4. TUTOR LIST ---
-Widget buildTutorList(List<Map<String, dynamic>> list, Function(int) onFavToggle) {
+// --- 4. UPDATED TUTOR LIST (WITH NAVIGATION SUPPORT) ---
+Widget buildTutorList(
+    List<Map<String, dynamic>> list,
+    Function(int) onFavToggle,
+    {required Function(Map<String, dynamic>) onCardTap} // Added for navigation
+    ) {
   return ListView.builder(
     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
     itemCount: list.length,
     itemBuilder: (context, i) {
       final t = list[i];
-      return Container(
-        margin: const EdgeInsets.only(bottom: 15),
-        height: 110,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 4))
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 85,
-              decoration: BoxDecoration(
-                color: t['color'],
-                borderRadius: const BorderRadius.only(topLeft: Radius.circular(15), bottomLeft: Radius.circular(15)),
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(t['name'], style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 10)),
-                        GestureDetector(
-                          onTap: () => onFavToggle(i),
-                          child: Icon(t['fav'] ? Icons.favorite : Icons.favorite_border, color: t['fav'] ? Colors.red : Colors.black54, size: 18),
-                        ),
-                      ],
-                    ),
-                    Text(t['subject'], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    Text(t['price'], style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14)),
-                    Row(
-                      children: [
-                        const Icon(Icons.star, color: Colors.orange, size: 14),
-                        Text(" ${t['rating']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                        const Text("  |  ", style: TextStyle(color: Colors.grey)),
-                        Flexible(
-                          child: Text(
-                            t['location'],
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+      return GestureDetector(
+        onTap: () => onCardTap(t), // Navigation Trigger
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 15),
+          height: 110,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 4))
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 85,
+                decoration: BoxDecoration(
+                  color: t['color'],
+                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(15), bottomLeft: Radius.circular(15)),
                 ),
               ),
-            ),
-          ],
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(t['name'], style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 10)),
+                          GestureDetector(
+                            onTap: () => onFavToggle(i),
+                            child: Icon(t['fav'] ? Icons.favorite : Icons.favorite_border, color: t['fav'] ? Colors.red : Colors.black54, size: 18),
+                          ),
+                        ],
+                      ),
+                      Text(t['subject'], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text(t['price'], style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14)),
+                      Row(
+                        children: [
+                          const Icon(Icons.star, color: Colors.orange, size: 14),
+                          Text(" ${t['rating']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                          const Text("  |  ", style: TextStyle(color: Colors.grey)),
+                          Flexible(
+                            child: Text(
+                              t['location'],
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     },

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'shared_widgets.dart';
-import 'tutor_profile_screen.dart'; // Ensure this file exists in your project
+import 'tutor_profile_screen.dart';
+import 'course_details_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -18,34 +19,29 @@ class _SearchScreenState extends State<SearchScreen> {
   String activeBudget = "";
   String activeLocation = "";
 
-  // Tutor Data
   final List<Map<String, dynamic>> allTutors = [
-    {"name": "Asim Ali Khan", "sub": "Chemistry Coach", "location": "Karachi"},
-    {"name": "Asim Furqan", "sub": "Biology Expert", "location": "Lahore"},
-    {"name": "Asim Ayoob", "sub": "Chemistry Specialist", "location": "Islamabad"},
-    {"name": "Asim Khan", "sub": "Math Enthusiast", "location": "Karachi"},
-    {"name": "Abdul Rafay", "sub": "CS Instructor", "location": "Lahore"},
+    {"name": "Asim Ali Khan", "sub": "Chemistry Coach", "location": "Karachi", "price": "2000 PKR", "rating": "4.2", "color": Colors.red.shade900, "fav": false, "category": "Matric"},
+    {"name": "Asim Furqan", "sub": "Biology Expert", "location": "Lahore", "price": "2500 PKR", "rating": "4.5", "color": Colors.green, "fav": false, "category": "Intermediate"},
+    {"name": "Asim Ayoob", "sub": "Chemistry Specialist", "location": "Islamabad", "price": "2200 PKR", "rating": "4.0", "color": Colors.brown, "fav": false, "category": "Intermediate"},
+    {"name": "Asim Khan", "sub": "Math Enthusiast", "location": "Karachi", "price": "1800 PKR", "rating": "4.1", "color": Colors.orange, "fav": false, "category": "Matric"},
+    {"name": "Abdul Rafay", "sub": "CS Instructor", "location": "Lahore", "price": "2500 PKR", "rating": "4.9", "color": Colors.blueGrey, "fav": true, "category": "Intermediate"},
   ];
 
-  // Course Data
   final List<Map<String, dynamic>> allCourses = [
-    {"name": "Advanced Flutter UI", "sub": "Mobile Development", "location": "Online"},
-    {"name": "Organic Chemistry 101", "sub": "Science", "location": "Karachi"},
-    {"name": "Calculus & Algebra", "sub": "Mathematics", "location": "Lahore"},
-    {"name": "Python for Data Science", "sub": "Programming", "location": "Islamabad"},
+    {"name": "Hiba Khan", "sub": "Physics", "location": "Student Home", "price": "2500 PKR", "rating": "4.2", "color": Colors.pink.shade700, "fav": true, "category": "O Level"},
+    {"name": "Rehan Sheikh", "sub": "Mobile Dev", "location": "Online", "price": "3000 PKR", "rating": "4.8", "color": Colors.blue.shade800, "fav": false, "category": "Entrance"},
   ];
 
   List<Map<String, dynamic>> _getFilteredResults() {
     final List<Map<String, dynamic>> targetList = isCourseSelected ? allCourses : allTutors;
+    if (currentSearchQuery.isEmpty && activeLocation.isEmpty) return targetList;
 
     return targetList.where((item) {
       bool matchesSearch = currentSearchQuery.isEmpty ||
           item['name'].toString().toLowerCase().contains(currentSearchQuery.toLowerCase()) ||
           item['sub'].toString().toLowerCase().contains(currentSearchQuery.toLowerCase());
-
       bool matchesLocation = activeLocation.isEmpty ||
           item['location'].toString().toLowerCase().contains(activeLocation.toLowerCase());
-
       return matchesSearch && matchesLocation;
     }).toList();
   }
@@ -55,15 +51,14 @@ class _SearchScreenState extends State<SearchScreen> {
     final filteredList = _getFilteredResults();
 
     return Scaffold(
+      resizeToAvoidBottomInset: false, // Fixes the 15px overflow by not resizing the view
       backgroundColor: Colors.white,
       appBar: buildSharedAppBar(context, "Search"),
       body: Column(
         children: [
           buildSharedSearchBar(
             context: context,
-            onSearch: (val) {
-              setState(() => currentSearchQuery = val);
-            },
+            onSearch: (val) => setState(() => currentSearchQuery = val),
             activeCategories: activeCategories,
             activeModes: activeModes,
             activeBudget: activeBudget,
@@ -133,27 +128,12 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildResultHeader(int count) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(25, 20, 25, 10),
+      padding: const EdgeInsets.fromLTRB(25, 10, 25, 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(
-            child: RichText(
-              overflow: TextOverflow.ellipsis,
-              text: TextSpan(
-                style: const TextStyle(color: Colors.black, fontSize: 14),
-                children: [
-                  const TextSpan(text: "Result for "),
-                  TextSpan(
-                      text: '"$currentSearchQuery"',
-                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Text("$count FOUND",
-              style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+          Text("Result for \"$currentSearchQuery\"", style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text("$count FOUND", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey)),
         ],
       ),
     );
@@ -161,79 +141,101 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildResultsList(List<Map<String, dynamic>> results) {
     if (results.isEmpty) {
-      return buildEmptyState();
+      // Wrapping in SingleChildScrollView ensures no overflow even if the state widget is tall
+      return SingleChildScrollView(child: buildEmptyState());
     }
 
-    return SafeArea(
-      top: false,
-      child: ListView.builder(
-        itemCount: results.length,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        physics: const BouncingScrollPhysics(),
-        itemBuilder: (context, i) {
-          final item = results[i];
-          IconData leadingIcon = isCourseSelected ? Icons.book_rounded : Icons.person;
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
+      itemCount: results.length,
+      itemBuilder: (context, i) {
+        final t = results[i];
+        return isCourseSelected ? _buildCourseCard(t) : _buildTutorListItem(t);
+      },
+    );
+  }
 
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                )
-              ],
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 15),
-              leading: CircleAvatar(
-                radius: 28,
-                backgroundColor: const Color(0xFFF1F4F4),
-                child: Icon(leadingIcon, color: Colors.black),
+  Widget _buildCourseCard(Map<String, dynamic> t) {
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => CourseDetailsScreen(courseData: {...t, "title": t['sub']}))),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 15),
+        height: 115,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4))],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 90,
+              decoration: BoxDecoration(
+                color: t['color'],
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(15), bottomLeft: Radius.circular(15)),
               ),
-              title: Text(item['name'],
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(item['sub'],
-                      style: const TextStyle(color: Colors.grey, fontSize: 13)),
-                  if (item['location'] != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.location_on, size: 12, color: Colors.grey),
-                          const SizedBox(width: 4),
-                          Text(item['location'],
-                              style: const TextStyle(color: Colors.grey, fontSize: 11)),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.black),
-              onTap: () {
-                // Navigates to Profile ONLY if in Tutor mode
-                if (!isCourseSelected) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => TutorProfileScreen(tutorData: item),
-                    ),
-                  );
-                } else {
-                  // You can add navigation to a CourseDetailsScreen here later
-                  debugPrint("Course selected: ${item['name']}");
-                }
-              },
             ),
-          );
-        },
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(t['name'], style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 11)),
+                        Icon(t['fav'] ? Icons.favorite : Icons.favorite_border, color: t['fav'] ? Colors.red : Colors.black54, size: 18),
+                      ],
+                    ),
+                    Text(t['sub'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Row(
+                      children: [
+                        Text(t['price'], style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 15)),
+                        const SizedBox(width: 8),
+                        Text(t['category'] ?? "", style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        const Icon(Icons.star, color: Colors.orange, size: 14),
+                        Text(" ${t['rating']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                        const Text("  |  ", style: TextStyle(color: Colors.grey)),
+                        Text(t['location'].toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildTutorListItem(Map<String, dynamic> t) {
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          leading: const CircleAvatar(
+            radius: 30,
+            backgroundColor: Colors.black,
+          ),
+          title: Text(
+            t['name'],
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
+          ),
+          subtitle: Text(
+            t['sub'],
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => TutorProfileScreen(tutorData: t))),
+        ),
+        const Divider(height: 1, color: Color(0xFFF1F4F4)),
+      ],
     );
   }
 }

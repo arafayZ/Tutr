@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'shared_widgets.dart';
+import 'course_details_screen.dart'; // Ensure this is imported
 
 class IntermediateScreen extends StatefulWidget {
   const IntermediateScreen({super.key});
@@ -21,7 +22,7 @@ class _IntermediateScreenState extends State<IntermediateScreen> {
       "fav": false
     },
     {
-      "name": "Abdul Rafay", // Updated to your preferred name
+      "name": "Abdul Rafay",
       "subject": "CS Instructor",
       "price": "2500 PKR",
       "rating": "4.9",
@@ -37,7 +38,7 @@ class _IntermediateScreenState extends State<IntermediateScreen> {
   String _currentSearchQuery = "";
   List<String> _activeCategories = [];
   List<String> _activeModes = [];
-  String _activeBudget = ""; // Added to fix compilation error
+  String _activeBudget = "";
 
   @override
   void initState() {
@@ -49,14 +50,11 @@ class _IntermediateScreenState extends State<IntermediateScreen> {
   void _applyAllFilters() {
     setState(() {
       filteredTutors = allTutors.where((tutor) {
-        // 1. Check Search Query
         bool matchesSearch = tutor['name'].toLowerCase().contains(_currentSearchQuery.toLowerCase()) ||
             tutor['subject'].toLowerCase().contains(_currentSearchQuery.toLowerCase());
 
-        // 2. Check Teaching Mode
         bool matchesMode = _activeModes.isEmpty || _activeModes.contains(tutor['location']);
 
-        // 3. Check Budget (Simple contains check for now)
         bool matchesBudget = _activeBudget.isEmpty || tutor['price'].contains(_activeBudget.split(' ')[0].replaceAll(',', ''));
 
         return matchesSearch && matchesMode && matchesBudget;
@@ -77,7 +75,6 @@ class _IntermediateScreenState extends State<IntermediateScreen> {
       appBar: buildSharedAppBar(context, "Intermediate"),
       body: Column(
         children: [
-          // Updated with the required activeBudget and 3-parameter callback
           buildSharedSearchBar(
             context: context,
             onSearch: (val) {
@@ -86,12 +83,12 @@ class _IntermediateScreenState extends State<IntermediateScreen> {
             },
             activeCategories: _activeCategories,
             activeModes: _activeModes,
-            activeBudget: _activeBudget, // Added missing parameter
-            onApplyFilters: (newCats, newModes, newBudget, newLocation) { // Added 3rd parameter
+            activeBudget: _activeBudget,
+            onApplyFilters: (newCats, newModes, newBudget, newLocation) {
               setState(() {
                 _activeCategories = newCats;
                 _activeModes = newModes;
-                _activeBudget = newBudget; // Update state
+                _activeBudget = newBudget;
                 _applyAllFilters();
               });
             },
@@ -101,7 +98,24 @@ class _IntermediateScreenState extends State<IntermediateScreen> {
           Expanded(
             child: filteredTutors.isEmpty
                 ? buildEmptyState()
-                : buildTutorList(filteredTutors, _toggleFav),
+                : buildTutorList(
+              filteredTutors,
+              _toggleFav,
+              onCardTap: (tutor) {
+                // Trigger navigation to Details Screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CourseDetailsScreen(
+                      courseData: {
+                        ...tutor,
+                        "title": tutor['subject'], // Maps 'subject' to 'title' for the details header
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),

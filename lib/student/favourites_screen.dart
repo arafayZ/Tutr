@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import 'tutor_profile_screen.dart'; //
+import 'tutor_profile_screen.dart';
+import 'student_dashboard.dart';
+import 'profile_screen.dart';
+import 'top_tutors_screen.dart'; // Or your Search/Discovery screen
+import '../widgets/student_bottom_nav.dart';
 
 class FavouritesScreen extends StatefulWidget {
   const FavouritesScreen({super.key});
@@ -9,7 +13,9 @@ class FavouritesScreen extends StatefulWidget {
 }
 
 class _FavouritesScreenState extends State<FavouritesScreen> {
-  // Data modeled after the Favourites UI
+  // Set index to 3 (assuming Favourites is the 3rd icon)
+  int _selectedIndex = 3;
+
   final List<Map<String, dynamic>> _favourites = [
     {
       "name": "Hiba Khan",
@@ -52,33 +58,73 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final double bottomPadding = MediaQuery.of(context).padding.bottom;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
+      extendBody: true, // Allows the list to scroll behind a floating nav bar
       body: Column(
         children: [
-          _buildHeader(),
+          _buildHeader(context),
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 120), // Extra bottom padding for navbar
               physics: const BouncingScrollPhysics(),
               itemCount: _favourites.length,
               itemBuilder: (context, index) {
-                // Pass the specific tutor data to the card builder
                 return _buildFavouriteCard(context, _favourites[index]);
               },
             ),
           ),
-          SizedBox(height: bottomPadding > 0 ? bottomPadding : 30),
         ],
+      ),
+      bottomNavigationBar: StudentBottomNav(
+        currentIndex: _selectedIndex,
+        onTap: (index) {
+          if (index == _selectedIndex) return;
+
+          setState(() {
+            _selectedIndex = index;
+          });
+
+          switch (index) {
+            case 0: // Dashboard
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const StudentDashboard()),
+              );
+              break;
+            case 1: // Connections
+            // Navigator.pushReplacement(
+            //   context,
+            //   MaterialPageRoute(builder: (context) => const ConnectionScreen()),
+            // );
+              break;
+            case 2: // Inbox/Chat
+            // Navigator.pushReplacement(
+            //   context,
+            //   MaterialPageRoute(builder: (context) => const InboxScreen()),
+            // );
+              break;
+            case 3: // Favourites
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const FavouritesScreen()),
+              );
+              break;
+            case 4: // Profile
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
+              break;
+          }
+        },
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 50, 20, 25),
+      padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: const BorderRadius.only(
@@ -87,28 +133,48 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.06),
             blurRadius: 15,
-            offset: const Offset(0, 5),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: const Center(
-        child: Text(
-          "Favourites",
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
+      child: Row(
+        children: [
+          // Functional Back Button
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: const BoxDecoration(
+                color: Colors.black,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+            ),
           ),
-        ),
+          const Expanded(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.only(right: 40), // Balances the space taken by back button
+                child: Text(
+                  "Favourites",
+                  style: TextStyle(
+                    color: Color(0xFF1A1C43),
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildFavouriteCard(BuildContext context, Map<String, dynamic> data) {
     return GestureDetector(
-      // Navigation trigger to open the Tutor Profile
       onTap: () {
         Navigator.push(
           context,

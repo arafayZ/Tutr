@@ -1,11 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:my_first_app/tutor/connection_screen.dart';
 import 'tutor_profile_screen.dart';
-import 'search_screen.dart';
-import 'student_dashboard.dart';
-import 'profile_screen.dart';
-import '../widgets/student_bottom_nav.dart';
-import 'favourites_screen.dart';
 
 class TopTutorData {
   final String name;
@@ -29,13 +23,10 @@ class _TopTutorsScreenState extends State<TopTutorsScreen> {
     TopTutorData(name: "Hassan Javed", expertise: "English Coach"),
     TopTutorData(name: "Ayesha Khan", expertise: "Science Mentor"),
     TopTutorData(name: "Omar Farooq", expertise: "Biology Expert"),
-    TopTutorData(name: "Anzala Abid", expertise: "English Specialist"),
-    TopTutorData(name: "Emaz Ali", expertise: "Tech Mentor"),
-    TopTutorData(name: "Rafay Zahid", expertise: "CS Instructor"),
   ];
 
   List<TopTutorData> filteredTutors = [];
-  int _selectedIndex = 1; // Search/Discovery tab
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -43,20 +34,20 @@ class _TopTutorsScreenState extends State<TopTutorsScreen> {
     filteredTutors = allTutors;
   }
 
-  void _runFilter(String enteredKeyword) {
-    List<TopTutorData> results = [];
-    if (enteredKeyword.isEmpty) {
-      results = allTutors;
-    } else {
-      results = allTutors
-          .where((tutor) =>
-      tutor.name.toLowerCase().contains(enteredKeyword.toLowerCase()) ||
-          tutor.expertise.toLowerCase().contains(enteredKeyword.toLowerCase()))
-          .toList();
-    }
+  void _filterTutors(String query) {
     setState(() {
-      filteredTutors = results;
+      filteredTutors = allTutors
+          .where((tutor) =>
+      tutor.name.toLowerCase().contains(query.toLowerCase()) ||
+          tutor.expertise.toLowerCase().contains(query.toLowerCase()))
+          .toList();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -66,109 +57,26 @@ class _TopTutorsScreenState extends State<TopTutorsScreen> {
       extendBody: true,
       body: Column(
         children: [
-          _buildWhiteHeader(context),
-          // --- Functional Search Bar ---
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 25, 20, 10),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 15,
-                    offset: const Offset(0, 8),
-                  )
-                ],
-              ),
-              child: TextField(
-                onChanged: (value) => _runFilter(value),
-                cursorColor: Colors.black,
-                decoration: InputDecoration(
-                  hintText: "Search tutors...",
-                  hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
-                  prefixIcon: const Icon(Icons.search, color: Colors.black54),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 20),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          // --- Tutors List ---
+          _buildHeader(context), // Header with navigation
+          _buildSearchBar(),     // Independent search bar after header
           Expanded(
-            child: filteredTutors.isNotEmpty
-                ? ListView.separated(
+            child: filteredTutors.isEmpty
+                ? _buildEmptyState()
+                : ListView.separated(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 120),
               physics: const BouncingScrollPhysics(),
               itemCount: filteredTutors.length,
               separatorBuilder: (context, index) => const SizedBox(height: 15),
-              itemBuilder: (context, index) {
-                return _buildTutorCard(filteredTutors[index]);
-              },
-            )
-                : const Center(
-              child: Text(
-                'No tutors found',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
+              itemBuilder: (context, index) => _buildTutorCard(filteredTutors[index]),
             ),
           ),
         ],
       ),
-      bottomNavigationBar: StudentBottomNav(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          if (index == _selectedIndex) return;
-
-          setState(() {
-            _selectedIndex = index;
-          });
-
-          // Navigation Logic
-          switch (index) {
-            case 0:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const StudentDashboard()),
-              );
-              break;
-            case 1:
-              // Navigator.pushReplacement(
-              //   context,
-              //   MaterialPageRoute(builder: (context) => const ConnectionScreen()),
-              // );
-              break;
-            case 2:
-            // Navigator.pushReplacement(
-            //   context,
-            //   MaterialPageRoute(builder: (context) => const InboxScreen()),
-            // );
-              break;
-            case 3:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const FavouritesScreen()),
-              );
-              break;
-            case 4:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfileScreen()),
-              );
-              break;
-          }
-        },
-      ),
     );
   }
 
-  Widget _buildWhiteHeader(BuildContext context) {
+  // 1. The Header (Navigation only)
+  Widget _buildHeader(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
       decoration: BoxDecoration(
@@ -179,9 +87,9 @@ class _TopTutorsScreenState extends State<TopTutorsScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -192,10 +100,7 @@ class _TopTutorsScreenState extends State<TopTutorsScreen> {
             onTap: () => Navigator.pop(context),
             child: Container(
               padding: const EdgeInsets.all(10),
-              decoration: const BoxDecoration(
-                color: Colors.black,
-                shape: BoxShape.circle,
-              ),
+              decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
               child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
             ),
           ),
@@ -205,26 +110,41 @@ class _TopTutorsScreenState extends State<TopTutorsScreen> {
               color: Color(0xFF1A1C43),
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              letterSpacing: 0.5,
             ),
           ),
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SearchScreen()),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.search, color: Colors.black87, size: 22),
-            ),
-          ),
+          const SizedBox(width: 40), // Spacing placeholder
         ],
+      ),
+    );
+  }
+
+  // 2. The Search Bar (Positioned after the header)
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 15),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: TextField(
+          controller: _searchController,
+          onChanged: _filterTutors,
+          decoration: const InputDecoration(
+            icon: Icon(Icons.search, color: Colors.grey, size: 20),
+            hintText: "Search tutor here...",
+            border: InputBorder.none,
+            hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+          ),
+        ),
       ),
     );
   }
@@ -236,10 +156,7 @@ class _TopTutorsScreenState extends State<TopTutorsScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => TutorProfileScreen(
-              tutorData: {
-                'name': tutor.name,
-                'sub': tutor.expertise,
-              },
+              tutorData: {'name': tutor.name, 'sub': tutor.expertise},
             ),
           ),
         );
@@ -271,20 +188,12 @@ class _TopTutorsScreenState extends State<TopTutorsScreen> {
                 children: [
                   Text(
                     tutor.name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     tutor.expertise,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
                   ),
                 ],
               ),
@@ -292,6 +201,22 @@ class _TopTutorsScreenState extends State<TopTutorsScreen> {
             const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.black12),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 60, color: Colors.grey),
+          SizedBox(height: 10),
+          Text(
+            "No tutors found for this search",
+            style: TextStyle(color: Colors.grey, fontSize: 16),
+          ),
+        ],
       ),
     );
   }

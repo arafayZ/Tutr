@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'shared_widgets.dart';
+import 'course_details_screen.dart'; // Import the details screen
 
 class OALevelScreen extends StatefulWidget {
   const OALevelScreen({super.key});
@@ -37,7 +38,7 @@ class _OALevelScreenState extends State<OALevelScreen> {
   String _currentSearchQuery = "";
   List<String> _activeCategories = [];
   List<String> _activeModes = [];
-  String _activeBudget = ""; // Added to fix the build error
+  String _activeBudget = "";
 
   @override
   void initState() {
@@ -49,14 +50,11 @@ class _OALevelScreenState extends State<OALevelScreen> {
   void _applyAllFilters() {
     setState(() {
       filteredTutors = allTutors.where((tutor) {
-        // 1. Check Search Query
         bool matchesSearch = tutor['name'].toLowerCase().contains(_currentSearchQuery.toLowerCase()) ||
             tutor['subject'].toLowerCase().contains(_currentSearchQuery.toLowerCase());
 
-        // 2. Check Teaching Mode
         bool matchesMode = _activeModes.isEmpty || _activeModes.contains(tutor['location']);
 
-        // 3. Check Budget logic
         bool matchesBudget = _activeBudget.isEmpty || tutor['price'].contains(_activeBudget.split(' ')[0]);
 
         return matchesSearch && matchesMode && matchesBudget;
@@ -77,7 +75,6 @@ class _OALevelScreenState extends State<OALevelScreen> {
       appBar: buildSharedAppBar(context, "O & A Level"),
       body: Column(
         children: [
-          // Updated call with activeBudget and the correct 3-parameter callback
           buildSharedSearchBar(
             context: context,
             onSearch: (val) {
@@ -86,12 +83,12 @@ class _OALevelScreenState extends State<OALevelScreen> {
             },
             activeCategories: _activeCategories,
             activeModes: _activeModes,
-            activeBudget: _activeBudget, // Added required parameter
-            onApplyFilters: (newCats, newModes, newBudget,newLocation) { // Added 3rd parameter
+            activeBudget: _activeBudget,
+            onApplyFilters: (newCats, newModes, newBudget, newLocation) {
               setState(() {
                 _activeCategories = newCats;
                 _activeModes = newModes;
-                _activeBudget = newBudget; // Update state
+                _activeBudget = newBudget;
                 _applyAllFilters();
               });
             },
@@ -102,7 +99,24 @@ class _OALevelScreenState extends State<OALevelScreen> {
           Expanded(
             child: filteredTutors.isEmpty
                 ? buildEmptyState()
-                : buildTutorList(filteredTutors, _toggleFav),
+                : buildTutorList(
+              filteredTutors,
+              _toggleFav,
+              onCardTap: (tutor) {
+                // Navigate to full details screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CourseDetailsScreen(
+                      courseData: {
+                        ...tutor,
+                        "title": tutor['subject'], // Maps 'subject' to 'title'
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),

@@ -141,22 +141,10 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
       ),
       child: Row(
         children: [
-          // Functional Back Button
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: const BoxDecoration(
-                color: Colors.black,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
-            ),
-          ),
           const Expanded(
             child: Center(
               child: Padding(
-                padding: EdgeInsets.only(right: 40), // Balances the space taken by back button
+                padding: EdgeInsets.only(right: 0), // Balances the space taken by back button
                 child: Text(
                   "Favourites",
                   style: TextStyle(

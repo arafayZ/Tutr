@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_first_app/student/connection_screen.dart';
 
 // --- Imports ---
 import '../widgets/student_bottom_nav.dart';
@@ -13,6 +14,7 @@ import 'profile_screen.dart';
 import 'favourites_screen.dart';
 import 'tutor_profile_screen.dart';
 import 'course_details_screen.dart';
+import 'connection_screen.dart';
 
 // --- 1. DATA MODELS ---
 class Tutor {
@@ -56,7 +58,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
     super.initState();
     _screens = [
       _buildHomeContent(),
-      const Center(child: Text("Connection Screen")),
+      const ConnectionScreen(),
       const Center(child: Text("Inbox Screen")),
       const FavouritesScreen(),
       const ProfileScreen(),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'reviews_screen.dart';
 
 class CourseDetailsScreen extends StatelessWidget {
   final Map<String, dynamic> courseData;
@@ -133,7 +134,11 @@ class CourseDetailsScreen extends StatelessWidget {
                   top: 50, left: 20,
                   child: GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: Container(padding: const EdgeInsets.all(8), decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle), child: const Icon(Icons.arrow_back, color: Colors.black, size: 24)),
+                    child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                        child: const Icon(Icons.arrow_back, color: Colors.black, size: 24)
+                    ),
                   ),
                 ),
                 Positioned(bottom: -120, left: 0, right: 0, child: _buildMainInfoCard()),
@@ -151,7 +156,7 @@ class CourseDetailsScreen extends StatelessWidget {
                   const SizedBox(height: 30),
                   _buildFeaturesSection(),
                   const SizedBox(height: 30),
-                  _buildReviewsHeader(),
+                  _buildReviewsHeader(context),
                   const SizedBox(height: 15),
                   _buildReviewItem("Omar Farooq", "Amazing tutor!", "4 weeks ago"),
                   _buildReviewItem("Ayesha Noor", "Excellent teaching!", "1 hour ago"),
@@ -171,15 +176,37 @@ class CourseDetailsScreen extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(25), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 15, offset: const Offset(0, 8))]),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(25),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 15, offset: const Offset(0, 8))]
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text("Asim Ali Khan", style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)), Row(children: [Icon(Icons.star, color: Colors.orange, size: 16), Text(" 4.2", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))])]),
+          const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text("Asim Ali Khan", style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
+                Row(children: [Icon(Icons.star, color: Colors.orange, size: 16), Text(" 4.2", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))])
+              ]
+          ),
           const SizedBox(height: 8),
-          Text(courseData['sub'] ?? "Course Title", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1A1C43))),
+          // Ensure the key matches exactly what you pass in (usually 'sub' or 'title')
+          Text(
+              courseData['sub'] ?? courseData['title'] ?? "Course Title",
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1A1C43))
+          ),
           const SizedBox(height: 12),
-          Row(children: [const Icon(Icons.grid_view, size: 16, color: Colors.grey), const SizedBox(width: 5), Text(courseData['category'] ?? "General", style: const TextStyle(color: Colors.grey, fontSize: 13)), const Spacer(), Text(courseData['price'] ?? "0 PKR", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 18))]),
+          Row(
+              children: [
+                const Icon(Icons.grid_view, size: 16, color: Colors.grey),
+                const SizedBox(width: 5),
+                Text(courseData['category'] ?? "General", style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                const Spacer(),
+                Text(courseData['price'] ?? "0 PKR", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 18))
+              ]
+          ),
           const SizedBox(height: 20),
           const Text("About", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 8),
@@ -193,7 +220,17 @@ class CourseDetailsScreen extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text("Tutor", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A1C43))),
       const SizedBox(height: 15),
-      Row(children: [const CircleAvatar(radius: 25, backgroundColor: Colors.black, child: Icon(Icons.person, color: Colors.white)), const SizedBox(width: 15), Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [Text("Asim Ali Khan", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1A1C43))), Text("Senior Instructor", style: TextStyle(color: Colors.grey, fontSize: 12))])]),
+      Row(children: [
+        const CircleAvatar(radius: 25, backgroundColor: Colors.black, child: Icon(Icons.person, color: Colors.white)),
+        const SizedBox(width: 15),
+        Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text("Asim Ali Khan", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1A1C43))),
+              Text("Senior Instructor", style: TextStyle(color: Colors.grey, fontSize: 12))
+            ]
+        )
+      ]),
     ]);
   }
 
@@ -214,12 +251,45 @@ class CourseDetailsScreen extends StatelessWidget {
     return Padding(padding: const EdgeInsets.only(bottom: 15), child: Row(children: [Icon(icon, size: 22, color: Colors.black54), const SizedBox(width: 15), Text(text, style: const TextStyle(fontSize: 14, color: Color(0xFF1A1C43)))]));
   }
 
-  Widget _buildReviewsHeader() {
-    return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text("Reviews", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A1C43))), TextButton(onPressed: () {}, child: const Text("SEE ALL", style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12)))]);
+  Widget _buildReviewsHeader(BuildContext context) {
+    return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text("Reviews", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A1C43))),
+          TextButton(
+            // Inside CourseDetailsScreen.dart
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ReviewsScreen(courseData: courseData),
+                  ),
+                );
+              },
+              child: const Text("SEE ALL", style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12))
+          )
+        ]
+    );
   }
 
   Widget _buildReviewItem(String name, String comment, String timeAgo) {
-    return Container(margin: const EdgeInsets.only(bottom: 20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [const CircleAvatar(radius: 20, backgroundColor: Colors.grey, child: Icon(Icons.person, color: Colors.white)), const SizedBox(width: 12), Expanded(child: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1A1C43)))), const Icon(Icons.star, color: Colors.orange, size: 14), const Text(" 4.5", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))]), Padding(padding: const EdgeInsets.only(left: 52, top: 5), child: Text(comment, style: const TextStyle(color: Colors.black87, fontSize: 13))), Padding(padding: const EdgeInsets.only(left: 52, top: 4), child: Text(timeAgo, style: const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.w500)))]));
+    return Container(
+        margin: const EdgeInsets.only(bottom: 20),
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                const CircleAvatar(radius: 20, backgroundColor: Colors.grey, child: Icon(Icons.person, color: Colors.white)),
+                const SizedBox(width: 12),
+                Expanded(child: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1A1C43)))),
+                const Icon(Icons.star, color: Colors.orange, size: 14),
+                const Text(" 4.5", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))
+              ]),
+              Padding(padding: const EdgeInsets.only(left: 52, top: 5), child: Text(comment, style: const TextStyle(color: Colors.black87, fontSize: 13))),
+              Padding(padding: const EdgeInsets.only(left: 52, top: 4), child: Text(timeAgo, style: const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.w500)))
+            ]
+        )
+    );
   }
 
   Widget _buildBottomActions(BuildContext context) {

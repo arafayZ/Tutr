@@ -6,31 +6,84 @@ import '../config/api_config.dart';
 class RatingService {
   static bool get useRealApi => ApiConfig.useRealApi;
 
+  // ============ HELPER METHODS ============
+
   static String _cleanErrorMessage(String message) {
     String cleaned = message
         .replaceFirst('Exception: ', '')
+        .replaceFirst('FormatUnexpected character (at character 1)\n', '')
+        .replaceFirst('FormatUnexpected character (at character 1)', '')
         .replaceAll('"', '')
         .replaceAll('{', '')
         .replaceAll('}', '')
         .replaceAll('[', '')
         .replaceAll(']', '')
         .replaceAll('\\', '')
+        .replaceAll('Λ', '')
+        .replaceAll('^', '')
+        .replaceAll('\n', ' ')
         .trim();
-    return cleaned.isEmpty ? 'Something went wrong' : cleaned;
+
+    cleaned = cleaned.replaceAll(' OK', '');
+    cleaned = cleaned.replaceAll(' A ', ' ');
+    cleaned = cleaned.replaceAll(RegExp(r'\bA\b'), '');
+    cleaned = cleaned.replaceAll(RegExp(r'\bOK\b'), '');
+
+    cleaned = cleaned.replaceAll(RegExp(r'[^\x20-\x7E]'), '');
+    cleaned = cleaned.replaceFirst(RegExp(r'^[0-9\s]+'), '');
+    cleaned = cleaned.trim();
+
+    final lowerMsg = cleaned.toLowerCase();
+
+    if (lowerMsg.contains('already rated')) {
+      return 'You have already rated this course';
+    }
+    if (lowerMsg.contains('already reviewed')) {
+      return 'You have already reviewed this course';
+    }
+    if (lowerMsg.contains('not found')) {
+      return 'Course not found';
+    }
+    if (lowerMsg.contains('invalid')) {
+      return 'Invalid request. Please try again';
+    }
+    if (lowerMsg.contains('rating must be between')) {
+      return 'Rating must be between 1 and 5';
+    }
+    if (lowerMsg.contains('review cannot be empty')) {
+      return 'Review cannot be empty';
+    }
+
+    if (cleaned.isEmpty) {
+      return 'Something went wrong. Please try again';
+    }
+
+    if (cleaned.isNotEmpty) {
+      cleaned = cleaned[0].toUpperCase() + cleaned.substring(1);
+    }
+
+    return cleaned;
   }
 
+  static Future<Map<String, String>> _getHeaders() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('auth_token');
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
 
-  // ============ GET TOP RATED COURSES FOR TUTOR ============
+  // ============ TOP RATED COURSES ============
+  // Fetches top rated courses for a tutor with optional limit
+
   static Future<List<dynamic>> getTopRatedCourses(int tutorId, {int limit = 5}) async {
     if (useRealApi) {
       try {
         final response = await http.get(
           Uri.parse('${ApiConfig.getFullUrl(ApiConfig.getTopRatedCourses)}/$tutorId/top-courses?limit=$limit'),
-          headers: {'Content-Type': 'application/json'},
+          headers: await _getHeaders(),
         ).timeout(const Duration(seconds: 15));
-
-        print(' Top Courses Response Status: ${response.statusCode}');
-        print(' Top Courses Response Body: ${response.body}');
 
         if (response.statusCode == 200) {
           return json.decode(response.body);
@@ -41,44 +94,21 @@ class RatingService {
         throw Exception(_cleanErrorMessage(e.toString()));
       }
     } else {
-      // Mock data for testing
       await Future.delayed(const Duration(seconds: 1));
-      return [
-        {
-          'courseId': 1,
-          'subject': 'Mathematics',
-          'category': 'INTERMEDIATE',
-          'teachingMode': 'ONLINE',
-          'price': 5000.0,
-          'averageRating': 4.8,
-          'tutorName': 'John Doe',
-          'rank': 1
-        },
-        {
-          'courseId': 2,
-          'subject': 'Physics',
-          'category': 'A_LEVEL',
-          'teachingMode': 'STUDENT_HOME',
-          'price': 6000.0,
-          'averageRating': 4.5,
-          'tutorName': 'John Doe',
-          'rank': 2
-        },
-      ];
+      return [];
     }
   }
 
-  // ============ GET TUTOR RATING SUMMARY ============
+  // ============ TUTOR RATING SUMMARY ============
+  // Fetches rating summary for a tutor including average rating and distribution
+
   static Future<Map<String, dynamic>> getTutorRatingSummary(int tutorProfileId) async {
     if (useRealApi) {
       try {
         final response = await http.get(
           Uri.parse('${ApiConfig.getFullUrl(ApiConfig.getTutorRatingSummary)}/$tutorProfileId/summary'),
-          headers: {'Content-Type': 'application/json'},
+          headers: await _getHeaders(),
         ).timeout(const Duration(seconds: 15));
-
-        print('📥 Rating Summary Response Status: ${response.statusCode}');
-        print('📥 Rating Summary Response Body: ${response.body}');
 
         if (response.statusCode == 200) {
           return json.decode(response.body);
@@ -90,39 +120,20 @@ class RatingService {
       }
     } else {
       await Future.delayed(const Duration(seconds: 1));
-      return {
-        'averageRating': 3.8,
-        'totalRatings': 5,
-        'ratingDistribution': {'1': 0, '2': 0, '3': 1, '4': 4, '5': 0},
-        'tutorName': 'Emaz Ali Khan',
-        'reviews': [
-          {
-            'reviewId': 5,
-            'studentName': 'Ayesha Asif',
-            'studentImage': null,
-            'rating': 4,
-            'review': 'Good course, well structured',
-            'category': 'MATRIC',
-            'teachingMode': 'STUDENT_HOME',
-            'courseSubject': 'Biology',
-            'createdAt': DateTime.now().toIso8601String(),
-          }
-        ],
-      };
+      return {};
     }
   }
 
-// ============ GET TUTOR FILTER OPTIONS ============
+  // ============ TUTOR FILTER OPTIONS ============
+  // Fetches available filter options for tutor ratings
+
   static Future<Map<String, dynamic>> getTutorFilterOptions(int tutorProfileId) async {
     if (useRealApi) {
       try {
         final response = await http.get(
           Uri.parse('${ApiConfig.getFullUrl(ApiConfig.getTutorFilterOptions)}/$tutorProfileId/filter-options'),
-          headers: {'Content-Type': 'application/json'},
+          headers: await _getHeaders(),
         ).timeout(const Duration(seconds: 15));
-
-        print(' Filter Options Response Status: ${response.statusCode}');
-        print(' Filter Options Response Body: ${response.body}');
 
         if (response.statusCode == 200) {
           return json.decode(response.body);
@@ -134,24 +145,20 @@ class RatingService {
       }
     } else {
       await Future.delayed(const Duration(seconds: 1));
-      return {
-        'categories': ['Matric', 'Intermediate', 'O Level', 'A Level', 'Entrance Test'],
-        'teachingModes': ['Online', 'Student Home', 'Tutor Home'],
-      };
+      return {};
     }
   }
 
-// ============ GET REVIEW DETAIL ============
+  // ============ REVIEW DETAIL ============
+  // Fetches detailed information for a specific review
+
   static Future<Map<String, dynamic>> getReviewDetail(int reviewId) async {
     if (useRealApi) {
       try {
         final response = await http.get(
           Uri.parse('${ApiConfig.getFullUrl(ApiConfig.getReviewDetail)}/$reviewId'),
-          headers: {'Content-Type': 'application/json'},
+          headers: await _getHeaders(),
         ).timeout(const Duration(seconds: 15));
-
-        print('📥 Review Detail Response Status: ${response.statusCode}');
-        print('📥 Review Detail Response Body: ${response.body}');
 
         if (response.statusCode == 200) {
           return json.decode(response.body);
@@ -163,26 +170,13 @@ class RatingService {
       }
     } else {
       await Future.delayed(const Duration(seconds: 1));
-      return {
-        'reviewId': 1,
-        'studentId': 1,
-        'studentName': 'Sumaika Asif',
-        'studentImage': '/uploads/student-profile-images/user_6_student_20260318_143626_4428b688-4424-4c3e-9c52-49817e66da9a.png',
-        'rating': 4,
-        'review': 'Good course, well structured',
-        'courseId': 1,
-        'subject': 'Chemistry',
-        'tutorName': 'Emaz Ali Khan',
-        'price': 4000.0,
-        'category': 'MATRIC',
-        'teachingMode': 'STUDENT_HOME',
-        'averageRating': 4.0,
-        'createdAt': '2026-03-19T01:47:42.213588',
-      };
+      return {};
     }
   }
 
-  // ============ GET TUTOR RATING SUMMARY WITH FILTERS ============
+  // ============ TUTOR RATING SUMMARY WITH FILTERS ============
+  // Fetches rating summary filtered by category and/or teaching mode
+
   static Future<Map<String, dynamic>> getTutorRatingSummaryWithFilters(
       int tutorProfileId, {
         String? category,
@@ -190,7 +184,6 @@ class RatingService {
       }) async {
     if (useRealApi) {
       try {
-        // Build URL with query parameters
         String url = '${ApiConfig.getFullUrl(ApiConfig.getTutorRatingSummary)}/$tutorProfileId/summary';
         List<String> queryParams = [];
 
@@ -205,20 +198,14 @@ class RatingService {
           url += '?${queryParams.join('&')}';
         }
 
-        print('📥 Rating Summary URL: $url');
-
         final response = await http.get(
           Uri.parse(url),
-          headers: {'Content-Type': 'application/json'},
+          headers: await _getHeaders(),
         ).timeout(const Duration(seconds: 15));
-
-        print('📥 Rating Summary Response Status: ${response.statusCode}');
-        print('📥 Rating Summary Response Body: ${response.body}');
 
         if (response.statusCode == 200) {
           return json.decode(response.body);
         } else {
-          // Return empty data instead of throwing error
           return {
             'averageRating': 0.0,
             'totalRatings': 0,
@@ -228,8 +215,6 @@ class RatingService {
           };
         }
       } catch (e) {
-        print('Error in getTutorRatingSummaryWithFilters: $e');
-        // Return empty data instead of throwing error
         return {
           'averageRating': 0.0,
           'totalRatings': 0,
@@ -240,26 +225,119 @@ class RatingService {
       }
     } else {
       await Future.delayed(const Duration(seconds: 1));
-      return {
-        'averageRating': 4.0,
-        'totalRatings': 5,
-        'ratingDistribution': {'1': 0, '2': 0, '3': 1, '4': 4, '5': 0},
-        'tutorName': 'Emaz Ali Khan',
-        'reviews': [
-          {
-            'reviewId': 1,
-            'studentName': 'Sumaika Asif',
-            'studentImage': null,
-            'rating': 4,
-            'review': 'Good course, well structured',
-            'category': category ?? 'MATRIC',
-            'teachingMode': teachingMode ?? 'STUDENT_HOME',
-            'courseSubject': 'Chemistry',
-            'createdAt': DateTime.now().toIso8601String(),
-          }
-        ],
-      };
+      return {};
     }
   }
 
+  // ============ COURSE REVIEWS ============
+  // Fetches all reviews for a specific course
+
+  static Future<List<Map<String, dynamic>>> getCourseReviews(int courseId) async {
+    if (useRealApi) {
+      try {
+        final url = ApiConfig.getFullUrl('${ApiConfig.getCourseReviews}/$courseId/reviews');
+
+        final response = await http.get(
+          Uri.parse(url),
+          headers: await _getHeaders(),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final dynamic jsonData = json.decode(response.body);
+
+          if (jsonData is Map<String, dynamic> && jsonData.containsKey('reviews')) {
+            final List<dynamic> reviews = jsonData['reviews'];
+            return reviews.map((review) => Map<String, dynamic>.from(review)).toList();
+          } else if (jsonData is List) {
+            return jsonData.map((review) => Map<String, dynamic>.from(review)).toList();
+          }
+          return [];
+        } else {
+          return [];
+        }
+      } catch (e) {
+        return [];
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      return [];
+    }
+  }
+
+  // ============ TOP TUTORS ============
+  // Fetches top rated tutors for student dashboard
+
+  static Future<List<dynamic>> getTopTutors(int studentId) async {
+    if (useRealApi) {
+      try {
+        final url = ApiConfig.getFullUrl('${ApiConfig.topTutors}/$studentId');
+
+        final response = await http.get(
+          Uri.parse(url),
+          headers: await _getHeaders(),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
+          return data;
+        } else {
+          throw Exception(_cleanErrorMessage('Failed to load top tutors'));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      return [];
+    }
+  }
+
+  // ============ SUBMIT RATING ============
+  // Submits a rating and review for a course
+
+  static Future<Map<String, dynamic>> submitRating({
+    required int studentId,
+    required int courseId,
+    required int rating,
+    required String review,
+  }) async {
+    if (useRealApi) {
+      try {
+        final requestBody = {
+          'studentId': studentId,
+          'courseId': courseId,
+          'rating': rating,
+          'review': review,
+        };
+
+        final response = await http.post(
+          Uri.parse(ApiConfig.getFullUrl(ApiConfig.submitRating)),
+          headers: await _getHeaders(),
+          body: json.encode(requestBody),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final Map<String, dynamic> data = json.decode(response.body);
+          return {
+            'success': true,
+            'message': data['message'] ?? 'Review submitted successfully',
+          };
+        } else {
+          String errorMsg = '';
+          try {
+            final errorData = json.decode(response.body);
+            errorMsg = errorData['error'] ?? 'Failed to submit review';
+          } catch (e) {
+            errorMsg = response.body;
+          }
+          throw Exception(_cleanErrorMessage(errorMsg));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      return {'success': true, 'message': 'Review submitted successfully'};
+    }
+  }
 }

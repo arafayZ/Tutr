@@ -171,7 +171,42 @@ class AuthService {
     }
   }
 
-  // ============ TUTOR PROFILE APIS ============
+  static Future<void> logout() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+
+    if (useRealApi) {
+      try {
+        final response = await http.post(
+          Uri.parse(ApiConfig.getFullUrl(ApiConfig.logout)),
+          headers: {'Content-Type': 'application/json'},
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode != 200) {
+          final errorData = json.decode(response.body);
+          throw Exception(errorData['error'] ?? 'Failed to logout');
+        }
+      } catch (e) {
+        // Still clear local data but preserve onboarding
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+    }
+
+    // Clear only login data
+    await prefs.remove('userId');
+    await prefs.remove('profileId');
+    await prefs.remove('role');
+    await prefs.remove('accountStatus');
+    await prefs.remove('registrationStep');
+    await prefs.remove('email');
+
+    // Restore onboarding flag
+    await prefs.setBool('hasSeenOnboarding', hasSeenOnboarding);
+  }
+
+  // ============ TUTOR ACCOUNT APIS ============
+  // These methods handle tutor registration, profile management, and document verification
 
   static Future<Map<String, dynamic>> createTutorProfile(Map<String, dynamic> data) async {
     if (useRealApi) {
@@ -229,7 +264,7 @@ class AuthService {
         'firstName': 'John',
         'lastName': 'Doe',
         'email': 'tutor@example.com',
-        'phoneNumber': '+923001234567',
+        'phoneNumber': '923001234567',
         'headline': 'Experienced Math Tutor',
         'gender': 'Male',
         'dateOfBirth': '1990-01-01',
@@ -242,21 +277,14 @@ class AuthService {
     }
   }
 
-  // EDIT PROFILE - TEXT FIELDS ONLY (USE JSON, NOT MULTIPART)
-  // EDIT PROFILE - USE JSON (NO IMAGE, SMALLER PAYLOAD)
   static Future<Map<String, dynamic>> editTutorProfile(Map<String, dynamic> data) async {
     if (useRealApi) {
       try {
-        print('📤 Editing tutor profile with data: $data');
-
         final response = await http.put(
           Uri.parse(ApiConfig.getFullUrl(ApiConfig.editTutorProfileJson)),
           headers: {'Content-Type': 'application/json'},
           body: json.encode(data),
         ).timeout(const Duration(seconds: 30));
-
-        print('📥 Edit Profile Response Status: ${response.statusCode}');
-        print('📥 Edit Profile Response Body: ${response.body}');
 
         if (response.statusCode == 200) {
           if (response.body.isEmpty) {
@@ -268,7 +296,6 @@ class AuthService {
           throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Failed to update profile'));
         }
       } catch (e) {
-        print('❌ Edit Profile Error: $e');
         throw Exception(_cleanErrorMessage(e.toString()));
       }
     } else {
@@ -276,7 +303,7 @@ class AuthService {
       return {'message': 'Profile updated successfully'};
     }
   }
-  // UPLOAD PROFILE IMAGE - SEPARATE API (ONLY ONE COPY)
+
   static Future<Map<String, dynamic>> uploadTutorImage(int profileId, String imagePath, {String? oldImageUrl}) async {
     if (useRealApi) {
       try {
@@ -288,16 +315,12 @@ class AuthService {
         String extension = imagePath.split('.').last.toLowerCase();
         String contentType = extension == 'png' ? 'image/png' : 'image/jpeg';
 
-        print('📤 Uploading image for profile ID: $profileId');
-        print('📤 Old image URL: $oldImageUrl');
-
         var request = http.MultipartRequest(
           'POST',
           Uri.parse(ApiConfig.getFullUrl(ApiConfig.uploadTutorImage)),
         );
         request.fields['tutorProfileId'] = profileId.toString();
 
-        // Send old image URL if exists
         if (oldImageUrl != null && oldImageUrl.isNotEmpty) {
           request.fields['oldImageUrl'] = oldImageUrl;
         }
@@ -312,16 +335,12 @@ class AuthService {
         var response = await request.send();
         var responseData = await response.stream.bytesToString();
 
-        print(' Upload Image Response Status: ${response.statusCode}');
-        print(' Upload Image Response Body: $responseData');
-
         if (response.statusCode == 200) {
           return json.decode(responseData);
         } else {
           throw Exception('Failed to upload image');
         }
       } catch (e) {
-        print('Upload Image Error: $e');
         throw Exception(_cleanErrorMessage(e.toString()));
       }
     } else {
@@ -329,7 +348,6 @@ class AuthService {
       return {'profilePictureUrl': '/uploads/mock-image.jpg'};
     }
   }
-  // ============ DOCUMENT UPLOAD ============
 
   static Future<Map<String, dynamic>> uploadDocuments(int userId, File cnicFile, File certificateFile) async {
     if (useRealApi) {
@@ -363,7 +381,8 @@ class AuthService {
     }
   }
 
-  // ============ STUDENT PROFILE APIS ============
+  // ============ STUDENT ACCOUNT APIS ============
+  // These methods handle student registration, profile management, and updates
 
   static Future<Map<String, dynamic>> createStudentProfile(Map<String, dynamic> data) async {
     if (useRealApi) {
@@ -389,48 +408,101 @@ class AuthService {
     }
   }
 
-  // static Future<Map<String, dynamic>> uploadStudentImage(int profileId, String imagePath) async {
-  //   if (useRealApi) {
-  //     try {
-  //       var request = http.MultipartRequest(
-  //         'POST',
-  //         Uri.parse(ApiConfig.getFullUrl(ApiConfig.uploadStudentImage)),
-  //       );
-  //       request.fields['studentProfileId'] = profileId.toString();
-  //       request.files.add(await http.MultipartFile.fromPath('profileImage', imagePath));
-  //
-  //       var response = await request.send();
-  //       var responseData = await response.stream.bytesToString();
-  //
-  //       if (response.statusCode == 200) {
-  //         return json.decode(responseData);
-  //       } else {
-  //         throw Exception('Failed to upload student image');
-  //       }
-  //     } catch (e) {
-  //       throw Exception(_cleanErrorMessage(e.toString()));
-  //     }
-  //   } else {
-  //     await Future.delayed(const Duration(seconds: 1));
-  //     return {'profilePictureUrl': '/uploads/mock-student-image.jpg'};
-  //   }
-  // }
+  static Future<Map<String, dynamic>> getStudentProfile(int profileId) async {
+    if (useRealApi) {
+      try {
+        final response = await http.get(
+          Uri.parse(ApiConfig.getFullUrl('${ApiConfig.getStudentProfile}/$profileId')),
+          headers: {'Content-Type': 'application/json'},
+        ).timeout(const Duration(seconds: 15));
 
+        if (response.statusCode == 200) {
+          return json.decode(response.body);
+        } else {
+          final errorData = response.body.isNotEmpty ? json.decode(response.body) : {};
+          throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Failed to load student profile'));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      return {
+        'id': profileId,
+        'firstName': 'Abdul',
+        'lastName': 'Rafay',
+        'email': 'student@example.com',
+        'phoneNumber': '92345892658',
+        'gender': 'Male',
+        'dateOfBirth': '2003-01-19',
+        'location': 'Nazimabad, Karachi',
+        'universityName': 'KIET',
+        'degree': 'BSCS',
+        'profilePictureUrl': null,
+      };
+    }
+  }
 
-  // EDIT STUDENT PROFILE - TEXT FIELDS ONLY (USE JSON)
   static Future<Map<String, dynamic>> editStudentProfile(Map<String, dynamic> data) async {
     if (useRealApi) {
       try {
-        print('📤 Editing student profile with data: $data');
-
-        final response = await http.put(
+        var request = http.MultipartRequest(
+          'PUT',
           Uri.parse(ApiConfig.getFullUrl(ApiConfig.editStudentProfile)),
+        );
+
+        request.fields['profileId'] = data['profileId'].toString();
+        request.fields['firstName'] = data['firstName'] ?? '';
+        request.fields['lastName'] = data['lastName'] ?? '';
+        request.fields['phoneNumber'] = data['phoneNumber'] ?? '';
+        request.fields['gender'] = data['gender'] ?? '';
+        request.fields['dateOfBirth'] = data['dateOfBirth'] ?? '';
+        request.fields['location'] = data['location'] ?? '';
+        request.fields['schoolName'] = data['schoolName'] ?? '';
+        request.fields['collegeName'] = data['collegeName'] ?? '';
+
+        if (data['profileImage'] != null && data['profileImage'] is File) {
+          File imageFile = data['profileImage'];
+          var multipartFile = await http.MultipartFile.fromPath(
+            'profileImage',
+            imageFile.path,
+          );
+          request.files.add(multipartFile);
+        }
+
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        String? token = prefs.getString('auth_token');
+        request.headers['Authorization'] = 'Bearer $token';
+
+        var response = await request.send();
+        var responseData = await response.stream.bytesToString();
+
+        if (response.statusCode == 200) {
+          if (responseData.isEmpty) {
+            return {'message': 'Profile updated successfully'};
+          }
+          return json.decode(responseData);
+        } else {
+          final errorData = responseData.isNotEmpty ? json.decode(responseData) : {};
+          throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Failed to update student profile'));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      return {'message': 'Profile updated successfully'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> editStudentProfileJson(Map<String, dynamic> data) async {
+    if (useRealApi) {
+      try {
+        final response = await http.put(
+          Uri.parse(ApiConfig.getFullUrl(ApiConfig.editStudentProfileJson)),
           headers: {'Content-Type': 'application/json'},
           body: json.encode(data),
         ).timeout(const Duration(seconds: 30));
-
-        print('📥 Edit Student Profile Response Status: ${response.statusCode}');
-        print('📥 Edit Student Profile Response Body: ${response.body}');
 
         if (response.statusCode == 200) {
           if (response.body.isEmpty) {
@@ -442,7 +514,6 @@ class AuthService {
           throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Failed to update student profile'));
         }
       } catch (e) {
-        print('❌ Edit Student Profile Error: $e');
         throw Exception(_cleanErrorMessage(e.toString()));
       }
     } else {
@@ -451,7 +522,6 @@ class AuthService {
     }
   }
 
-// UPLOAD STUDENT PROFILE IMAGE - SEPARATE API
   static Future<Map<String, dynamic>> uploadStudentImage(int profileId, String imagePath, {String? oldImageUrl}) async {
     if (useRealApi) {
       try {
@@ -463,16 +533,12 @@ class AuthService {
         String extension = imagePath.split('.').last.toLowerCase();
         String contentType = extension == 'png' ? 'image/png' : 'image/jpeg';
 
-        print('📤 Uploading student image for profile ID: $profileId');
-        print('📤 Old image URL: $oldImageUrl');
-
         var request = http.MultipartRequest(
           'POST',
           Uri.parse(ApiConfig.getFullUrl(ApiConfig.uploadStudentImage)),
         );
         request.fields['studentProfileId'] = profileId.toString();
 
-        // Send old image URL if exists
         if (oldImageUrl != null && oldImageUrl.isNotEmpty) {
           request.fields['oldImageUrl'] = oldImageUrl;
         }
@@ -484,11 +550,12 @@ class AuthService {
         );
         request.files.add(multipartFile);
 
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        String? token = prefs.getString('auth_token');
+        request.headers['Authorization'] = 'Bearer $token';
+
         var response = await request.send();
         var responseData = await response.stream.bytesToString();
-
-        print('📥 Upload Student Image Response Status: ${response.statusCode}');
-        print('📥 Upload Student Image Response Body: $responseData');
 
         if (response.statusCode == 200) {
           return json.decode(responseData);
@@ -496,7 +563,6 @@ class AuthService {
           throw Exception('Failed to upload student image');
         }
       } catch (e) {
-        print(' Upload Student Image Error: $e');
         throw Exception(_cleanErrorMessage(e.toString()));
       }
     } else {
@@ -505,7 +571,9 @@ class AuthService {
     }
   }
 
-// ============ CHANGE PASSWORD ============
+  // ============ COMMON UTILITY APIS ============
+  // These methods are used by both tutor and student accounts
+
   static Future<Map<String, dynamic>> changePassword({
     required int userId,
     required String currentPassword,
@@ -530,14 +598,11 @@ class AuthService {
         } else {
           final errorData = json.decode(response.body);
           String errorMessage = errorData['error'] ?? 'Failed to change password';
-          // Clean the error message
           errorMessage = _cleanErrorMessage(errorMessage);
           throw Exception(errorMessage);
         }
       } catch (e) {
-        String errorMsg = e.toString();
-        errorMsg = _cleanErrorMessage(errorMsg);
-        throw Exception(errorMsg);
+        throw Exception(_cleanErrorMessage(e.toString()));
       }
     } else {
       await Future.delayed(const Duration(seconds: 1));
@@ -554,7 +619,6 @@ class AuthService {
     }
   }
 
-  // Get user by email
   static Future<Map<String, dynamic>> getUserByEmail(String email) async {
     if (useRealApi) {
       try {
@@ -581,45 +645,5 @@ class AuthService {
         'accountStatus': 'ACTIVE',
       };
     }
-  }
-
-  // ============ LOGOUT ============
-
-  static Future<void> logout() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-
-    // Save onboarding flag
-    bool hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
-
-    if (useRealApi) {
-      try {
-        final response = await http.post(
-          Uri.parse(ApiConfig.getFullUrl(ApiConfig.logout)),
-          headers: {'Content-Type': 'application/json'},
-        ).timeout(const Duration(seconds: 15));
-
-        if (response.statusCode != 200) {
-          final errorData = json.decode(response.body);
-          throw Exception(errorData['error'] ?? 'Failed to logout');
-        }
-      } catch (e) {
-        // Still clear local data but preserve onboarding
-        print('Logout API error: $e');
-
-      }
-    } else {
-      await Future.delayed(const Duration(seconds: 1));
-    }
-
-    // Clear only login data
-    await prefs.remove('userId');
-    await prefs.remove('profileId');
-    await prefs.remove('role');
-    await prefs.remove('accountStatus');
-    await prefs.remove('registrationStep');
-    await prefs.remove('email');
-
-    // Restore onboarding flag
-    await prefs.setBool('hasSeenOnboarding', hasSeenOnboarding);
   }
 }

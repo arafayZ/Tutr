@@ -33,6 +33,7 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
   bool _showErrors = false;
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isLocationEditable = true;
 
   @override
   void initState() {
@@ -45,6 +46,27 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
     _loadCourseData();
   }
 
+  void _updateLocationBasedOnMode(String? mode) {
+    if (mode == "Online") {
+      setState(() {
+        _isLocationEditable = false;
+        _locationController.text = "Online";
+      });
+    } else if (mode == "Student Home") {
+      setState(() {
+        _isLocationEditable = false;
+        _locationController.text = "Student's Home";
+      });
+    } else if (mode == "Tutor Home") {
+      setState(() {
+        _isLocationEditable = true;
+        if (_locationController.text == "Online" || _locationController.text == "Student's Home") {
+          _locationController.text = "";
+        }
+      });
+    }
+  }
+
   Future<void> _loadCourseData() async {
     setState(() => _isLoading = true);
 
@@ -52,7 +74,6 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       int tutorProfileId = prefs.getInt('profileId') ?? 0;
 
-      // Get all courses and find the one we need
       List<dynamic> courses = await CourseService.getTutorCourses(tutorProfileId);
 
       Map<String, dynamic>? courseData;
@@ -71,7 +92,6 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
       _subjectController.text = courseData['subject'] ?? '';
       _locationController.text = courseData['location'] ?? '';
 
-      // FIXED: Price without extra zero
       dynamic priceValue = courseData['price'];
       if (priceValue != null) {
         if (priceValue is int) {
@@ -91,11 +111,22 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
 
       _classesController.text = courseData['classesPerMonth']?.toString() ?? '12';
 
-      // Map backend values to display values
       _selectedCategory = _mapBackendCategoryToDisplay(courseData['category']);
       _selectedMode = _mapBackendModeToDisplay(courseData['teachingMode']);
 
-      // Parse times
+      // Update location based on loaded mode
+      if (_selectedMode != null) {
+        if (_selectedMode == "Online") {
+          _isLocationEditable = false;
+          _locationController.text = "Online";
+        } else if (_selectedMode == "Student Home") {
+          _isLocationEditable = false;
+          _locationController.text = "Student's Home";
+        } else {
+          _isLocationEditable = true;
+        }
+      }
+
       if (courseData['startTime'] != null) {
         _startTime = _parseTimeOfDay(courseData['startTime']);
       }
@@ -103,7 +134,6 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
         _endTime = _parseTimeOfDay(courseData['endTime']);
       }
 
-      // Normalize day values
       String rawStartDay = courseData['fromDay'] ?? "Monday";
       String rawEndDay = courseData['toDay'] ?? "Friday";
 
@@ -118,15 +148,10 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
     }
   }
 
-  // Helper: Normalize day from uppercase to proper case
   String _normalizeDay(String day) {
     if (day.isEmpty) return "Monday";
-
-    // Convert from "MONDAY" to "Monday"
     String lowerDay = day.toLowerCase();
     String capitalized = lowerDay[0].toUpperCase() + lowerDay.substring(1);
-
-    // Ensure it's a valid day
     if (_dayList.contains(capitalized)) {
       return capitalized;
     }
@@ -175,31 +200,18 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
     }
   }
 
-  // Safe time parser that handles all formats
   TimeOfDay _parseTimeOfDay(String timeStr) {
     if (timeStr.isEmpty) return const TimeOfDay(hour: 9, minute: 0);
-
     try {
-      // Handle format like "2:00 PM" or "2:00PM"
       String cleanTime = timeStr.trim();
       bool isPM = cleanTime.toUpperCase().contains('PM');
-
-      // Remove AM/PM
       cleanTime = cleanTime.toUpperCase().replaceAll('AM', '').replaceAll('PM', '').trim();
-
       List<String> parts = cleanTime.split(':');
       if (parts.isEmpty) return const TimeOfDay(hour: 9, minute: 0);
-
       int hour = int.tryParse(parts[0]) ?? 0;
       int minute = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
-
-      // Convert to 24-hour format
-      if (isPM && hour != 12) {
-        hour += 12;
-      } else if (!isPM && hour == 12) {
-        hour = 0;
-      }
-
+      if (isPM && hour != 12) hour += 12;
+      else if (!isPM && hour == 12) hour = 0;
       return TimeOfDay(hour: hour, minute: minute);
     } catch (e) {
       return const TimeOfDay(hour: 9, minute: 0);
@@ -212,14 +224,7 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
     String period = hour >= 12 ? "PM" : "AM";
     int hour12 = hour % 12;
     if (hour12 == 0) hour12 = 12;
-
-    // Format: "2:00 PM" or "02:00 PM" - choose one based on your backend
-
-    // Option 1: Without leading zero (2:00 PM)
     return "$hour12:${minute.toString().padLeft(2, '0')} $period";
-
-    // Option 2: With leading zero (02:00 PM) - uncomment if backend needs leading zero
-    // return "${hour12.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period";
   }
 
   @override
@@ -258,7 +263,59 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            CustomTabHeader(title: Text("Edit Course", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
+            Container(
+              width: double.infinity,
+              height: 80,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(30),
+                  bottomRight: Radius.circular(30),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    offset: Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                bottom: false,
+                child: Stack(
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 24.0),
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: const CircleAvatar(
+                            backgroundColor: Colors.black,
+                            radius: 20,
+                            child: Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Center(
+                      child: Text(
+                        "Edit Course",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -275,8 +332,18 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
                     const SizedBox(height: 15),
                     _buildField("Subject", _subjectController, "e.g. Maths"),
                     _buildDropdown("Category", _categories, _selectedCategory, (v) => setState(() => _selectedCategory = v)),
-                    _buildDropdown("Teaching Mode", _modes, _selectedMode, (v) => setState(() => _selectedMode = v)),
-                    _buildField("Area, City", _locationController, "e.g. Nazimabad, Karachi"),
+                    _buildDropdown("Teaching Mode", _modes, _selectedMode, (v) {
+                      setState(() {
+                        _selectedMode = v;
+                        _updateLocationBasedOnMode(v);
+                      });
+                    }),
+                    _buildField(
+                      "Area, City",
+                      _locationController,
+                      _isLocationEditable ? "e.g. Nazimabad, Karachi" : "",
+                      readOnly: !_isLocationEditable,
+                    ),
                     const SizedBox(height: 10),
                     Row(
                       children: [
@@ -319,7 +386,8 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController controller, String hint, {bool isNumeric = false, int? maxValue}) {
+  Widget _buildField(String label, TextEditingController controller, String hint,
+      {bool isNumeric = false, int? maxValue, bool readOnly = false}) {
     int? val = int.tryParse(controller.text);
     bool hasError = _showErrors && (controller.text.trim().isEmpty || (isNumeric && val == null) || (maxValue != null && val != null && val > maxValue));
     return Column(
@@ -329,13 +397,21 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
         const SizedBox(height: 6),
         TextField(
           controller: controller,
+          readOnly: readOnly,
           keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
           inputFormatters: isNumeric ? [FilteringTextInputFormatter.digitsOnly] : [],
           decoration: InputDecoration(
             hintText: hint,
-            filled: true, fillColor: Colors.white,
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: hasError ? Colors.red : Colors.transparent)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.black)),
+            filled: true,
+            fillColor: readOnly ? Colors.grey[100] : Colors.white,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: hasError ? Colors.red : Colors.transparent),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.black),
+            ),
           ),
         ),
         const SizedBox(height: 15),
@@ -351,7 +427,7 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: hasError ? Colors.red : const Color(0xFFEEEEEE))),
-          child: TextField(controller: _aboutController, maxLines: 4, onChanged: (v) => setState(() {}), decoration: const InputDecoration(border: InputBorder.none, hintText: "Describe your course...")),
+          child: TextField(controller: _aboutController, maxLines: 4, onChanged: (v) => setState(() => {}), decoration: const InputDecoration(border: InputBorder.none, hintText: "Describe your course...")),
         ),
         const SizedBox(height: 5),
         Align(alignment: Alignment.centerRight, child: Text("$wordCount/100 words", style: const TextStyle(color: Colors.grey, fontSize: 11))),
@@ -462,7 +538,15 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
       return;
     }
 
-    if (_aboutController.text.isEmpty || _subjectController.text.isEmpty || _selectedCategory == null || _feeController.text.isEmpty) {
+    // Check for location field - only required if "Tutor Home" is selected
+    bool isLocationValid = true;
+    if (_selectedMode == "Tutor Home" && _locationController.text.trim().isEmpty) {
+      isLocationValid = false;
+    } else if (_selectedMode != "Tutor Home" && _locationController.text.trim().isEmpty) {
+      isLocationValid = false;
+    }
+
+    if (_aboutController.text.isEmpty || _subjectController.text.isEmpty || _selectedCategory == null || _feeController.text.isEmpty || !isLocationValid) {
       setState(() => _showErrors = true);
       _showErrorPopup("Missing Info", "Please fill in all required fields.");
     } else {
@@ -473,16 +557,13 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
   Future<void> _updateCourse() async {
     setState(() => _isSaving = true);
 
-    // Map display values to backend values
     String backendCategory = _mapDisplayCategoryToBackend(_selectedCategory!);
     String backendMode = _mapDisplayModeToBackend(_selectedMode!);
 
-    // Parse price as integer
     int priceValue = int.tryParse(_feeController.text.trim()) ?? 0;
 
-    // FIXED: Send time in 12-hour format for backend
-    String startTime12 = _formatTimeOfDay(_startTime);  // Returns "2:00 PM"
-    String endTime12 = _formatTimeOfDay(_endTime);      // Returns "4:00 PM"
+    String startTime12 = _formatTimeOfDay(_startTime);
+    String endTime12 = _formatTimeOfDay(_endTime);
 
     Map<String, dynamic> courseData = {
       'about': _aboutController.text.trim(),
@@ -492,8 +573,8 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
       'location': _locationController.text.trim(),
       'fromDay': _startDay.toUpperCase(),
       'toDay': _endDay.toUpperCase(),
-      'startTime': startTime12,  // Now in 12-hour format like "2:00 PM"
-      'endTime': endTime12,      // Now in 12-hour format like "4:00 PM"
+      'startTime': startTime12,
+      'endTime': endTime12,
       'classesPerMonth': int.parse(_classesController.text),
       'price': priceValue,
     };

@@ -54,23 +54,25 @@ class _MyBidsScreenState extends State<MyBidsScreen> {
         _updateList();
         setState(() => _isLoading = false);
       }
-
     } catch (e) {
       print('Error loading data: $e');
       if (mounted) {
         setState(() => _isLoading = false);
-        _showErrorDialog("Failed to load data: ${e.toString().replaceFirst('Exception: ', '')}");
+        _showErrorDialog("Failed to load data: ${e.toString().replaceFirst(
+            'Exception: ', '')}");
       }
     }
   }
 
   Future<void> _loadMyBids(int tutorProfileId) async {
     try {
-      List<Map<String, dynamic>> negotiations = await ConnectionService.getNegotiations(tutorProfileId);
+      List<Map<String, dynamic>> negotiations = await ConnectionService
+          .getNegotiations(tutorProfileId);
 
       if (mounted) {
         setState(() {
-          _myBids = negotiations.map((item) => {
+          _myBids = negotiations.map((item) =>
+          {
             'id': item['connectionId'],
             'studentId': item['studentId'],
             'studentName': item['studentName'] ?? 'Unknown Student',
@@ -99,11 +101,13 @@ class _MyBidsScreenState extends State<MyBidsScreen> {
 
   Future<void> _loadRequests(int tutorProfileId) async {
     try {
-      List<Map<String, dynamic>> pendingRequests = await ConnectionService.getPendingRequests(tutorProfileId);
+      List<Map<String, dynamic>> pendingRequests = await ConnectionService
+          .getPendingRequests(tutorProfileId);
 
       if (mounted) {
         setState(() {
-          _requests = pendingRequests.map((item) => {
+          _requests = pendingRequests.map((item) =>
+          {
             'id': item['connectionId'],
             'studentId': item['studentId'],
             'studentName': item['studentName'] ?? 'Unknown Student',
@@ -148,13 +152,17 @@ class _MyBidsScreenState extends State<MyBidsScreen> {
   }
 
   void _runFilter(String enteredKeyword) {
-    List<Map<String, dynamic>> source = _selectedTab == "My Bids" ? _myBids : _requests;
+    List<Map<String, dynamic>> source = _selectedTab == "My Bids"
+        ? _myBids
+        : _requests;
 
     List<Map<String, dynamic>> results = enteredKeyword.isEmpty
         ? List.from(source)
         : source.where((item) =>
-    item['studentName'].toString().toLowerCase().contains(enteredKeyword.toLowerCase()) ||
-        item['courseName'].toString().toLowerCase().contains(enteredKeyword.toLowerCase())
+    item['studentName'].toString().toLowerCase().contains(
+        enteredKeyword.toLowerCase()) ||
+        item['courseName'].toString().toLowerCase().contains(
+            enteredKeyword.toLowerCase())
     ).toList();
 
     if (mounted) {
@@ -167,18 +175,21 @@ class _MyBidsScreenState extends State<MyBidsScreen> {
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Error", style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text(message),
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("OK", style: TextStyle(color: Colors.black)),
+      builder: (context) =>
+          AlertDialog(
+            title: const Text(
+                "Error", style: TextStyle(fontWeight: FontWeight.bold)),
+            content: Text(message),
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("OK", style: TextStyle(color: Colors.black)),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -200,7 +211,8 @@ class _MyBidsScreenState extends State<MyBidsScreen> {
             Container(
               padding: const EdgeInsets.only(top: 16, bottom: 8),
               child: const CustomTabHeader(
-                title: Text("Bids", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                title: Text("Bids", style: TextStyle(
+                    fontSize: 24, fontWeight: FontWeight.bold)),
               ),
             ),
             _buildSearchField(),
@@ -326,15 +338,15 @@ class _MyBidsScreenState extends State<MyBidsScreen> {
         ? "When students negotiate, their bids will appear here"
         : "When students request your courses, they will appear here";
 
-    return SingleChildScrollView(
-      child: Center(
+    return Center(
+      child: SingleChildScrollView(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               _selectedTab == "My Bids" ? Icons.gavel : Icons.pending_actions,
               size: 80,
-              color: Colors.grey.shade300,
+              color: Colors.grey.shade400,
             ),
             const SizedBox(height: 16),
             Text(
@@ -342,7 +354,7 @@ class _MyBidsScreenState extends State<MyBidsScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey.shade400,
+                color: Colors.grey.shade600,
               ),
             ),
             const SizedBox(height: 8),
@@ -350,11 +362,10 @@ class _MyBidsScreenState extends State<MyBidsScreen> {
               subMessage,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey.shade400,
+                color: Colors.grey.shade500,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 80),
           ],
         ),
       ),
@@ -513,10 +524,6 @@ class _BidListTile extends StatelessWidget {
         return Colors.orange;
       case 'NEGOTIATING':
         return Colors.blue;
-      case 'CONFIRMED':
-        return Colors.green;
-      case 'REJECTED':
-        return Colors.red;
       default:
         return Colors.grey;
     }

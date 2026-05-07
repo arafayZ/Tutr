@@ -20,6 +20,8 @@ class ApiConfig {
   static const String editTutorProfile = '/api/register/tutor/profile/edit';//done
   static const String editStudentProfile = '/api/register/student/profile/edit';
   static const String getTutorProfile = '/api/register/tutor/profile';//done
+  static const String getStudentProfile = '/api/register/student/profile';
+  static const String editStudentProfileJson = '/api/register/student/profile/edit-json';
   static const String editTutorProfileJson = '/api/register/tutor/profile/edit-json';//done
   static const String uploadTutorImage = '/api/profile-image/upload';//done
   static const String uploadStudentImage = '/api/student-image/upload';//done
@@ -34,8 +36,9 @@ class ApiConfig {
   static const String getTutorCourseCards = '/api/courses/tutor'; // + /{tutorProfileId}/cards
   static const String getTutorCourseDetail = '/api/courses/tutor/detail'; // + /{courseId}
   static const String getAvailableCourses = '/api/courses/available';
-  static const String searchCourses = '/api/courses/search';
+  static const String searchCourses = '/api/courses/search';//filter with studentId=1
   static const String getCourseForStudent = '/api/courses'; // + /{courseId}/student
+  static const String getAvailableCoursesForStudent = '/api/courses/student'; // + /{studentId}/available
 
   // ============ TUTOR DASHBOARD APIS ============
   static const String tutorDashboard = '/api/tutor/dashboard'; // + /{tutorId}
@@ -46,8 +49,10 @@ class ApiConfig {
 
   // ============ STUDENT DASHBOARD APIS ============
   static const String studentDashboard = '/api/student/dashboard'; // + /{studentId}
-  static const String topTutors = '/api/student/top-tutors';
+  static const String topTutors = '/api/student/top-tutors'; // + /{studentId}?limit=10
   static const String tutorProfileView = '/api/student/tutor'; // + /{studentId}/{tutorId}/profile
+  static const String getalltutor = '/api/student/tutors/all'; // + /{studentId}
+
 
   // ============ FAVORITE APIS ============
   static const String addFavorite = '/api/student/favorites'; // + /{studentId}/add/{courseId}
@@ -73,10 +78,12 @@ class ApiConfig {
   static const String getStudentConnections = '/api/connections/student'; // + /{studentId}
   static const String getTutorConnections = '/api/connections/tutor'; // + /{tutorId}
   static const String getTutorConfirmedConnections = '/api/connections/tutor'; // + /{tutorId}/confirmed
+  static const String getStudentConfirmedConnections = '/api/connections/student'; // + /{studentId}/confirmed
   static const String getPendingRequests = '/api/connections/tutor'; // + /{tutorId}/pending
   static const String getNegotiations = '/api/connections/tutor'; // + /{tutorId}/negotiations
   static const String getTutorBids = '/api/connections/tutor'; // + /{tutorId}/bids-with-cards
-  static const String getStudentBids = '/api/connections/student'; // + /{studentId}/bids-with-details
+  static const String getStudentBids = '/api/connections/student'; // + /{studentId}/course/{courseId}/bids
+  static const String getConnectionStatus = '/api/connections/student'; // + /{studentId}/status/{connectionId}
 
   // ============ BLOCK/REPORT APIS ============
   static const String blockTutor = '/api/student/block'; // + /{studentId}/block/{tutorId}

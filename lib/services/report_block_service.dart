@@ -1,0 +1,272 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../config/api_config.dart';
+
+class ReportBlockService {
+  static bool get useRealApi => ApiConfig.useRealApi;
+
+  // ============ HELPER METHODS ============
+
+  static String _cleanErrorMessage(String message) {
+    if (message.isEmpty) return 'Something went wrong';
+
+    String cleaned = message
+        .replaceFirst('Exception: ', '')
+        .replaceAll('"', '')
+        .replaceAll('{', '')
+        .replaceAll('}', '')
+        .replaceAll('[', '')
+        .replaceAll(']', '')
+        .replaceAll('\\', '')
+        .replaceAll('Λ', '')
+        .replaceAll('OK', '')
+        .trim();
+
+    cleaned = cleaned.replaceFirst(RegExp(r'^[^a-zA-Z\s]+'), '').trim();
+
+    if (cleaned.isNotEmpty && RegExp(r'[a-zA-Z]').hasMatch(cleaned)) {
+      return cleaned[0].toUpperCase() + cleaned.substring(1);
+    }
+
+    return 'Something went wrong';
+  }
+
+  static Future<Map<String, String>> _getHeaders() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('auth_token');
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+
+  static String _mapReportReason(String reason) {
+    switch (reason.toLowerCase()) {
+      case 'spam or fake account':
+        return 'Spam_or_Fake_Account';
+      case 'inappropriate messages':
+        return 'Inappropriate_Messages';
+      case 'harassment':
+        return 'HARASSMENT';
+      case 'wrong information':
+        return 'Wrong_Information';
+      case 'payment issues':
+        return 'Payment_Issues';
+      case 'other':
+        return 'OTHER';
+      default:
+        return 'OTHER';
+    }
+  }
+
+  // ============ BLOCKED TUTORS MANAGEMENT ============
+  // These methods handle retrieving, checking, blocking, and unblocking tutors
+
+  static Future<List<Map<String, dynamic>>> getBlockedTutors(int studentId) async {
+    if (useRealApi) {
+      try {
+        final url = ApiConfig.getFullUrl('${ApiConfig.getBlockedList}/$studentId/list');
+        final response = await http.get(
+          Uri.parse(url),
+          headers: await _getHeaders(),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
+          return data.map((item) => Map<String, dynamic>.from(item)).toList();
+        } else {
+          final errorData = response.body.isNotEmpty ? json.decode(response.body) : {};
+          throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Failed to load blocked tutors'));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      return [
+        {
+          'tutorId': 1,
+          'tutorName': 'Ahmed Khan',
+          'tutorHeadline': 'Physics Expert',
+          'tutorImage': null,
+        },
+        {
+          'tutorId': 2,
+          'tutorName': 'Sara Malik',
+          'tutorHeadline': 'Math Instructor',
+          'tutorImage': null,
+        },
+      ];
+    }
+  }
+
+  static Future<bool> isTutorBlocked(int studentId, int tutorId) async {
+    if (useRealApi) {
+      try {
+        final url = ApiConfig.getFullUrl('${ApiConfig.checkBlocked}/$studentId/check/$tutorId');
+        final response = await http.get(
+          Uri.parse(url),
+          headers: await _getHeaders(),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final responseBody = response.body.trim();
+          if (responseBody == 'true') {
+            return true;
+          } else if (responseBody == 'false') {
+            return false;
+          } else {
+            try {
+              final data = json.decode(responseBody);
+              return data == true || data['blocked'] == true || data['isBlocked'] == true;
+            } catch (e) {
+              return false;
+            }
+          }
+        } else {
+          return false;
+        }
+      } catch (e) {
+        return false;
+      }
+    } else {
+      await Future.delayed(const Duration(milliseconds: 500));
+      return false;
+    }
+  }
+
+  static Future<Map<String, dynamic>> blockTutor(int studentId, int tutorId) async {
+    if (useRealApi) {
+      try {
+        final url = ApiConfig.getFullUrl('${ApiConfig.blockTutor}/$studentId/block/$tutorId');
+        final response = await http.post(
+          Uri.parse(url),
+          headers: await _getHeaders(),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final responseBody = response.body.trim();
+          if (responseBody == 'true') {
+            return {'success': true, 'message': 'Tutor blocked successfully'};
+          }
+          try {
+            final data = json.decode(responseBody);
+            return {'success': true, 'message': data['message'] ?? 'Tutor blocked successfully'};
+          } catch (e) {
+            return {'success': true, 'message': 'Tutor blocked successfully'};
+          }
+        } else {
+          String errorMsg = '';
+          try {
+            final errorData = json.decode(response.body);
+            errorMsg = errorData['error'] ?? 'Failed to block tutor';
+          } catch (e) {
+            errorMsg = response.body.trim();
+          }
+          throw Exception(_cleanErrorMessage(errorMsg));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      return {'success': true, 'message': 'Tutor blocked successfully'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> unblockTutor(int studentId, int tutorId) async {
+    if (useRealApi) {
+      try {
+        final url = ApiConfig.getFullUrl('${ApiConfig.unblockTutor}/$studentId/unblock/$tutorId');
+        final response = await http.delete(
+          Uri.parse(url),
+          headers: await _getHeaders(),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final responseBody = response.body.trim();
+          if (responseBody == 'true') {
+            return {'success': true, 'message': 'Tutor unblocked successfully'};
+          }
+          try {
+            final data = json.decode(responseBody);
+            return {'success': true, 'message': data['message'] ?? 'Tutor unblocked successfully'};
+          } catch (e) {
+            return {'success': true, 'message': 'Tutor unblocked successfully'};
+          }
+        } else {
+          String errorMsg = '';
+          try {
+            final errorData = json.decode(response.body);
+            errorMsg = errorData['error'] ?? 'Failed to unblock tutor';
+          } catch (e) {
+            errorMsg = response.body.trim();
+          }
+          throw Exception(_cleanErrorMessage(errorMsg));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      return {'success': true, 'message': 'Tutor unblocked successfully'};
+    }
+  }
+
+  // ============ REPORT TUTOR ============
+  // Submits a report against a tutor with a reason
+
+  static Future<Map<String, dynamic>> reportTutor({
+    required int studentId,
+    required int tutorId,
+    required String reason,
+    String? description,
+  }) async {
+    if (useRealApi) {
+      try {
+        String mappedReason = _mapReportReason(reason);
+
+        final requestBody = {
+          'studentId': studentId,
+          'tutorId': tutorId,
+          'reason': mappedReason,
+          'description': description ?? '',
+        };
+
+        final response = await http.post(
+          Uri.parse(ApiConfig.getFullUrl(ApiConfig.reportTutor)),
+          headers: await _getHeaders(),
+          body: json.encode(requestBody),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final responseBody = response.body.trim();
+          if (responseBody == 'true') {
+            return {'success': true, 'message': 'Report submitted successfully'};
+          }
+          try {
+            final data = json.decode(responseBody);
+            return {'success': true, 'message': data['message'] ?? 'Report submitted successfully'};
+          } catch (e) {
+            return {'success': true, 'message': 'Report submitted successfully'};
+          }
+        } else {
+          String errorMsg = '';
+          try {
+            final errorData = json.decode(response.body);
+            errorMsg = errorData['error'] ?? 'Failed to report tutor';
+          } catch (e) {
+            errorMsg = response.body.trim();
+          }
+          throw Exception(_cleanErrorMessage(errorMsg));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      return {'success': true, 'message': 'Report submitted successfully'};
+    }
+  }
+}

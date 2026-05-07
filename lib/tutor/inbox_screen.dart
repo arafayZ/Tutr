@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_bottom_nav.dart';
 import 'add_course_screen.dart';
-import 'chat_details_screen.dart'; // Target screen for individual conversations
+import 'chat_details_screen.dart';
 
 class InboxScreen extends StatefulWidget {
   const InboxScreen({super.key});

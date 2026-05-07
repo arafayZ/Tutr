@@ -1,0 +1,1159 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'course_details_screen.dart';
+import 'block_tutor_screen.dart';
+import 'chat_details_screen.dart'; // Add this import
+import '../services/course_service.dart';
+import '../services/report_block_service.dart';
+import '../config/api_config.dart';
+import 'student_dashboard.dart';
+
+// --- COURSE COLORS (Same as other screens) ---
+class CourseColors {
+  static const List<Color> colors = [
+    Color(0xFF1A1A2E), // Dark Navy
+    Color(0xFF16213E), // Deep Navy
+    Color(0xFF0F3460), // Dark Blue
+    Color(0xFF8B1E3F), // Dark Crimson
+    Color(0xFF2C3E50), // Dark Slate
+    Color(0xFF1B4F72), // Deep Teal
+    Color(0xFF145A32), // Dark Green
+    Color(0xFF7B2C3E), // Deep Maroon
+    Color(0xFF4A235A), // Dark Violet
+    Color(0xFF1C2833), // Almost Black Blue
+    Color(0xFF6E2C00), // Dark Orange-Brown
+    Color(0xFF0B5345), // Dark Cyan-Green
+    Color(0xFF424949), // Dark Gray
+    Color(0xFF5D4037), // Dark Brown
+    Color(0xFF283747), // Dark Steel Blue
+    Color(0xFF7E5109), // Dark Gold
+    Color(0xFF4A4A4A), // Dark Gray
+    Color(0xFF3E2723), // Very Dark Brown
+    Color(0xFF1A237E), // Deep Indigo
+  ];
+
+  static Color getCourseColor(int courseId) {
+    return colors[courseId % colors.length];
+  }
+}
+
+class TutorProfileScreen extends StatefulWidget {
+  final Map<String, dynamic> tutorData;
+
+  const TutorProfileScreen({super.key, required this.tutorData});
+
+  @override
+  State<TutorProfileScreen> createState() => _TutorProfileScreenState();
+}
+
+class _TutorProfileScreenState extends State<TutorProfileScreen> {
+  bool showAbout = true;
+  String selectedMode = "Online";
+  String? selectedReportReason;
+
+  // API Data
+  List<Map<String, dynamic>> allCourses = [];
+  List<Map<String, dynamic>> filteredCourses = [];
+  bool _isLoading = true;
+  int _studentId = 0;
+  int _tutorId = 0;
+  bool _isTutorBlocked = false;
+
+  // Tutor Profile Data
+  Map<String, dynamic> _tutorProfile = {};
+  String _tutorLocation = '';
+  String _tutorHeadline = '';
+  String _tutorName = '';
+  String _tutorImage = '';
+  String _universityName = '';
+  String _collegeName = '';
+  String _workExperience = '';
+  String _dateOfBirth = '';
+  String _gender = '';
+  int _totalCourses = 0;
+  int _totalStudents = 0;
+  int _totalRatings = 0;
+  double _averageRating = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStudentId();
+  }
+
+  Future<void> _loadStudentId() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _studentId = prefs.getInt('profileId') ?? 0;
+      _tutorId = widget.tutorData['id'] ?? widget.tutorData['tutorId'] ?? 0;
+    });
+    await Future.wait([
+      _loadTutorProfile(),
+      _checkBlockedStatus(),
+    ]);
+  }
+
+  Future<void> _checkBlockedStatus() async {
+    try {
+      final isBlocked = await ReportBlockService.isTutorBlocked(_studentId, _tutorId);
+      debugPrint('Tutor blocked status: $isBlocked');
+      if (mounted) {
+        setState(() {
+          _isTutorBlocked = isBlocked;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking blocked status: $e');
+    }
+  }
+
+  Future<void> _loadTutorProfile() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await CourseService.getTutorProfile(_studentId, _tutorId);
+
+      if (!mounted) return;
+
+      _processTutorProfile(response);
+
+    } catch (e) {
+      if (mounted) {
+        _showErrorDialog(e.toString().replaceFirst('Exception: ', ''));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _processTutorProfile(Map<String, dynamic> profile) {
+    _tutorProfile = profile;
+    _tutorName = profile['tutorName']?.toString() ?? widget.tutorData['name'] ?? 'Tutor Name';
+    _tutorHeadline = profile['tutorHeadline']?.toString() ?? widget.tutorData['sub'] ?? 'Tutor';
+    _tutorLocation = profile['tutorLocation']?.toString() ?? '';
+    _tutorImage = profile['tutorImage']?.toString() ?? '';
+    _universityName = profile['universityName']?.toString() ?? '';
+    _collegeName = profile['collegeName']?.toString() ?? '';
+    _workExperience = profile['workExperience']?.toString() ?? 'Not specified';
+    _dateOfBirth = profile['dateOfBirth']?.toString() ?? '';
+    _gender = profile['gender']?.toString() ?? '';
+    _totalCourses = profile['totalCourses'] ?? 0;
+    _totalStudents = profile['totalStudents'] ?? 0;
+    _totalRatings = profile['totalRatings'] ?? 0;
+    _averageRating = profile['averageRating']?.toDouble() ?? 0.0;
+
+    final List<dynamic> courses = profile['courses'] ?? [];
+    allCourses = _transformCoursesResponse(courses);
+    _filterCoursesByMode();
+  }
+
+  void _filterCoursesByMode() {
+    setState(() {
+      filteredCourses = allCourses.where((c) => c['mode'] == selectedMode).toList();
+    });
+  }
+
+  List<Map<String, dynamic>> _transformCoursesResponse(List<dynamic> courses) {
+    return courses.map((course) {
+      double priceValue = 0.0;
+      if (course['price'] is int) {
+        priceValue = (course['price'] as int).toDouble();
+      } else if (course['price'] is double) {
+        priceValue = course['price'] as double;
+      } else if (course['price'] is String) {
+        priceValue = double.tryParse(course['price']) ?? 0.0;
+      }
+
+      double ratingValue = 0.0;
+      if (course['averageRating'] is int) {
+        ratingValue = (course['averageRating'] as int).toDouble();
+      } else if (course['averageRating'] is double) {
+        ratingValue = course['averageRating'] as double;
+      } else if (course['averageRating'] is String) {
+        ratingValue = double.tryParse(course['averageRating']) ?? 0.0;
+      }
+
+      String teachingModeText = 'Online';
+      String teachingMode = course['teachingMode']?.toString() ?? '';
+      if (teachingMode == 'ONLINE') {
+        teachingModeText = 'Online';
+      } else if (teachingMode == 'STUDENT_HOME') {
+        teachingModeText = "Student's Home";
+      } else if (teachingMode == 'TUTOR_HOME') {
+        teachingModeText = "Tutor's Home";
+      }
+
+      String category = course['category']?.toString() ?? '';
+      String categoryDisplay = _getCategoryDisplayName(category);
+      Color badgeColor = _getCategoryBadgeColor(category);
+
+      return {
+        'id': course['courseId'] ?? course['id'] ?? 0,
+        'title': course['subject']?.toString() ?? 'Course',
+        'price': '${priceValue.toStringAsFixed(0)} PKR',
+        'priceValue': priceValue,
+        'level': categoryDisplay,
+        'category': category,
+        'badgeColor': badgeColor,
+        'isLiked': course['isFavorited'] == true,
+        'mode': teachingModeText,
+        'tutorName': _tutorName,
+        'location': course['location']?.toString() ?? _tutorLocation,
+        'rating': ratingValue.toStringAsFixed(1),
+        'ratingValue': ratingValue,
+      };
+    }).toList();
+  }
+
+  String _getCategoryDisplayName(String category) {
+    switch (category.toUpperCase()) {
+      case 'MATRIC':
+        return 'Matric';
+      case 'INTERMEDIATE':
+        return 'Intermediate';
+      case 'O_LEVEL':
+        return 'O Level';
+      case 'A_LEVEL':
+        return 'A Level';
+      case 'ENTRY_TEST':
+        return 'Entrance Test';
+      default:
+        return category;
+    }
+  }
+
+  Color _getCategoryBadgeColor(String category) {
+    switch (category.toUpperCase()) {
+      case 'MATRIC':
+        return Colors.orange.shade800;
+      case 'INTERMEDIATE':
+        return Colors.teal.shade800;
+      case 'O_LEVEL':
+        return Colors.blue.shade800;
+      case 'A_LEVEL':
+        return Colors.green.shade800;
+      case 'ENTRY_TEST':
+        return Colors.purple.shade800;
+      default:
+        return Colors.grey.shade800;
+    }
+  }
+
+  Future<void> _toggleFavorite(int indexInFiltered) async {
+    if (indexInFiltered >= filteredCourses.length) return;
+
+    final filteredCourse = filteredCourses[indexInFiltered];
+    final int courseId = filteredCourse['id'];
+    final String courseTitle = filteredCourse['title'];
+
+    // Find the actual index in allCourses using courseId
+    final int actualIndex = allCourses.indexWhere((c) => c['id'] == courseId);
+    if (actualIndex == -1) return;
+
+    final bool isCurrentlyLiked = allCourses[actualIndex]['isLiked'] == true;
+
+    // Optimistically update both lists
+    setState(() {
+      allCourses[actualIndex]['isLiked'] = !isCurrentlyLiked;
+      if (indexInFiltered < filteredCourses.length) {
+        filteredCourses[indexInFiltered]['isLiked'] = !isCurrentlyLiked;
+      }
+    });
+
+    try {
+      if (!isCurrentlyLiked) {
+        await CourseService.addToFavorites(_studentId, courseId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$courseTitle added to favorites'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        await CourseService.removeFromFavorites(_studentId, courseId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$courseTitle removed from favorites'),
+              backgroundColor: Colors.grey,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Revert on error
+      setState(() {
+        allCourses[actualIndex]['isLiked'] = isCurrentlyLiked;
+        if (indexInFiltered < filteredCourses.length) {
+          filteredCourses[indexInFiltered]['isLiked'] = isCurrentlyLiked;
+        }
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update favorites'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showBlockDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text(
+            "Block Tutor",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A1C43)),
+          ),
+          content: const Text(
+            "Are you sure you want to block this tutor? You won't see their courses or receive messages from them.",
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("CANCEL", style: TextStyle(color: Color(0xFF1A1C43), fontWeight: FontWeight.bold)),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _blockTutor();
+              },
+              child: const Text("BLOCK", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _blockTutor() async {
+    try {
+      await ReportBlockService.blockTutor(_studentId, _tutorId);
+      setState(() {
+        _isTutorBlocked = true;
+      });
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const BlockTutorScreen(),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorDialog(e.toString().replaceFirst('Exception: ', ''));
+      }
+    }
+  }
+
+  void _showUnblockDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text(
+            "Unblock Tutor",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A1C43)),
+          ),
+          content: const Text(
+            "Are you sure you want to unblock this tutor? You will see their courses again.",
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("CANCEL", style: TextStyle(color: Color(0xFF1A1C43), fontWeight: FontWeight.bold)),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _unblockTutor();
+              },
+              child: const Text("UNBLOCK", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _unblockTutor() async {
+    try {
+      await ReportBlockService.unblockTutor(_studentId, _tutorId);
+      setState(() {
+        _isTutorBlocked = false;
+      });
+      if (mounted) {
+        _showSuccessPopupAndNavigate(context, "Tutor Unblocked", "This tutor will now appear in your searches.");
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorDialog(e.toString().replaceFirst('Exception: ', ''));
+      }
+    }
+  }
+
+  void _showSuccessPopupAndNavigate(BuildContext context, String title, String subtitle) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              const Icon(Icons.check_circle, color: Colors.green, size: 60),
+              const SizedBox(height: 20),
+              Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A1C43))),
+              const SizedBox(height: 10),
+              Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context); // Close the dialog
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => const StudentDashboard()),
+                          (route) => false,
+                    );
+                  },
+                  child: const Text("OK", style: TextStyle(color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showReportDialog(BuildContext context) {
+    selectedReportReason = null;
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text(
+                "Report Tutor",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A1C43)),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Tell us what happened. Our team\nwill review it.",
+                      style: TextStyle(fontSize: 13, color: Colors.grey)),
+                  const SizedBox(height: 15),
+                  _buildReportOption(setDialogState, "Spam or Fake Account"),
+                  _buildReportOption(setDialogState, "Inappropriate Messages"),
+                  _buildReportOption(setDialogState, "Harassment"),
+                  _buildReportOption(setDialogState, "Wrong Information"),
+                  _buildReportOption(setDialogState, "Payment Issues"),
+                  _buildReportOption(setDialogState, "Other"),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("CANCEL", style: TextStyle(color: Color(0xFF1A1C43), fontWeight: FontWeight.bold)),
+                ),
+                TextButton(
+                  onPressed: selectedReportReason == null
+                      ? null
+                      : () async {
+                    Navigator.pop(context);
+                    await _reportTutor();
+                  },
+                  child: Text(
+                    "REPORT",
+                    style: TextStyle(
+                      color: selectedReportReason == null ? Colors.grey : Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _reportTutor() async {
+    try {
+      await ReportBlockService.reportTutor(
+        studentId: _studentId,
+        tutorId: _tutorId,
+        reason: selectedReportReason ?? 'Other',
+      );
+      if (mounted) {
+        _showSuccessPopup(context, "Report Submitted", "Thank you for letting us know. We will review this profile shortly.", false);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorDialog(e.toString().replaceFirst('Exception: ', ''));
+      }
+    }
+  }
+
+  Widget _buildReportOption(StateSetter setDialogState, String title) {
+    return InkWell(
+      onTap: () => setDialogState(() => selectedReportReason = title),
+      child: Row(
+        children: [
+          Radio<String>(
+            value: title,
+            groupValue: selectedReportReason,
+            activeColor: const Color(0xFF1A1C43),
+            onChanged: (value) => setDialogState(() => selectedReportReason = value),
+          ),
+          Text(title, style: const TextStyle(fontSize: 14, color: Color(0xFF1A1C43))),
+        ],
+      ),
+    );
+  }
+
+  void _showSuccessPopup(BuildContext context, String title, String subtitle, bool shouldExitProfile) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              const Icon(Icons.check_circle, color: Colors.green, size: 60),
+              const SizedBox(height: 20),
+              Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A1C43))),
+              const SizedBox(height: 10),
+              Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    if (shouldExitProfile) Navigator.pop(context);
+                  },
+                  child: const Text("OK", style: TextStyle(color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        content: Text(message, textAlign: TextAlign.center),
+        actions: [
+          Center(
+            child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDateOfBirth(String? dob) {
+    if (dob == null || dob.isEmpty) return 'Not specified';
+    final parts = dob.split('-');
+    if (parts.length == 3) {
+      final year = parts[0];
+      final month = int.parse(parts[1]);
+      final day = parts[2];
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      return '$day ${monthNames[month - 1]} $year';
+    }
+    return dob;
+  }
+
+  void _navigateToChat() {
+    if (_isTutorBlocked) {
+      _showErrorDialog("You have blocked this tutor. Unblock them to send messages.");
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatDetailsScreen(
+          userName: _tutorName,
+          tutorId: _tutorId,
+          studentId: _studentId,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FB),
+      body: Column(
+        children: [
+          _buildConsistentHeader(context),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: Colors.black))
+                : SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                children: [
+                  _buildTopActions(),
+                  _buildProfileIdentity(),
+                  const SizedBox(height: 25),
+                  _buildStatsSection(),
+                  const SizedBox(height: 25),
+                  _buildMessageButton(),
+                  const SizedBox(height: 30),
+                  _buildInfoCard(),
+                  const SizedBox(height: 50),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConsistentHeader(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(35), bottomRight: Radius.circular(35)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 15, offset: const Offset(0, 4))],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
+                child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+              ),
+            ),
+          ),
+          const Text("Tutor Profile", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopActions() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.black),
+            color: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            onSelected: (value) {
+              if (value == 'Block') _showBlockDialog(context);
+              if (value == 'Unblock') _showUnblockDialog(context);
+              if (value == 'Report') _showReportDialog(context);
+            },
+            itemBuilder: (context) => [
+              if (!_isTutorBlocked)
+                const PopupMenuItem(value: 'Block', child: Row(children: [Icon(Icons.block, color: Colors.red, size: 20), SizedBox(width: 10), Text('Block')])),
+              if (_isTutorBlocked)
+                const PopupMenuItem(value: 'Unblock', child: Row(children: [Icon(Icons.check_circle, color: Colors.green, size: 20), SizedBox(width: 10), Text('Unblock')])),
+              const PopupMenuItem(value: 'Report', child: Row(children: [Icon(Icons.report_problem_outlined, color: Colors.orange, size: 20), SizedBox(width: 10), Text('Report')])),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileIdentity() {
+    return Column(
+      children: [
+        CircleAvatar(
+          radius: 55,
+          backgroundColor: Colors.black,
+          backgroundImage: _tutorImage.isNotEmpty
+              ? NetworkImage('${ApiConfig.baseUrl}$_tutorImage')
+              : null,
+          child: _tutorImage.isEmpty
+              ? const Icon(Icons.person, size: 50, color: Colors.white)
+              : null,
+        ),
+        const SizedBox(height: 15),
+        Text(_tutorName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black)),
+        Text(_tutorHeadline, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+        if (_tutorLocation.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.location_on, size: 12, color: Colors.grey),
+                const SizedBox(width: 4),
+                Text(_tutorLocation, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildStatsSection() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _StatItem(value: _totalCourses.toString(), label: "Courses"),
+        _StatItem(value: _totalStudents.toString(), label: "Students"),
+        _StatItem(value: _totalRatings.toString(), label: "Ratings"),
+      ],
+    );
+  }
+
+  Widget _buildMessageButton() {
+    return GestureDetector(
+      onTap: _navigateToChat,
+      child: Container(
+        width: 160,
+        height: 45,
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(25),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))],
+        ),
+        child: const Center(child: Text("Message", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold))),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(25), border: Border.all(color: Colors.grey.shade200)),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              _buildMainTab("About", showAbout, () => setState(() => showAbout = true)),
+              _buildMainTab("Courses", !showAbout, () => setState(() => showAbout = false)),
+            ],
+          ),
+          Padding(padding: const EdgeInsets.all(20), child: showAbout ? _buildAboutContent() : _buildCoursesContent()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainTab(String title, bool isActive, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 15),
+          decoration: BoxDecoration(
+            color: isActive ? const Color(0xFFD1D5DB) : const Color(0xFFE5E7EB),
+            borderRadius: BorderRadius.only(
+              topLeft: title == "About" ? const Radius.circular(25) : Radius.zero,
+              topRight: title == "Courses" ? const Radius.circular(25) : Radius.zero,
+            ),
+          ),
+          child: Center(child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black))),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAboutContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Personal Details", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,color: Colors.black)),
+        const SizedBox(height: 15),
+        _buildAboutRow(Icons.location_on_outlined, "Location", _tutorLocation.isNotEmpty ? _tutorLocation : 'Not specified'),
+        if (_dateOfBirth.isNotEmpty)
+          _buildAboutRow(Icons.calendar_month_outlined, "Date of birth", _formatDateOfBirth(_dateOfBirth)),
+        if (_gender.isNotEmpty)
+          _buildAboutRow(Icons.wc_outlined, "Gender", _gender),
+        const SizedBox(height: 25),
+        const Text("Education", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
+        const SizedBox(height: 15),
+        _buildAboutRow(Icons.school_outlined, "University", _universityName.isNotEmpty ? _universityName : 'Not specified'),
+        _buildAboutRow(Icons.account_balance_outlined, "College", _collegeName.isNotEmpty ? _collegeName : 'Not specified'),
+        const SizedBox(height: 25),
+        const Text("Work Experience", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
+        const SizedBox(height: 15),
+        _buildAboutRow(Icons.work_outline, "Experience", _workExperience),
+      ],
+    );
+  }
+
+  Widget _buildAboutRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 22, color: Colors.black54),
+          const SizedBox(width: 15),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 14, color: Colors.black),
+                children: [
+                  TextSpan(text: "$label: ", style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
+                  TextSpan(text: value, style: const TextStyle(color: Colors.grey)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCoursesContent() {
+    return Column(
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _buildModeChip("Online"),
+              const SizedBox(width: 10),
+              _buildModeChip("Student's Home"),
+              const SizedBox(width: 10),
+              _buildModeChip("Tutor's Home"),
+            ],
+          ),
+        ),
+        const SizedBox(height: 25),
+        if (filteredCourses.isEmpty)
+          _buildEmptyStateView()
+        else
+          Column(
+            children: filteredCourses.asMap().entries.map((entry) {
+              int index = entry.key;
+              var course = entry.value;
+              return _buildCourseCard(course, index);
+            }).toList(),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildModeChip(String title) {
+    bool isSelected = selectedMode == title;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedMode = title;
+          _filterCoursesByMode();
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.black : const Color(0xFFE5E7EB),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          title,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyStateView() {
+    return Column(
+      children: [
+        const SizedBox(height: 30),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFFD1D5DB), width: 8),
+          ),
+          child: const Icon(Icons.close, size: 80, color: Color(0xFFD1D5DB)),
+        ),
+        const SizedBox(height: 20),
+        const Text(
+          "No Courses Available",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF9CA3AF)),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          "No ${selectedMode.toLowerCase()} courses available",
+          style: const TextStyle(fontSize: 14, color: Colors.grey),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCourseCard(Map<String, dynamic> course, int index) {
+    final int courseId = course['id'];
+    final Color courseColor = CourseColors.getCourseColor(courseId);
+    final bool isLiked = course['isLiked'] == true;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CourseDetailsScreen(
+              courseData: {
+                'id': courseId,
+                'sub': course['title'],
+                'price': course['price'],
+                'category': course['level'],
+                'color': courseColor,
+                'tutorName': course['tutorName'],
+                'rating': course['rating'],
+                'totalRatings': 28,
+                'location': course['location'],
+                'teachingMode': course['mode'],
+                'about': 'This is an excellent ${course['title']} course taught by ${course['tutorName']}.',
+                'classesPerMonth': '12',
+                'fromDay': 'Monday',
+                'toDay': 'Friday',
+              },
+            ),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 15),
+        height: 120,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 70,
+              height: 120,
+              decoration: BoxDecoration(
+                color: courseColor,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(15),
+                  bottomLeft: Radius.circular(15),
+                ),
+              ),
+              child: Center(
+                child: Image.asset(
+                  'assets/icon/app_icon.png',
+                  height: 35,
+                  width: 35,
+                  color: Colors.white,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Text(
+                      course['title'][0].toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            course['tutorName'],
+                            style: const TextStyle(
+                              color: Colors.orange,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => _toggleFavorite(index),
+                          child: Icon(
+                            isLiked ? Icons.favorite : Icons.favorite_border,
+                            color: isLiked ? Colors.red : Colors.grey,
+                            size: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: course['badgeColor'].withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        course['level'],
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: course['badgeColor'],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      course['title'],
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Text(
+                          course['price'],
+                          style: const TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.star, color: Colors.orange, size: 10),
+                        const SizedBox(width: 2),
+                        Text(
+                          course['rating'],
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 9,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Icon(
+                          course['mode'] == 'Online'
+                              ? Icons.wifi
+                              : (course['mode'] == "Student's Home" ? Icons.home : Icons.location_city),
+                          size: 9,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(width: 3),
+                        Flexible(
+                          child: Text(
+                            course['location'],
+                            style: const TextStyle(
+                              fontSize: 8,
+                              color: Colors.grey,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Stat Item Widget
+class _StatItem extends StatelessWidget {
+  final String value, label;
+  const _StatItem({required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF1A1C43))),
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+      ],
+    );
+  }
+}

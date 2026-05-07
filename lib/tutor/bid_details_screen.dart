@@ -188,28 +188,41 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text("🎉", style: TextStyle(fontSize: 50)),
-              const SizedBox(height: 15),
-              const Text("Congratulations", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              Container(
+                height: 80,
+                width: 80,
+                decoration: const BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check, color: Colors.white, size: 50),
+              ),
+              const SizedBox(height: 20),
+              const Text("Congratulations!",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+              const SizedBox(height: 10),
               Text(
                 "You're now connected with ${widget.studentName}.",
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.grey, fontSize: 13),
               ),
               const SizedBox(height: 20),
-              const CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pushReplacementNamed(context, '/connection', arguments: widget.studentName);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text("OK", style: TextStyle(color: Colors.white)),
+              ),
             ],
           ),
         ),
       ),
     );
-
-    Timer(const Duration(seconds: 2), () {
-      if (mounted) {
-        Navigator.pop(context);
-        Navigator.pushReplacementNamed(context, '/connection', arguments: widget.studentName);
-      }
-    });
   }
 
   void _showCounterSuccessPopup() {
@@ -219,32 +232,46 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
       builder: (context) => Dialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-        child: const Padding(
-          padding: EdgeInsets.all(24),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 60),
-              SizedBox(height: 15),
-              Text("Offer Sent!", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              Text(
+              Container(
+                height: 80,
+                width: 80,
+                decoration: const BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check, color: Colors.white, size: 50),
+              ),
+              const SizedBox(height: 20),
+              const Text("Offer Sent!",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+              const SizedBox(height: 10),
+              const Text(
                 "Your counter offer has been sent to the student.",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey, fontSize: 13),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context, true);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text("OK", style: TextStyle(color: Colors.white)),
+              ),
             ],
           ),
         ),
       ),
     );
-
-    Timer(const Duration(seconds: 2), () {
-      if (mounted) {
-        Navigator.pop(context);
-        Navigator.pop(context, true);
-      }
-    });
   }
 
   void _showErrorDialog(String message) {
@@ -265,9 +292,83 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
     );
   }
 
+  void _showAcceptConfirmationDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text(
+            "Accept Offer",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          ),
+          content: const Text(
+            "Are you sure you want to accept this offer?",
+            style: TextStyle(fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("No", style: TextStyle(color: Colors.grey, fontSize: 16)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _acceptBid();
+              },
+              child: const Text("Yes, Accept", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showRejectConfirmationDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text(
+            "Reject Offer",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          ),
+          content: const Text(
+            "Are you sure you want to reject this offer?",
+            style: TextStyle(fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("No", style: TextStyle(color: Colors.grey, fontSize: 16)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _rejectBid();
+              },
+              child: const Text("Yes, Reject", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _showCounterOfferPopup() {
     final TextEditingController _amountController = TextEditingController();
     String? _errorMessage;
+
+    // Calculate min and max
+    final int minOffer = (_studentOffer ?? 0) + 1;
+    final int maxOffer = (_tutorOffer != null && _tutorOffer! > 0)
+        ? _tutorOffer! - 1
+        : (_originalPrice ?? 0) - 1;
 
     showDialog(
       context: context,
@@ -281,38 +382,147 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text("Student Offer", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  Text(
-                    "${_studentOffer ?? 0} PKR",
-                    style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 20),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _amountController,
-                    textAlign: TextAlign.center,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: InputDecoration(
-                      hintText: "Enter Counter Offer",
-                      errorText: _errorMessage,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                  // Blue Box showing Original Price
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.blue.shade200),
                     ),
-                    onChanged: (value) {
-                      if (_errorMessage != null) {
-                        setDialogState(() => _errorMessage = null);
-                      }
-                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text("Original Price",
+                            style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500)),
+                        Text("${_originalPrice ?? 0} PKR",
+                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blue)),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 20),
+
+                  // Offer Range Info Box
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Center(child: Text("💰", style: TextStyle(fontSize: 16))),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text("Offer Range",
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey)),
+                              const SizedBox(height: 2),
+                              Text("Min: $minOffer PKR | Max: $maxOffer PKR",
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black87)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Enter Your Offer Field
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Enter Your Offer",
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
+                      const SizedBox(height: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: _errorMessage != null ? Colors.red : Colors.grey.shade300,
+                            width: _errorMessage != null ? 1.5 : 1,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(12),
+                                  bottomLeft: Radius.circular(12),
+                                ),
+                              ),
+                              child: const Text("PKR",
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
+                            ),
+                            Expanded(
+                              child: TextField(
+                                controller: _amountController,
+                                keyboardType: TextInputType.number,
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                                onChanged: (value) {
+                                  if (_errorMessage != null) {
+                                    setDialogState(() => _errorMessage = null);
+                                  }
+                                },
+                                decoration: const InputDecoration(
+                                  hintText: "Enter amount",
+                                  hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_errorMessage != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, left: 4),
+                          child: Row(
+                            children: [
+                              Icon(Icons.error_outline, size: 12, color: Colors.red.shade600),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(_errorMessage!,
+                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.red.shade600)),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Buttons
                   Row(
                     children: [
                       Expanded(
-                        child: TextButton(
+                        child: OutlinedButton(
                           onPressed: () => Navigator.pop(context),
-                          child: const Text("Cancel"),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.grey.shade700,
+                            side: BorderSide(color: Colors.grey.shade300),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text("Cancel", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                         ),
                       ),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () {
@@ -320,13 +530,13 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
                             final int? amount = int.tryParse(input);
 
                             if (input.isEmpty) {
-                              setDialogState(() => _errorMessage = "Enter an amount");
+                              setDialogState(() => _errorMessage = "Please enter an amount");
                             } else if (amount == null) {
-                              setDialogState(() => _errorMessage = "Enter numbers only");
-                            } else if (amount > 50000) {
-                              setDialogState(() => _errorMessage = "Maximum limit: 50,000 PKR");
-                            } else if (amount <= 0) {
-                              setDialogState(() => _errorMessage = "Enter a valid amount");
+                              setDialogState(() => _errorMessage = "Please enter a valid number");
+                            } else if (amount < minOffer) {
+                              setDialogState(() => _errorMessage = "Minimum offer is $minOffer PKR");
+                            } else if (amount > maxOffer) {
+                              setDialogState(() => _errorMessage = "Offer must be less than $maxOffer PKR");
                             } else {
                               Navigator.pop(context);
                               _sendCounterOffer(amount);
@@ -334,9 +544,11 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.black,
-                            shape: const StadiumBorder(),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: const Text("Send", style: TextStyle(color: Colors.white)),
+                          child: const Text("Send Offer",
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
                         ),
                       ),
                     ],
@@ -458,12 +670,9 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
                     ),
                   ),
                   const SizedBox(height: 30),
-                  // Show different price sections based on request type
                   if (widget.isRequest) ...[
-                    // For Requests - DO NOT show any price
                     const SizedBox.shrink(),
                   ] else ...[
-                    // For My Bids - show both offers
                     _PriceRow(
                       label: "Your Offer:",
                       price: "$yourOfferPrice PKR",
@@ -488,10 +697,11 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (_selectedStatus != "Rejected") ...[
+                    // Accept Button with Confirmation
                     _ActionButton(
                       label: widget.isRequest ? "Accept Request" : "Accept Offer",
                       color: Colors.black,
-                      onTap: _acceptBid,
+                      onTap: _showAcceptConfirmationDialog,  // ✅ Shows confirmation popup
                       isLoading: _isLoading,
                     ),
                     if (!widget.isRequest)
@@ -502,27 +712,12 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
                         onTap: _showCounterOfferPopup,
                         isLoading: _isLoading,
                       ),
+                    // Reject Button with Confirmation
                     _ActionButton(
                       label: widget.isRequest ? "Reject Request" : "Reject Offer",
                       color: const Color(0xFFE0E0E0),
                       textColor: Colors.black,
-                      onTap: () async {
-                        final res = await showDialog<bool>(
-                          context: context,
-                          builder: (context) => Dialog(
-                            backgroundColor: Colors.white,
-                            surfaceTintColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-                            child: const Padding(
-                              padding: EdgeInsets.all(24),
-                              child: _RejectPopup(),
-                            ),
-                          ),
-                        );
-                        if (res == true) {
-                          _rejectBid();
-                        }
-                      },
+                      onTap: _showRejectConfirmationDialog,  // ✅ Shows confirmation popup
                       isLoading: _isLoading,
                     ),
                   ] else ...[
@@ -576,12 +771,11 @@ class _CourseHeaderCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Colored container with app icon - using dynamic course color
             Container(
               width: 85,
               height: 85,
               decoration: BoxDecoration(
-                color: courseColor, // Using dynamic course color
+                color: courseColor,
                 borderRadius: BorderRadius.circular(15),
               ),
               child: Center(
@@ -710,32 +904,6 @@ class _ActionButton extends StatelessWidget {
               : Text(label, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
         ),
       ),
-    );
-  }
-}
-
-// --- REJECT POPUP ---
-class _RejectPopup extends StatelessWidget {
-  const _RejectPopup();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Text("Are you sure?", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        const SizedBox(height: 25),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("CANCEL")),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text("REJECT", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        )
-      ],
     );
   }
 }

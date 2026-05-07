@@ -14,6 +14,7 @@ import 'package:image_picker/image_picker.dart';
 import '../widgets/custom_tab_header.dart';
 import '../services/auth_service.dart';
 import '../config/api_config.dart';
+import '../utils/status_bar_config.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final int profileId;
@@ -47,7 +48,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
+    StatusBarConfig.setLightStatusBar();
     _loadProfileData();
+  }
+
+  @override
+  void dispose() {
+    StatusBarConfig.resetStatusBar();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _dobController.dispose();
+    _locationController.dispose();
+    _phoneController.dispose();
+    _uniController.dispose();
+    _schoolController.dispose();
+    _workController.dispose();
+    _headlineController.dispose();
+    _emailController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadProfileData() async {
@@ -108,21 +126,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     }
     return date;
-  }
-
-  @override
-  void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _dobController.dispose();
-    _locationController.dispose();
-    _phoneController.dispose();
-    _uniController.dispose();
-    _schoolController.dispose();
-    _workController.dispose();
-    _headlineController.dispose();
-    _emailController.dispose();
-    super.dispose();
   }
 
   bool _isValidEmail(String email) {
@@ -222,13 +225,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        content: Text(message, textAlign: TextAlign.center),
+        title: const Text("Error", style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(message),
         actions: [
-          Center(
-            child: TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("OK", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK", style: TextStyle(color: Colors.black)),
           ),
         ],
       ),
@@ -282,16 +284,85 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (_isLoading && !_isDataLoaded) {
       return Scaffold(
         backgroundColor: const Color(0xFFF8F9FB),
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          elevation: 0,
+          toolbarHeight: 0,
+          systemOverlayStyle: const SystemUiOverlayStyle(
+            statusBarColor: Colors.black,
+            statusBarIconBrightness: Brightness.light,
+          ),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        toolbarHeight: 0,
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.black,
+          statusBarIconBrightness: Brightness.light,
+        ),
+      ),
       body: Column(
         children: [
-          CustomTabHeader(
-            title: const Text("Edit Profile", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          // Custom header with proper sizing
+          Container(
+            width: double.infinity,
+            height: 80,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 10,
+                  offset: Offset(0, 5),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Stack(
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 24.0),
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const CircleAvatar(
+                          backgroundColor: Colors.black,
+                          radius: 20,
+                          child: Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const Center(
+                    child: Text(
+                      "Edit Profile",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
           Expanded(
             child: SingleChildScrollView(
@@ -308,8 +379,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           backgroundColor: const Color(0xFFE0E0E0),
                           backgroundImage: _image != null
                               ? FileImage(_image!)
-                              : (_currentImageUrl != null ? NetworkImage(getFullImageUrl(_currentImageUrl)) : null),
-                          child: _image == null && _currentImageUrl == null
+                              : (_currentImageUrl != null && _currentImageUrl!.isNotEmpty
+                              ? NetworkImage(getFullImageUrl(_currentImageUrl))
+                              : null),
+                          child: (_image == null &&
+                              (_currentImageUrl == null || _currentImageUrl!.isEmpty))
                               ? const Icon(Icons.person, size: 60, color: Colors.grey)
                               : null,
                         ),

@@ -31,6 +31,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
 
   String? _selectedCategory;
   String? _selectedMode;
+  bool _isLocationEditable = true;
 
   TimeOfDay _startTime = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 10, minute: 0);
@@ -54,6 +55,25 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
     _feeController.dispose();
     _classesController.dispose();
     super.dispose();
+  }
+
+  void _updateLocationBasedOnMode(String? mode) {
+    if (mode == "Online") {
+      setState(() {
+        _isLocationEditable = false;
+        _locationController.text = "Online";
+      });
+    } else if (mode == "Student Home") {
+      setState(() {
+        _isLocationEditable = false;
+        _locationController.text = "Student's Home";
+      });
+    } else if (mode == "Tutor Home") {
+      setState(() {
+        _isLocationEditable = true;
+        _locationController.text = "";
+      });
+    }
   }
 
   Future<void> _pickTime(bool isStart) async {
@@ -104,7 +124,6 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
       body: SafeArea(
         child: Column(
           children: [
-
             Container(
               width: double.infinity,
               height: 80,
@@ -190,8 +209,18 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
               "Teaching Mode",
               const ["Online", "Student Home", "Tutor Home"],
               _selectedMode,
-                  (v) => setState(() => _selectedMode = v)),
-          _buildField("Area, City", _locationController, "e.g. Nazimabad, Karachi"),
+                  (v) {
+                setState(() {
+                  _selectedMode = v;
+                  _updateLocationBasedOnMode(v);
+                });
+              }),
+          _buildField(
+            "Area, City",
+            _locationController,
+            _isLocationEditable ? "e.g. Nazimabad, Karachi" : "",
+            readOnly: !_isLocationEditable,
+          ),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -289,7 +318,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
   }
 
   Widget _buildField(String label, TextEditingController controller, String hint,
-      {bool isNumeric = false, int? maxValue}) {
+      {bool isNumeric = false, int? maxValue, bool readOnly = false}) {
     int? val = int.tryParse(controller.text);
     bool hasError = _showErrors &&
         (controller.text.trim().isEmpty ||
@@ -305,6 +334,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
         const SizedBox(height: 6),
         TextField(
           controller: controller,
+          readOnly: readOnly,
           keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
           inputFormatters:
           isNumeric ? [FilteringTextInputFormatter.digitsOnly] : [],
@@ -312,7 +342,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
             hintText: hint,
             hintStyle: const TextStyle(color: Color(0xFFBDBDBD), fontSize: 14),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: readOnly ? Colors.grey[100] : Colors.white,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(
@@ -488,12 +518,22 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
       return;
     }
 
+    // Check for location field - only required if "Tutor Home" is selected
+    bool isLocationValid = true;
+    if (_selectedMode == "Tutor Home" && _locationController.text.trim().isEmpty) {
+      isLocationValid = false;
+    } else if (_selectedMode != "Tutor Home" && _locationController.text.trim().isEmpty) {
+      // For Online and Student Home, location is auto-filled, so should not be empty
+      isLocationValid = false;
+    }
+
     if (_aboutController.text.isEmpty ||
         _subjectController.text.isEmpty ||
         _selectedCategory == null ||
         _selectedMode == null ||
         fee == null ||
-        classes == null) {
+        classes == null ||
+        !isLocationValid) {
       setState(() => _showErrors = true);
       _showErrorPopup("Missing Info", "Please fill in all the required fields.");
     } else {

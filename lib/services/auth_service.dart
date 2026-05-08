@@ -9,7 +9,9 @@ import 'package:http_parser/http_parser.dart';
 class AuthService {
   static bool get useRealApi => ApiConfig.useRealApi;
 
-  // ============ HELPER METHODS ============
+  // ============================================================
+  // ==================== HELPER METHODS ========================
+  // ============================================================
 
   static String _cleanErrorMessage(String message) {
     String cleaned = message
@@ -29,42 +31,32 @@ class AuthService {
 
     if (cleaned.contains('must be at least')) {
       cleaned = cleaned.substring(cleaned.indexOf('must be at least'));
-    }
-    else if (cleaned.contains('Invalid email')) {
+    } else if (cleaned.contains('Invalid email')) {
       cleaned = 'Invalid email or password';
-    }
-    else if (cleaned.contains('Email already exists')) {
+    } else if (cleaned.contains('Email already exists')) {
       cleaned = 'Email already exists';
-    }
-    else if (cleaned.contains('User not found')) {
+    } else if (cleaned.contains('User not found')) {
       cleaned = 'User not found';
-    }
-    else if (cleaned.contains('Current password is incorrect')) {
+    } else if (cleaned.contains('Current password is incorrect')) {
       cleaned = 'Current password is incorrect';
-    }
-    else if (cleaned.contains('Passwords do not match')) {
+    } else if (cleaned.contains('Passwords do not match')) {
       cleaned = 'Passwords do not match';
-    }
-    else if (cleaned.contains('Password must be at least')) {
+    } else if (cleaned.contains('Password must be at least')) {
       cleaned = cleaned.substring(cleaned.indexOf('Password'));
-    }
-    else if (cleaned.contains('Date of birth cannot be in the future')) {
+    } else if (cleaned.contains('Date of birth cannot be in the future')) {
       cleaned = 'Date of birth cannot be in the future';
-    }
-    else if (cleaned.contains('Date of birth is required')) {
+    } else if (cleaned.contains('Date of birth is required')) {
       cleaned = 'Date of birth is required';
-    }
-    else if (cleaned.contains('Only Gmail') || cleaned.contains('Yahoo')) {
+    } else if (cleaned.contains('Only Gmail') || cleaned.contains('Yahoo')) {
       cleaned = 'Only Gmail and Yahoo email addresses are allowed';
-    }
-    else if (cleaned.contains('complete your tutor profile')) {
+    } else if (cleaned.contains('complete your tutor profile')) {
       cleaned = 'Please complete your tutor profile first';
-    }
-    else if (cleaned.contains('upload your verification documents')) {
+    } else if (cleaned.contains('upload your verification documents')) {
       cleaned = 'Please upload your verification documents';
-    }
-    else if (cleaned.contains('complete your student profile')) {
+    } else if (cleaned.contains('complete your student profile')) {
       cleaned = 'Please complete your student profile first';
+    } else if (cleaned.toLowerCase().contains('verify your email')) {
+      cleaned = 'Please verify your email first. Check your inbox for OTP.';
     }
 
     cleaned = cleaned.replaceAll(RegExp(r'[^a-zA-Z0-9\s\.]'), '').trim();
@@ -81,7 +73,9 @@ class AuthService {
     };
   }
 
-  // ============ AUTHENTICATION APIS ============
+  // ============================================================
+  // ==================== AUTHENTICATION APIS ===================
+  // ============================================================
 
   static Future<Map<String, dynamic>> login(String email, String password) async {
     if (useRealApi) {
@@ -100,6 +94,7 @@ class AuthService {
           await prefs.setInt('profileId', mappedData['profileId'] ?? 0);
           await prefs.setString('userRole', mappedData['role']);
           await prefs.setInt('registrationStep', mappedData['registrationStep'] ?? 1);
+          await prefs.setBool('emailVerified', mappedData['emailVerified'] ?? false);
           return mappedData;
         } else {
           final errorData = json.decode(response.body);
@@ -205,8 +200,371 @@ class AuthService {
     await prefs.setBool('hasSeenOnboarding', hasSeenOnboarding);
   }
 
-  // ============ TUTOR ACCOUNT APIS ============
-  // These methods handle tutor registration, profile management, and document verification
+  static Future<Map<String, dynamic>> getUserByEmail(String email) async {
+    if (useRealApi) {
+      try {
+        final response = await http.get(
+          Uri.parse('${ApiConfig.baseUrl}/api/auth/user?email=$email'),
+          headers: {'Content-Type': 'application/json'},
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          return json.decode(response.body);
+        } else {
+          throw Exception('User not found');
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      return {
+        'id': 1,
+        'email': email,
+        'role': 'TUTOR',
+        'registrationStep': 1,
+        'accountStatus': 'ACTIVE',
+      };
+    }
+  }
+
+  // ============================================================
+  // ==================== REGISTRATION APIS =====================
+  // ============================================================
+
+  static Future<Map<String, dynamic>> registerTemp(String email, String password, String role) async {
+    if (useRealApi) {
+      try {
+        final response = await http.post(
+          Uri.parse(ApiConfig.getFullUrl(ApiConfig.registerTemp)),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'email': email,
+            'password': password,
+            'role': role,
+          }),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          return json.decode(response.body);
+        } else {
+          final errorData = response.body.isNotEmpty ? json.decode(response.body) : {};
+          throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Registration failed'));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      return {
+        'tempEmail': email,
+        'role': role,
+        'message': 'OTP sent to your email'
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> verifyAndSave(String email, String otpCode) async {
+    if (useRealApi) {
+      try {
+        final response = await http.post(
+          Uri.parse(ApiConfig.getFullUrl(ApiConfig.verifyAndSave)),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'email': email,
+            'otpCode': otpCode,
+          }),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          return json.decode(response.body);
+        } else {
+          final errorData = response.body.isNotEmpty ? json.decode(response.body) : {};
+          throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Verification failed'));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      if (otpCode == '1234') {
+        return {'id': 1, 'email': email, 'role': 'STUDENT', 'message': 'Verified'};
+      } else {
+        throw Exception('Invalid OTP');
+      }
+    }
+  }
+
+  // ============================================================
+  // ==================== EMAIL VERIFICATION APIS ===============
+  // ============================================================
+
+  static Future<Map<String, dynamic>> sendOtp(String email) async {
+    if (useRealApi) {
+      try {
+        final response = await http.post(
+          Uri.parse(ApiConfig.getFullUrl(ApiConfig.sendOtp)),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'email': email}),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          return json.decode(response.body);
+        } else {
+          final errorData = response.body.isNotEmpty ? json.decode(response.body) : {};
+          throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Failed to send OTP'));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      return {'message': 'Verification code sent to your email', 'email': email};
+    }
+  }
+
+  static Future<Map<String, dynamic>> verifyOtp(String email, String otpCode) async {
+    if (useRealApi) {
+      try {
+        final response = await http.post(
+          Uri.parse(ApiConfig.getFullUrl(ApiConfig.verifyOtp)),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'email': email, 'otpCode': otpCode}),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          return json.decode(response.body);
+        } else {
+          final errorData = response.body.isNotEmpty ? json.decode(response.body) : {};
+          throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Invalid OTP'));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      if (otpCode == '1234') {
+        return {'message': 'Email verified successfully', 'verified': true};
+      } else {
+        throw Exception('Invalid OTP code');
+      }
+    }
+  }
+
+  static Future<Map<String, dynamic>> resendOtp(String email) async {
+    if (useRealApi) {
+      try {
+        final response = await http.post(
+          Uri.parse(ApiConfig.getFullUrl(ApiConfig.resendOtp)),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'email': email}),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          return json.decode(response.body);
+        } else {
+          final errorData = response.body.isNotEmpty ? json.decode(response.body) : {};
+          throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Failed to resend OTP'));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      return {'message': 'New verification code sent to your email'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> checkVerificationStatus(String email) async {
+    if (useRealApi) {
+      try {
+        final response = await http.get(
+          Uri.parse(ApiConfig.getFullUrl('${ApiConfig.checkVerification}/$email')),
+          headers: {'Content-Type': 'application/json'},
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          return json.decode(response.body);
+        } else {
+          final errorData = response.body.isNotEmpty ? json.decode(response.body) : {};
+          throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Failed to check status'));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      return {'email': email, 'verified': false, 'expiryMinutesRemaining': 5};
+    }
+  }
+
+  // ============================================================
+  // ==================== FORGOT PASSWORD APIS ==================
+  // ============================================================
+
+  static Future<Map<String, dynamic>> forgotPassword(String email) async {
+    if (useRealApi) {
+      try {
+        final response = await http.post(
+          Uri.parse(ApiConfig.getFullUrl(ApiConfig.forgotPassword)),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'email': email}),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          return json.decode(response.body);
+        } else {
+          final errorData = response.body.isNotEmpty ? json.decode(response.body) : {};
+          throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Failed to send reset code'));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      if (email.isEmpty) {
+        throw Exception('Email not found');
+      }
+      return {'message': 'Password reset code sent to your email', 'email': email};
+    }
+  }
+
+  static Future<Map<String, dynamic>> verifyResetOtp(String email, String otpCode) async {
+    if (useRealApi) {
+      try {
+        final response = await http.post(
+          Uri.parse(ApiConfig.getFullUrl(ApiConfig.verifyResetOtp)),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'email': email, 'otpCode': otpCode}),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          return json.decode(response.body);
+        } else {
+          final errorData = response.body.isNotEmpty ? json.decode(response.body) : {};
+          throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Invalid OTP'));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      if (otpCode == '1234') {
+        return {'message': 'OTP verified. You can now reset your password.', 'verified': true};
+      } else {
+        throw Exception('Invalid OTP code');
+      }
+    }
+  }
+
+  static Future<Map<String, dynamic>> resetPassword(String email, String otpCode, String newPassword, String confirmPassword) async {
+    if (useRealApi) {
+      try {
+        final response = await http.post(
+          Uri.parse(ApiConfig.getFullUrl(ApiConfig.resetPassword)),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'email': email,
+            'otpCode': otpCode,
+            'newPassword': newPassword,
+            'confirmPassword': confirmPassword,
+          }),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          return json.decode(response.body);
+        } else {
+          final errorData = response.body.isNotEmpty ? json.decode(response.body) : {};
+          throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Failed to reset password'));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      if (newPassword != confirmPassword) {
+        throw Exception('New password and confirm password do not match');
+      }
+      return {'message': 'Password reset successfully. Please login with your new password.'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> resendForgotOtp(String email) async {
+    if (useRealApi) {
+      try {
+        final response = await http.post(
+          Uri.parse(ApiConfig.getFullUrl(ApiConfig.resendForgotOtp)),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'email': email}),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          return json.decode(response.body);
+        } else {
+          final errorData = response.body.isNotEmpty ? json.decode(response.body) : {};
+          throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Failed to resend code'));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      return {'message': 'New password reset code sent to your email'};
+    }
+  }
+
+  // ============================================================
+  // ==================== COMMON UTILITY APIS ===================
+  // ============================================================
+
+  static Future<Map<String, dynamic>> changePassword({
+    required int userId,
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    if (useRealApi) {
+      try {
+        final response = await http.post(
+          Uri.parse(ApiConfig.getFullUrl(ApiConfig.changePassword)),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'userId': userId,
+            'currentPassword': currentPassword,
+            'newPassword': newPassword,
+            'confirmPassword': confirmPassword,
+          }),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          return {'message': 'Password changed successfully'};
+        } else {
+          final errorData = json.decode(response.body);
+          String errorMessage = errorData['error'] ?? 'Failed to change password';
+          errorMessage = _cleanErrorMessage(errorMessage);
+          throw Exception(errorMessage);
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      if (newPassword != confirmPassword) {
+        throw Exception('Passwords do not match');
+      }
+      if (newPassword.length < 6) {
+        throw Exception('Password must be at least 6 characters');
+      }
+      if (currentPassword.isEmpty) {
+        throw Exception('Current password is required');
+      }
+      return {'message': 'Password changed successfully'};
+    }
+  }
+
+  // ============================================================
+  // ==================== TUTOR PROFILE APIS ====================
+  // ============================================================
 
   static Future<Map<String, dynamic>> createTutorProfile(Map<String, dynamic> data) async {
     if (useRealApi) {
@@ -381,8 +739,9 @@ class AuthService {
     }
   }
 
-  // ============ STUDENT ACCOUNT APIS ============
-  // These methods handle student registration, profile management, and updates
+  // ============================================================
+  // ==================== STUDENT PROFILE APIS ==================
+  // ============================================================
 
   static Future<Map<String, dynamic>> createStudentProfile(Map<String, dynamic> data) async {
     if (useRealApi) {
@@ -568,82 +927,6 @@ class AuthService {
     } else {
       await Future.delayed(const Duration(seconds: 1));
       return {'profilePictureUrl': '/uploads/mock-student-image.jpg'};
-    }
-  }
-
-  // ============ COMMON UTILITY APIS ============
-  // These methods are used by both tutor and student accounts
-
-  static Future<Map<String, dynamic>> changePassword({
-    required int userId,
-    required String currentPassword,
-    required String newPassword,
-    required String confirmPassword,
-  }) async {
-    if (useRealApi) {
-      try {
-        final response = await http.post(
-          Uri.parse(ApiConfig.getFullUrl(ApiConfig.changePassword)),
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({
-            'userId': userId,
-            'currentPassword': currentPassword,
-            'newPassword': newPassword,
-            'confirmPassword': confirmPassword,
-          }),
-        ).timeout(const Duration(seconds: 15));
-
-        if (response.statusCode == 200) {
-          return {'message': 'Password changed successfully'};
-        } else {
-          final errorData = json.decode(response.body);
-          String errorMessage = errorData['error'] ?? 'Failed to change password';
-          errorMessage = _cleanErrorMessage(errorMessage);
-          throw Exception(errorMessage);
-        }
-      } catch (e) {
-        throw Exception(_cleanErrorMessage(e.toString()));
-      }
-    } else {
-      await Future.delayed(const Duration(seconds: 1));
-      if (newPassword != confirmPassword) {
-        throw Exception('Passwords do not match');
-      }
-      if (newPassword.length < 6) {
-        throw Exception('Password must be at least 6 characters');
-      }
-      if (currentPassword.isEmpty) {
-        throw Exception('Current password is required');
-      }
-      return {'message': 'Password changed successfully'};
-    }
-  }
-
-  static Future<Map<String, dynamic>> getUserByEmail(String email) async {
-    if (useRealApi) {
-      try {
-        final response = await http.get(
-          Uri.parse('${ApiConfig.baseUrl}/api/auth/user?email=$email'),
-          headers: {'Content-Type': 'application/json'},
-        ).timeout(const Duration(seconds: 15));
-
-        if (response.statusCode == 200) {
-          return json.decode(response.body);
-        } else {
-          throw Exception('User not found');
-        }
-      } catch (e) {
-        throw Exception(_cleanErrorMessage(e.toString()));
-      }
-    } else {
-      await Future.delayed(const Duration(seconds: 1));
-      return {
-        'id': 1,
-        'email': email,
-        'role': 'TUTOR',
-        'registrationStep': 1,
-        'accountStatus': 'ACTIVE',
-      };
     }
   }
 }

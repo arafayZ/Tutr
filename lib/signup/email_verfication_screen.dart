@@ -1,33 +1,39 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../services/auth_service.dart';
-import 'create_new_password_screen.dart';
-import 'login_screen.dart';
+import 'profile_creation_screen.dart';
 
-class ForgotPasswordScreen extends StatefulWidget {
+class EmailVerificationScreen extends StatefulWidget {
   final String email;
+  final String role;
+  final int? userId;
 
-  const ForgotPasswordScreen({super.key, required this.email});
+  const EmailVerificationScreen({
+    super.key,
+    required this.email,
+    required this.role,
+    this.userId,
+  });
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  State<EmailVerificationScreen> createState() => _EmailVerificationScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   final List<TextEditingController> _controllers =
   List.generate(4, (index) => TextEditingController());
 
   bool _showErrors = false;
-  bool _isLoading = true;
+  bool _isLoading = false;
   Timer? _timer;
   int _remainingSeconds = 600;
   bool _canResend = false;
-  bool _emailValid = true;
 
   @override
   void initState() {
     super.initState();
-    _checkEmailAndSendOtp();
+    _startTimer();
+    _sendOtpOnInit();
   }
 
   @override
@@ -52,25 +58,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
   }
 
-  Future<void> _checkEmailAndSendOtp() async {
-    setState(() {
-      _isLoading = true;
-      _emailValid = true;
-    });
-
+  void _sendOtpOnInit() async {
+    setState(() => _isLoading = true);
     try {
-      await AuthService.forgotPassword(widget.email);
-
+      await AuthService.sendOtp(widget.email);
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _emailValid = true;
-        });
-        _startTimer();
-
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Reset code sent to your email'),
+            content: Text('Verification code sent to your email'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 3),
           ),
@@ -79,95 +74,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     } catch (e) {
       if (mounted) {
         String errorMsg = e.toString().replaceFirst('Exception: ', '');
-        await _showErrorAndNavigateBack(
-          title: "Email Not Found",
+        _showErrorPopup(
+          title: "Failed to Send Code",
           message: errorMsg,
-          icon: Icons.person_off,
+          icon: Icons.mail_outline,
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
-  }
-
-  Future<void> _showErrorAndNavigateBack({
-    required String title,
-    required String message,
-    required IconData icon,
-  }) async {
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                color: Colors.red.shade700,
-                size: 50,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0D1B3E),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                color: Colors.grey[700],
-                height: 1.4,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          Center(
-            child: TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                      (route) => false,
-                );
-              },
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.red.shade50,
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              child: Text(
-                "OK",
-                style: TextStyle(
-                  color: Colors.red.shade700,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   void _resendOtp() async {
@@ -180,12 +97,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
 
     try {
-      await AuthService.resendForgotOtp(widget.email);
+      await AuthService.resendOtp(widget.email);
       _startTimer();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('New reset code sent to your email'),
+            content: Text('New verification code sent to your email'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 3),
           ),
@@ -194,20 +111,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     } catch (e) {
       if (mounted) {
         String errorMsg = e.toString().replaceFirst('Exception: ', '');
-        if (errorMsg.toLowerCase().contains('not found')) {
-          await _showErrorAndNavigateBack(
-            title: "Email Not Found",
-            message: errorMsg,
-            icon: Icons.person_off,
-          );
-        } else {
-          _showErrorPopup(
-            title: "Failed to Resend",
-            message: errorMsg,
-            icon: Icons.refresh,
-          );
-          setState(() => _canResend = true);
-        }
+        _showErrorPopup(
+          title: "Failed to Resend",
+          message: errorMsg,
+          icon: Icons.refresh,
+        );
+        setState(() => _canResend = true);
       }
     } finally {
       if (mounted) {
@@ -224,7 +133,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _showErrorPopup(
         title: "Incomplete Code",
         message: "Please enter the complete 4-digit verification code.",
-        icon: Icons.looks_one,
+        icon: Icons.looks_one,  // Changed from code_off
       );
       return;
     }
@@ -236,16 +145,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await AuthService.verifyResetOtp(widget.email, otp);
+      final userData = await AuthService.verifyAndSave(widget.email, otp);
 
       if (!mounted) return;
 
-      Navigator.push(
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => CreateNewPasswordScreen(
-            email: widget.email,
-            otpCode: otp,
+          builder: (context) => ProfileCreationScreen(
+            role: widget.role,
+            userId: userData['id'],
           ),
         ),
       );
@@ -265,7 +174,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           message: "Your verification code has expired.\n\nClick 'Resend' to get a new code.",
           icon: Icons.timer_off,
         );
-      } else if (errorMsg.contains('not found')) {
+      } else if (errorMsg.contains('not found') || errorMsg.contains('pending')) {
         _showErrorPopup(
           title: "No Code Found",
           message: "No verification code found for this email.\n\nPlease request a new code.",
@@ -359,6 +268,54 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 
+  void _showResendPopup() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.email_outlined, color: Colors.blue, size: 50),
+            SizedBox(height: 16),
+            Text(
+              "Code Resent!",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0D1B3E),
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              "A new verification code has been sent to your email.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          Center(
+            child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "OK",
+                style: TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatTime(int seconds) {
     int minutes = seconds ~/ 60;
     int remainingSeconds = seconds % 60;
@@ -367,28 +324,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading && _emailValid) {
-      return Scaffold(
-        backgroundColor: const Color(0xFFF8F9FB),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircularProgressIndicator(color: Colors.black),
-              const SizedBox(height: 20),
-              Text(
-                "Verifying email...",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       body: Column(
@@ -427,7 +362,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                     ),
                     const Text(
-                      "Forgot Password",
+                      "Email Verification",
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -446,7 +381,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 children: [
                   const SizedBox(height: 60),
                   Text(
-                    "Code has been sent to ${widget.email}",
+                    "Verification code has been sent to ${widget.email}",
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 13, color: Colors.black87),
                   ),
@@ -460,7 +395,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        _canResend ? "Didn't receive code? " : "Resend available in ${_formatTime(_remainingSeconds)}",
+                        _canResend ? "Didn't receive the code? " : "Resend available in ${_formatTime(_remainingSeconds)}",
                         style: TextStyle(
                           fontSize: 13,
                           color: _canResend ? Colors.black87 : Colors.grey,

@@ -12,8 +12,7 @@ class InboxScreen extends StatefulWidget {
 
 class _InboxScreenState extends State<InboxScreen> {
   // Mock data representing current conversations
-  // 'count' represents unread messages; an empty string means no new notifications
-  final List<Map<String, dynamic>> _messages = [
+  final List<Map<String, dynamic>> _allMessages = [
     {"name": "Bilal Raza", "msg": "Hi, Good Evening Bro.!", "time": "14:59", "count": "03"},
     {"name": "Fatima Iqbal", "msg": "I Just Finished It.!", "time": "06:35", "count": "02"},
     {"name": "Hassan Javed", "msg": "How are you?", "time": "08:10", "count": ""},
@@ -22,11 +21,41 @@ class _InboxScreenState extends State<InboxScreen> {
     {"name": "Bilal Ahmed", "msg": "Hi, Good Evening Bro.!", "time": "14:59", "count": "03"},
   ];
 
+  List<Map<String, dynamic>> _filteredMessages = [];
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredMessages = List.from(_allMessages);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _filterMessages(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _filteredMessages = List.from(_allMessages);
+      } else {
+        _filteredMessages = _allMessages.where((message) {
+          final name = message['name'].toString().toLowerCase();
+          final msg = message['msg'].toString().toLowerCase();
+          return name.contains(query.toLowerCase()) ||
+              msg.contains(query.toLowerCase());
+        }).toList();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
-      extendBody: true, // Allows the list to scroll behind the curved bottom bar
+      extendBody: true,
 
       // --- CENTERED FAB ---
       floatingActionButton: FloatingActionButton(
@@ -43,7 +72,7 @@ class _InboxScreenState extends State<InboxScreen> {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
       body: SafeArea(
-        bottom: false, // Ensures the background color extends to the bottom of the screen
+        bottom: false,
         child: Column(
           children: [
             // --- ROUNDED HEADER ---
@@ -91,13 +120,24 @@ class _InboxScreenState extends State<InboxScreen> {
                     )
                   ],
                 ),
-                child: const TextField(
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: _filterMessages,
                   cursorColor: Colors.black,
                   decoration: InputDecoration(
                     hintText: "Search Message",
-                    prefixIcon: Icon(Icons.search, color: Colors.black),
+                    prefixIcon: const Icon(Icons.search, color: Colors.black),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.grey),
+                      onPressed: () {
+                        _searchController.clear();
+                        _filterMessages("");
+                      },
+                    )
+                        : null,
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(vertical: 15),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 15),
                   ),
                 ),
               ),
@@ -115,29 +155,42 @@ class _InboxScreenState extends State<InboxScreen> {
                   ),
                 ),
                 child: ClipRRect(
-                  // Clips children to match the container's rounded top corners
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(25),
                     topRight: Radius.circular(25),
                   ),
-                  child: ListView.separated(
+                  child: _filteredMessages.isEmpty
+                      ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off, size: 50, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text(
+                          "No messages found",
+                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  )
+                      : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(0, 10, 0, 100),
-                    itemCount: _messages.length,
-                    // Adds a thin line between chat items
+                    itemCount: _filteredMessages.length,
                     separatorBuilder: (context, index) => const Divider(
                       height: 1,
-                      indent: 80, // Aligns the line with the text, not the avatar
+                      indent: 80,
                       color: Color(0xFFF1F1F1),
                     ),
                     itemBuilder: (context, index) {
-                      final chat = _messages[index];
-                      // InkWell provides a visual ripple effect on tap
+                      final chat = _filteredMessages[index];
                       return InkWell(
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ChatDetailsScreen(userName: chat["name"]),
+                              builder: (context) => ChatDetailsScreen(
+                                userName: chat["name"],
+                              ),
                             ),
                           );
                         },
@@ -154,7 +207,6 @@ class _InboxScreenState extends State<InboxScreen> {
           ],
         ),
       ),
-      // CurrentIndex 2 highlights the 'Inbox' tab in your custom bar
       bottomNavigationBar: const CustomBottomNav(currentIndex: 2),
     );
   }
@@ -174,28 +226,27 @@ class _InboxScreenState extends State<InboxScreen> {
       ),
       subtitle: Text(
         chat["msg"],
-        maxLines: 1, // Prevents text wrapping to multiple lines
-        overflow: TextOverflow.ellipsis, // Adds '...' if message is too long
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(color: Colors.grey.shade600),
       ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // Only show the unread badge if count is not empty
           if (chat["count"] != "")
             Container(
               padding: const EdgeInsets.all(6),
               decoration: const BoxDecoration(
-                color: Color(0xFF2979FF), // Bright blue badge
+                color: Color(0xFF2979FF),
                 shape: BoxShape.circle,
               ),
               child: Text(
                 chat["count"],
                 style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
@@ -203,9 +254,9 @@ class _InboxScreenState extends State<InboxScreen> {
           Text(
             chat["time"],
             style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.black54
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.black54,
             ),
           ),
         ],

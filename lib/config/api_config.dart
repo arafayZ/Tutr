@@ -14,6 +14,23 @@ class ApiConfig {
   static const String changePassword = '/api/password/change';//done
   static const String getUserByEmail = '/api/auth/user'; // + ?email={email}
 
+  // ============ NEW REGISTRATION APIS (Temp User + OTP) ============
+  static const String registerTemp = '/api/register/register-temp';
+  static const String verifyAndSave = '/api/register/verify-and-save';
+
+  // ============ EMAIL VERIFICATION APIS (SIGNUP) ============
+  static const String sendOtp = '/api/verify/send-otp';
+  static const String verifyOtp = '/api/verify/verify-otp';
+  static const String resendOtp = '/api/verify/resend-otp';
+  static const String checkVerification = '/api/verify/check';
+
+// ============ FORGOT PASSWORD APIS ============
+  static const String forgotPassword = '/api/verify/forgot-password';
+  static const String verifyResetOtp = '/api/verify/verify-reset-otp';
+  static const String resetPassword = '/api/verify/reset-password';
+  static const String resendForgotOtp = '/api/verify/resend-forgot-otp';
+  static const String extendOtp = '/api/verify/extend-otp';
+
   // ============ PROFILE APIS ============
   static const String tutorProfile = '/api/register/tutor/profile';//done
   static const String studentProfile = '/api/register/student/profile';//done

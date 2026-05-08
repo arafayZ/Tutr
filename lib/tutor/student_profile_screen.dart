@@ -312,8 +312,15 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                                   GestureDetector(
                                     onTap: () {
                                       setState(() => activeBtn = "message");
-                                      Navigator.push(context, MaterialPageRoute(
-                                          builder: (context) => ChatDetailsScreen(userName: displayName)));
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => ChatDetailsScreen(
+                                            userName: displayName,
+                                            userImage: displayImage, // Pass the image
+                                          ),
+                                        ),
+                                      );
                                     },
                                     child: _buildAdaptiveButton(label: "Message", id: "message"),
                                   ),
@@ -539,7 +546,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
         backgroundColor: Colors.white,
         backgroundImage: imgPath.isNotEmpty
             ? NetworkImage(_getFullImageUrl(imgPath))
-            : const AssetImage('assets/images/avatar.png') as ImageProvider,
+            : null,
         child: imgPath.isEmpty
             ? const Icon(Icons.person, size: 40, color: Colors.grey)
             : null,

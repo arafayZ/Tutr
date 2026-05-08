@@ -1,9 +1,8 @@
-// Import standard Flutter tools and other screens in your project
 import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'profile_creation_screen.dart';
+import 'email_verfication_screen.dart';
 import 'login_screen.dart';
 import '../services/auth_service.dart';
 
@@ -164,24 +163,29 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final userData = await AuthService.register(
+      // ========== CHANGED: Use registerTemp instead of register ==========
+      final tempData = await AuthService.registerTemp(
         _emailController.text.trim(),
         _passwordController.text,
         widget.role,
       );
+      // =================================================================
 
       if (!mounted) return;
       setState(() => _isLoading = false);
 
+      // ========== CHANGED: Pass only email and role (no userId yet) ==========
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => ProfileCreationScreen(
+          builder: (context) => EmailVerificationScreen(
+            email: _emailController.text.trim(),
             role: widget.role,
-            userId: userData['id'],
+            // No userId passed - user not saved in DB yet
           ),
         ),
       );
+      // ======================================================================
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);

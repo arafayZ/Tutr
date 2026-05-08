@@ -473,7 +473,7 @@ class _MyStudentsListScreenState extends State<MyStudentsListScreen> {
                         child: ElevatedButton(
                           onPressed: () {
                             Navigator.pop(context);
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => ChatDetailsScreen(userName: fullName)));
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => ChatDetailsScreen(userName: fullName,userImage: studentImage ?? '',)));
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.black,

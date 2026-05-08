@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
+import '../config/api_config.dart';
 
 class ChatDetailsScreen extends StatefulWidget {
   final String userName;
+  final String? userImage;
+  final int? tutorId;
+  final int? studentId;
 
-  const ChatDetailsScreen({super.key, required this.userName});
+  const ChatDetailsScreen({
+    super.key,
+    required this.userName,
+    this.userImage,
+    this.tutorId,
+    this.studentId,
+  });
 
   @override
   State<ChatDetailsScreen> createState() => _ChatDetailsScreenState();
@@ -51,9 +61,18 @@ class _ChatDetailsScreenState extends State<ChatDetailsScreen> {
   // Helper to format current time
   String _getCurrentTime() {
     final now = DateTime.now();
-    final hour = now.hour > 12 ? now.hour - 12 : (now.hour == 0 ? 12 : now.hour);
-    final amPm = now.hour >= 12 ? 'PM' : 'AM';
-    return "$hour:${now.minute.toString().padLeft(2, '0')} $amPm";
+    int hour = now.hour;
+    final minute = now.minute;
+    final amPm = hour >= 12 ? 'PM' : 'AM';
+
+    if (hour > 12) {
+      hour = hour - 12;
+    }
+    if (hour == 0) {
+      hour = 12;
+    }
+
+    return "$hour:${minute.toString().padLeft(2, '0')} $amPm";
   }
 
   @override
@@ -65,6 +84,11 @@ class _ChatDetailsScreenState extends State<ChatDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Get the user image URL
+    final String? userImageUrl = widget.userImage != null && widget.userImage!.isNotEmpty
+        ? '${ApiConfig.baseUrl}${widget.userImage}'
+        : null;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       body: SafeArea(
@@ -104,18 +128,26 @@ class _ChatDetailsScreenState extends State<ChatDetailsScreen> {
                     ),
                   ),
                   const SizedBox(width: 15),
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 20,
-                    backgroundColor: Colors.black,
-                    child: Icon(Icons.person, color: Colors.white, size: 20),
+                    backgroundColor: Colors.grey[300],
+                    backgroundImage: userImageUrl != null
+                        ? NetworkImage(userImageUrl)
+                        : null,
+                    child: userImageUrl == null
+                        ? const Icon(Icons.person, color: Colors.white, size: 20)
+                        : null,
                   ),
                   const SizedBox(width: 12),
-                  Text(
-                    widget.userName,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                  Expanded(
+                    child: Text(
+                      widget.userName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -170,8 +202,8 @@ class _ChatDetailsScreenState extends State<ChatDetailsScreen> {
           child: Text(
             msg["text"],
             style: TextStyle(
-                color: isMe ? Colors.white : Colors.black,
-                fontSize: 15
+              color: isMe ? Colors.white : Colors.black,
+              fontSize: 15,
             ),
           ),
         ),

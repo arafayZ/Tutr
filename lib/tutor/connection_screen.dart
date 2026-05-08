@@ -22,6 +22,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
   List<Map<String, dynamic>> _filteredConnections = [];
   String _searchQuery = "";
   bool _isLoading = true;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -32,6 +33,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -130,6 +132,11 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
             .toList();
       }
     });
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    _filterConnections("");
   }
 
   void _navigateToProfile(Map<String, dynamic> person) {
@@ -279,7 +286,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _filteredConnections.isEmpty
-                  ? _buildEmptyState()  // This already has Center widget
+                  ? _buildEmptyState()
                   : RefreshIndicator(
                 onRefresh: _loadConnections,
                 color: Colors.black,
@@ -327,13 +334,20 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: TextField(
+          controller: _searchController,
           onChanged: _filterConnections,
           cursorColor: Colors.black,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             hintText: "Search connections...",
-            prefixIcon: Icon(Icons.search, color: Colors.black),
+            prefixIcon: const Icon(Icons.search, color: Colors.black),
+            suffixIcon: _searchQuery.isNotEmpty
+                ? IconButton(
+              icon: const Icon(Icons.clear, color: Colors.grey),
+              onPressed: _clearSearch,
+            )
+                : null,
             border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(vertical: 15),
+            contentPadding: const EdgeInsets.symmetric(vertical: 15),
           ),
         ),
       ),
@@ -382,7 +396,6 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                       ),
                       const SizedBox(height: 4),
-                      // Wrap with ConstrainedBox to prevent overflow
                       ConstrainedBox(
                         constraints: const BoxConstraints(maxHeight: 80),
                         child: SingleChildScrollView(
@@ -434,7 +447,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
           if (label == "Disconnect") {
             _disconnectStudent(name, courses);
           } else if (label == "Message") {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => ChatDetailsScreen(userName: name)));
+            Navigator.push(context, MaterialPageRoute(builder: (context) => ChatDetailsScreen(userName: name, userImage: person['studentImage']?.toString() ?? '',)));
           }
         },
         style: ElevatedButton.styleFrom(

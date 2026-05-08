@@ -342,32 +342,45 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB),
-      extendBody: true,
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: [
-          _buildHomeContent(),
-          const ConnectionScreen(),      // New Connection Screen
-          const InboxScreen(),           // Inbox from tutor file
-          const FavouritesScreen(),
-          const ProfileScreen(),
-        ],
-      ),
-      bottomNavigationBar: StudentBottomNav(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
+    return WillPopScope(
+      onWillPop: () async {
+        // If not on home tab (index 0), go to home tab
+        if (_selectedIndex != 0) {
           setState(() {
-            _selectedIndex = index;
+            _selectedIndex = 0;
           });
-          if (index == 3) {
-            FavoriteRefreshService().notifyRefresh();
-          }
-          if (index == 0 && !_isFirstLoad && !_isLoading) {
-            _refreshData();
-          }
-        },
+          return false; // Don't close app, just went to home
+        }
+        // If already on home tab, let the system handle back button
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8F9FB),
+        extendBody: true,
+        body: IndexedStack(
+          index: _selectedIndex,
+          children: [
+            _buildHomeContent(),
+            const ConnectionScreen(),
+            const InboxScreen(),
+            const FavouritesScreen(),
+            const ProfileScreen(),
+          ],
+        ),
+        bottomNavigationBar: StudentBottomNav(
+          currentIndex: _selectedIndex,
+          onTap: (index) {
+            setState(() {
+              _selectedIndex = index;
+            });
+            if (index == 3) {
+              FavoriteRefreshService().notifyRefresh();
+            }
+            if (index == 0 && !_isFirstLoad && !_isLoading) {
+              _refreshData();
+            }
+          },
+        ),
       ),
     );
   }

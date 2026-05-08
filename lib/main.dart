@@ -59,7 +59,7 @@ class TutrApp extends StatelessWidget {
       home: const SplashScreen(),
 
       onGenerateRoute: (settings) {
-       // Handle the Connection Screen route
+        // Handle the Connection Screen route
         if (settings.name == '/connection') {
           final String studentName = settings.arguments as String? ?? "Student";
           return MaterialPageRoute(
@@ -67,7 +67,7 @@ class TutrApp extends StatelessWidget {
           );
         }
 
-       // Handle the Student Details route (Metric, Inter, etc.)
+        // Handle the Student Details route (Metric, Inter, etc.)
         if (settings.name == '/student_details') {
           final String category = settings.arguments as String? ?? "Matric";
           return MaterialPageRoute(
@@ -120,8 +120,8 @@ class TutrApp extends StatelessWidget {
           );
         },
         // '/my_bids': (context) => const MyBidsScreen(),
-         '/student_category': (context) => const StudentCategoryScreen(),
-         '/course_category': (context) => const CourseCategoryScreen(),
+        '/student_category': (context) => const StudentCategoryScreen(),
+        '/course_category': (context) => const CourseCategoryScreen(),
         '/edit_profile': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
           return EditProfileScreen(profileId: args['profileId']);

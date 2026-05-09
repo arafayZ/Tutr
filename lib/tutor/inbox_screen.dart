@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../widgets/custom_bottom_nav.dart';
+// import '../widgets/custom_bottom_nav.dart';
 import 'add_course_screen.dart';
-import 'chat_details_screen.dart'; // Target screen for individual conversations
+import 'chat_details_screen.dart';
 
 class InboxScreen extends StatefulWidget {
   const InboxScreen({super.key});
@@ -11,8 +11,10 @@ class InboxScreen extends StatefulWidget {
 }
 
 class _InboxScreenState extends State<InboxScreen> {
-  // Mock data representing current conversations
-  // 'count' represents unread messages; an empty string means no new notifications
+  // Controller to listen to search text changes
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
+
   final List<Map<String, dynamic>> _messages = [
     {"name": "Bilal Raza", "msg": "Hi, Good Evening Bro.!", "time": "14:59", "count": "03"},
     {"name": "Fatima Iqbal", "msg": "I Just Finished It.!", "time": "06:35", "count": "02"},
@@ -22,13 +24,30 @@ class _InboxScreenState extends State<InboxScreen> {
     {"name": "Bilal Ahmed", "msg": "Hi, Good Evening Bro.!", "time": "14:59", "count": "03"},
   ];
 
+  // Logic to filter the messages based on the search query
+  List<Map<String, dynamic>> get _filteredMessages {
+    if (_searchQuery.isEmpty) {
+      return _messages;
+    }
+    return _messages
+        .where((chat) =>
+    chat["name"].toLowerCase().contains(_searchQuery.toLowerCase()) ||
+        chat["msg"].toLowerCase().contains(_searchQuery.toLowerCase()))
+        .toList();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
-      extendBody: true, // Allows the list to scroll behind the curved bottom bar
+      // extendBody: true,
 
-      // --- CENTERED FAB ---
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
@@ -43,7 +62,7 @@ class _InboxScreenState extends State<InboxScreen> {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
       body: SafeArea(
-        bottom: false, // Ensures the background color extends to the bottom of the screen
+        bottom: false,
         child: Column(
           children: [
             // --- ROUNDED HEADER ---
@@ -67,16 +86,12 @@ class _InboxScreenState extends State<InboxScreen> {
               child: const Center(
                 child: Text(
                   "Inbox",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
                 ),
               ),
             ),
 
-            // --- SEARCH BAR ---
+            // --- FUNCTIONAL SEARCH BAR ---
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 25, 20, 10),
               child: Container(
@@ -91,13 +106,30 @@ class _InboxScreenState extends State<InboxScreen> {
                     )
                   ],
                 ),
-                child: const TextField(
+                child: TextField(
+                  controller: _searchController,
                   cursorColor: Colors.black,
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
                   decoration: InputDecoration(
                     hintText: "Search Message",
-                    prefixIcon: Icon(Icons.search, color: Colors.black),
+                    prefixIcon: const Icon(Icons.search, color: Colors.black),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.grey),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _searchQuery = "";
+                        });
+                      },
+                    )
+                        : null,
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(vertical: 15),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 15),
                   ),
                 ),
               ),
@@ -115,23 +147,22 @@ class _InboxScreenState extends State<InboxScreen> {
                   ),
                 ),
                 child: ClipRRect(
-                  // Clips children to match the container's rounded top corners
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(25),
                     topRight: Radius.circular(25),
                   ),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(0, 10, 0, 100),
-                    itemCount: _messages.length,
-                    // Adds a thin line between chat items
+                  child: _filteredMessages.isEmpty
+                      ? const Center(child: Text("No messages found"))
+                      : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(0, 10, 0, 20),
+                    itemCount: _filteredMessages.length,
                     separatorBuilder: (context, index) => const Divider(
                       height: 1,
-                      indent: 80, // Aligns the line with the text, not the avatar
+                      indent: 80,
                       color: Color(0xFFF1F1F1),
                     ),
                     itemBuilder: (context, index) {
-                      final chat = _messages[index];
-                      // InkWell provides a visual ripple effect on tap
+                      final chat = _filteredMessages[index];
                       return InkWell(
                         onTap: () {
                           Navigator.push(
@@ -148,18 +179,14 @@ class _InboxScreenState extends State<InboxScreen> {
                 ),
               ),
             ),
-
-            // Extra spacing to ensure content clears the bottom navigation area
-            const SizedBox(height: 80),
+            // const SizedBox(height: 80),
           ],
         ),
       ),
-      // CurrentIndex 2 highlights the 'Inbox' tab in your custom bar
-      bottomNavigationBar: const CustomBottomNav(currentIndex: 2),
+      // bottomNavigationBar: const CustomBottomNav(currentIndex: 2),
     );
   }
 
-  // Builder for the individual chat row
   Widget _buildChatItem(Map<String, dynamic> chat) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
@@ -174,39 +201,30 @@ class _InboxScreenState extends State<InboxScreen> {
       ),
       subtitle: Text(
         chat["msg"],
-        maxLines: 1, // Prevents text wrapping to multiple lines
-        overflow: TextOverflow.ellipsis, // Adds '...' if message is too long
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(color: Colors.grey.shade600),
       ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // Only show the unread badge if count is not empty
           if (chat["count"] != "")
             Container(
               padding: const EdgeInsets.all(6),
               decoration: const BoxDecoration(
-                color: Color(0xFF2979FF), // Bright blue badge
+                color: Color(0xFF2979FF),
                 shape: BoxShape.circle,
               ),
               child: Text(
                 chat["count"],
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold
-                ),
+                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
               ),
             ),
           const SizedBox(height: 4),
           Text(
             chat["time"],
-            style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.black54
-            ),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black54),
           ),
         ],
       ),

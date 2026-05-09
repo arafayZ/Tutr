@@ -16,6 +16,8 @@ import 'tutor_profile_screen.dart';
 import 'course_details_screen.dart';
 import 'connection_screen.dart';
 
+import '../tutor/inbox_screen.dart';
+
 // --- 1. DATA MODELS ---
 class Tutor {
   final String name;
@@ -59,7 +61,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
     _screens = [
       _buildHomeContent(),
       const ConnectionScreen(),
-      const Center(child: Text("Inbox Screen")),
+      const InboxScreen(),
       const FavouritesScreen(),
       const ProfileScreen(),
     ];

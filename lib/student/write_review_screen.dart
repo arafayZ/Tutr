@@ -109,6 +109,10 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
       _isSubmitting = true;
     });
 
+    FocusScope.of(context).unfocus();
+
+    await Future.delayed(const Duration(milliseconds: 200));
+
     try {
       final result = await RatingService.submitRating(
         studentId: _studentId,
@@ -147,59 +151,76 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
   }
 
   void _showReviewSuccessPopup(BuildContext context) {
+    if (Navigator.canPop(context)) {
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
         Future.delayed(const Duration(seconds: 3), () {
-          if (Navigator.canPop(context)) {
+          if (mounted && Navigator.canPop(context)) {
             Navigator.pop(context);
-            Navigator.pop(context, true);
+            if (mounted) {
+              Navigator.pop(context, true);
+            }
           }
         });
 
         return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
           backgroundColor: Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  height: 100,
-                  width: 100,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF22AD19),
-                    shape: BoxShape.circle,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
+              maxWidth: MediaQuery.of(context).size.width * 0.9,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    height: 100,
+                    width: 100,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF22AD19),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.check, color: Colors.white, size: 60),
                   ),
-                  child: const Icon(Icons.check, color: Colors.white, size: 60),
-                ),
-                const SizedBox(height: 30),
-                const Text(
-                  "Review Submitted",
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1C43),
+                  const SizedBox(height: 30),
+                  const Text(
+                    "Review Submitted",
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1C43),
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                ),
-                const SizedBox(height: 15),
-                const Text(
-                  "Thank you for your feedback!\nYour review helps others learn better.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 14,
-                    height: 1.5,
+                  const SizedBox(height: 15),
+                  const Text(
+                    "Thank you for your feedback!\nYour review helps others learn better.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
       },
-    );
+    ).then((_) {
+      //  Reset submitting state after dialog closes
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    });
   }
 
   @override

@@ -1448,29 +1448,50 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                       onTap: _navigateToTutorProfile,
                       child: Row(
                         children: [
-                          CircleAvatar(radius: 25, backgroundColor: Colors
-                              .black, backgroundImage: _tutorImage.isNotEmpty
-                              ? NetworkImage('${ApiConfig.baseUrl}$_tutorImage')
-                              : null, child: _tutorImage.isEmpty ? const Icon(
-                              Icons.person, color: Colors.white) : null),
-                          const SizedBox(width: 15),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(_tutorName, style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: Colors.black)),
-                              Text(_tutorHeadline.isNotEmpty
-                                  ? _tutorHeadline
-                                  : "Expert Tutor", style: const TextStyle(
-                                  color: Colors.grey, fontSize: 12)),
-                            ],
+                          CircleAvatar(
+                            radius: 25,
+                            backgroundColor: Colors.black,
+                            backgroundImage: _tutorImage.isNotEmpty
+                                ? NetworkImage('${ApiConfig.baseUrl}$_tutorImage')
+                                : null,
+                            child: _tutorImage.isEmpty
+                                ? const Icon(Icons.person, color: Colors.white)
+                                : null,
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 15),
+                          Expanded(  //  Wrap Column with Expanded to take available space
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _tutorName,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: Colors.black
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),  // ✅ Small spacing between name and headline
+                                Text(
+                                  _tutorHeadline.isNotEmpty ? _tutorHeadline : "Expert Tutor",
+                                  style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),  //  Small spacing before arrow
                           const Icon(
-                              Icons.arrow_forward_ios, size: 14, color: Colors
-                              .grey),
+                              Icons.arrow_forward_ios,
+                              size: 14,
+                              color: Colors.grey
+                          ),
                         ],
                       ),
                     ),

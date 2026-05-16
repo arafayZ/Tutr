@@ -3,7 +3,10 @@ class ApiConfig {
   static const bool useRealApi = true;  // true = real backend, false = dummy data
   // ============ BASE URL ============
   // Change this when switching environments
-  static const String baseUrl = 'http://192.168.100.10:8080'; // Android Emulator
+  // static const String baseUrl = 'http://192.168.100.10:8080'; // Home IP
+   static const String baseUrl = 'http://192.168.43.166:8080'; // Emaz IP
+  // static const String baseUrl = 'https://pulsatory-preeffectual-ila.ngrok-free.dev'; // ngrok
+
   // static const String baseUrl = 'http://localhost:8080'; // iOS Simulator
   // static const String baseUrl = 'http://192.168.1.100:8080'; // Physical Device
 
@@ -12,7 +15,7 @@ class ApiConfig {
   static const String logout = '/api/auth/logout';//done
   static const String register = '/api/register/role';//done
   static const String changePassword = '/api/password/change';//done
-  static const String getUserByEmail = '/api/auth/user'; // + ?email={email}
+//  static const String getUserByEmail = '/api/auth/user'; // + ?email={email}
 
   // ============ NEW REGISTRATION APIS (Temp User + OTP) ============
   static const String registerTemp = '/api/register/register-temp';
@@ -29,20 +32,20 @@ class ApiConfig {
   static const String verifyResetOtp = '/api/verify/verify-reset-otp';
   static const String resetPassword = '/api/verify/reset-password';
   static const String resendForgotOtp = '/api/verify/resend-forgot-otp';
-  static const String extendOtp = '/api/verify/extend-otp';
+//  static const String extendOtp = '/api/verify/extend-otp';
 
   // ============ PROFILE APIS ============
-  static const String tutorProfile = '/api/register/tutor/profile';//done
-  static const String studentProfile = '/api/register/student/profile';//done
-  static const String editTutorProfile = '/api/register/tutor/profile/edit';//done
+  static const String tutorProfile = '/api/register/tutor/profile';
+  static const String studentProfile = '/api/register/student/profile';
+  static const String editTutorProfile = '/api/register/tutor/profile/edit';
   static const String editStudentProfile = '/api/register/student/profile/edit';
-  static const String getTutorProfile = '/api/register/tutor/profile';//done
+  static const String getTutorProfile = '/api/register/tutor/profile';
   static const String getStudentProfile = '/api/register/student/profile';
   static const String editStudentProfileJson = '/api/register/student/profile/edit-json';
-  static const String editTutorProfileJson = '/api/register/tutor/profile/edit-json';//done
-  static const String uploadTutorImage = '/api/profile-image/upload';//done
-  static const String uploadStudentImage = '/api/student-image/upload';//done
-  static const String uploadDocuments = '/api/documents/upload';//done
+  static const String editTutorProfileJson = '/api/register/tutor/profile/edit-json';
+  static const String uploadTutorImage = '/api/profile-image/upload';
+  static const String uploadStudentImage = '/api/student-image/upload';
+  static const String uploadDocuments = '/api/documents/upload';
 
   // ============ COURSE APIS ============
   static const String createCourse = '/api/courses';
@@ -59,7 +62,7 @@ class ApiConfig {
 
   // ============ TUTOR DASHBOARD APIS ============
   static const String tutorDashboard = '/api/tutor/dashboard'; // + /{tutorId}
-  static const String tutorStudents = '/api/tutor/students'; // + /{tutorId}
+ // static const String tutorStudents = '/api/tutor/students'; // + /{tutorId}
   static const String studentDetail = '/api/tutor/students/detail'; // + /{connectionId}
   static const String searchStudents = '/api/tutor/students'; // + /{tutorId}/search
   static const String filterStudents = '/api/tutor/students/tutor'; // + /{tutorId}/students/filter
@@ -75,11 +78,11 @@ class ApiConfig {
   static const String addFavorite = '/api/student/favorites'; // + /{studentId}/add/{courseId}
   static const String removeFavorite = '/api/student/favorites'; // + /{studentId}/remove/{courseId}
   static const String getFavorites = '/api/student/favorites'; // + /{studentId}
-  static const String checkFavorite = '/api/student/favorites'; // + /{studentId}/check/{courseId}
+//  static const String checkFavorite = '/api/student/favorites'; // + /{studentId}/check/{courseId}
 
   // ============ RATING APIS ============
   static const String submitRating = '/api/student/ratings/submit';
-  static const String updateRating = '/api/student/ratings'; // + /{ratingId}
+ // static const String updateRating = '/api/student/ratings'; // + /{ratingId}
   static const String getCourseReviews = '/api/student/ratings/course'; // + /{courseId}/reviews
   static const String getTutorRatingSummary = '/api/tutor/ratings'; // + /{tutorId}/summary
   static const String getTutorFilterOptions = '/api/tutor/ratings'; // + /{tutorId}/filter-options
@@ -100,7 +103,8 @@ class ApiConfig {
   static const String getNegotiations = '/api/connections/tutor'; // + /{tutorId}/negotiations
   static const String getTutorBids = '/api/connections/tutor'; // + /{tutorId}/bids-with-cards
   static const String getStudentBids = '/api/connections/student'; // + /{studentId}/course/{courseId}/bids
-  static const String getConnectionStatus = '/api/connections/student'; // + /{studentId}/status/{connectionId}
+  static const String getTutorBidsForCourse = '/api/connections/tutor'; // + /{tutorId}/course/{courseId}/bids
+  // static const String getConnectionStatus = '/api/connections/student'; // + /{studentId}/status/{connectionId}
 
   // ============ BLOCK/REPORT APIS ============
   static const String blockTutor = '/api/student/block'; // + /{studentId}/block/{tutorId}
@@ -108,7 +112,7 @@ class ApiConfig {
   static const String getBlockedList = '/api/student/block'; // + /{studentId}/list
   static const String checkBlocked = '/api/student/block'; // + /{studentId}/check/{tutorId}
   static const String reportTutor = '/api/student/block/report';
-  static const String getMyReports = '/api/student/block'; // + /{studentId}/reports
+ // static const String getMyReports = '/api/student/block'; // + /{studentId}/reports
 
   // ============ HELPER METHODS ============
   static String getFullUrl(String endpoint) {

@@ -16,6 +16,38 @@ import '../services/auth_service.dart';
 import '../config/api_config.dart';
 import '../utils/status_bar_config.dart';
 
+// Custom TextInputFormatter to handle emoji character counting properly
+class EmojiLimitingTextInputFormatter extends TextInputFormatter {
+  final int maxLength;
+
+  EmojiLimitingTextInputFormatter(this.maxLength);
+
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue,
+      TextEditingValue newValue,
+      ) {
+    // Count using runes (properly handles emojis)
+    if (newValue.text.runes.length <= maxLength) {
+      return newValue;
+    }
+
+    // If exceeded, truncate to max length
+    String truncated = '';
+    int count = 0;
+    for (var rune in newValue.text.runes) {
+      if (count + 1 > maxLength) break;
+      truncated += String.fromCharCode(rune);
+      count++;
+    }
+
+    return TextEditingValue(
+      text: truncated,
+      selection: TextSelection.collapsed(offset: truncated.length),
+    );
+  }
+}
+
 class EditProfileScreen extends StatefulWidget {
   final int profileId;
   const EditProfileScreen({super.key, required this.profileId});
@@ -37,6 +69,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _headlineController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
 
+  // Helper method to count characters properly (handles emojis)
+  int _getCharacterCount(String text) {
+    // Split into characters using runes (handles emojis and special characters properly)
+    final runes = text.runes.toList();
+    return runes.length;
+  }
+
   // --- Variables ---
   File? _image;
   final ImagePicker _picker = ImagePicker();
@@ -50,6 +89,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     StatusBarConfig.setLightStatusBar();
     _loadProfileData();
+
+    // Add listener to update UI when text changes
+    _headlineController.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   @override
@@ -404,7 +450,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   const SizedBox(height: 30),
 
                   _buildSectionHeader("Headline"),
-                  _buildTextField(hint: "e.g., Math Tutor", controller: _headlineController),
+                  _buildTextFieldWithCounter(
+                    hint: "e.g., Experience Math Tutor ",
+                    controller: _headlineController,
+                    maxLength: 30,
+                  ),
                   const SizedBox(height: 20),
 
                   _buildSectionHeader("Personal Details"),
@@ -483,6 +533,65 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0, left: 4),
       child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+    );
+  }
+
+  // New method for text field with character counter
+  Widget _buildTextFieldWithCounter({
+    required String hint,
+    required TextEditingController controller,
+    int? maxLength,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        TextField(
+          controller: controller,
+          inputFormatters: maxLength != null
+              ? [
+            EmojiLimitingTextInputFormatter(maxLength), // Fixed: Removed underscore
+          ]
+              : null,
+          onChanged: (value) {
+            setState(() {});
+          },
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+            filled: true,
+            fillColor: Colors.white,
+            counterText: "",
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.black, width: 1),
+            ),
+          ),
+        ),
+        if (maxLength != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, right: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (_getCharacterCount(controller.text) > maxLength)
+                  const Icon(Icons.warning_amber_rounded, size: 14, color: Colors.red),
+                const SizedBox(width: 4),
+                Text(
+                  "${_getCharacterCount(controller.text)}/$maxLength characters",
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: _getCharacterCount(controller.text) > maxLength ? Colors.red : Colors.grey,
+                    fontWeight: _getCharacterCount(controller.text) > maxLength ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'course_details_screen.dart';
 import 'block_tutor_screen.dart';
-import 'chat_details_screen.dart'; // Add this import
+import 'chat_details_screen.dart';
 import '../services/course_service.dart';
 import '../services/report_block_service.dart';
 import '../config/api_config.dart';
@@ -50,6 +50,8 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
   bool showAbout = true;
   String selectedMode = "Online";
   String? selectedReportReason;
+  final TextEditingController _reportDescriptionController = TextEditingController();
+  bool _isSubmittingReport = false;
 
   // API Data
   List<Map<String, dynamic>> allCourses = [];
@@ -79,6 +81,12 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
   void initState() {
     super.initState();
     _loadStudentId();
+  }
+
+  @override
+  void dispose() {
+    _reportDescriptionController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadStudentId() async {
@@ -248,13 +256,11 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
     final int courseId = filteredCourse['id'];
     final String courseTitle = filteredCourse['title'];
 
-    // Find the actual index in allCourses using courseId
     final int actualIndex = allCourses.indexWhere((c) => c['id'] == courseId);
     if (actualIndex == -1) return;
 
     final bool isCurrentlyLiked = allCourses[actualIndex]['isLiked'] == true;
 
-    // Optimistically update both lists
     setState(() {
       allCourses[actualIndex]['isLiked'] = !isCurrentlyLiked;
       if (indexInFiltered < filteredCourses.length) {
@@ -287,7 +293,6 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
         }
       }
     } catch (e) {
-      // Revert on error
       setState(() {
         allCourses[actualIndex]['isLiked'] = isCurrentlyLiked;
         if (indexInFiltered < filteredCourses.length) {
@@ -435,7 +440,7 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: () {
-                    Navigator.pop(context); // Close the dialog
+                    Navigator.pop(context);
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(builder: (context) => const StudentDashboard()),
@@ -454,54 +459,116 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
 
   void _showReportDialog(BuildContext context) {
     selectedReportReason = null;
+    _reportDescriptionController.clear();
+
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
+            return Dialog(
               backgroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Text(
-                "Report Tutor",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A1C43)),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("Tell us what happened. Our team\nwill review it.",
-                      style: TextStyle(fontSize: 13, color: Colors.grey)),
-                  const SizedBox(height: 15),
-                  _buildReportOption(setDialogState, "Spam or Fake Account"),
-                  _buildReportOption(setDialogState, "Inappropriate Messages"),
-                  _buildReportOption(setDialogState, "Harassment"),
-                  _buildReportOption(setDialogState, "Wrong Information"),
-                  _buildReportOption(setDialogState, "Payment Issues"),
-                  _buildReportOption(setDialogState, "Other"),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("CANCEL", style: TextStyle(color: Color(0xFF1A1C43), fontWeight: FontWeight.bold)),
-                ),
-                TextButton(
-                  onPressed: selectedReportReason == null
-                      ? null
-                      : () async {
-                    Navigator.pop(context);
-                    await _reportTutor();
-                  },
-                  child: Text(
-                    "REPORT",
-                    style: TextStyle(
-                      color: selectedReportReason == null ? Colors.grey : Colors.red,
-                      fontWeight: FontWeight.bold,
+              child: SingleChildScrollView(  // ✅ Add this wrapper
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "Report Tutor",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A1C43)),
                     ),
-                  ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      "Tell us what happened. Our team will review it.",
+                      style: TextStyle(fontSize: 13, color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 15),
+                    _buildReportOption(setDialogState, "Spam or Fake Account"),
+                    _buildReportOption(setDialogState, "Inappropriate Messages"),
+                    _buildReportOption(setDialogState, "Harassment"),
+                    _buildReportOption(setDialogState, "Wrong Information"),
+                    _buildReportOption(setDialogState, "Payment Issues"),
+                    _buildReportOption(setDialogState, "Other"),
+                    if (selectedReportReason == "Other") ...[
+                      const SizedBox(height: 15),
+                      const Divider(),
+                      const SizedBox(height: 15),
+                      const Text(
+                        "Please provide more details",
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: TextField(
+                          controller: _reportDescriptionController,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            hintText: "Describe the issue in detail...",
+                            hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.all(12),
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Colors.grey),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: const Text("CANCEL", style: TextStyle(color: Color(0xFF1A1C43), fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: selectedReportReason == null
+                                ? null
+                                : () async {
+                              if (selectedReportReason == "Other" && _reportDescriptionController.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Please provide a description for your report"),
+                                    backgroundColor: Colors.orange,
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                                return;
+                              }
+                              Navigator.pop(context);
+                              await _reportTutor();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.black,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: Text(
+                              "REPORT",
+                              style: TextStyle(
+                                color: selectedReportReason == null ? Colors.grey : Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
+              ),
             );
           },
         );
@@ -510,16 +577,25 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
   }
 
   Future<void> _reportTutor() async {
+    setState(() => _isSubmittingReport = true);
+
     try {
+      String description = selectedReportReason == "Other"
+          ? _reportDescriptionController.text.trim()
+          : selectedReportReason ?? 'Other';
+
       await ReportBlockService.reportTutor(
         studentId: _studentId,
         tutorId: _tutorId,
         reason: selectedReportReason ?? 'Other',
+        description: description, // Pass description to backend
       );
       if (mounted) {
+        setState(() => _isSubmittingReport = false);
         _showSuccessPopup(context, "Report Submitted", "Thank you for letting us know. We will review this profile shortly.", false);
       }
     } catch (e) {
+      setState(() => _isSubmittingReport = false);
       if (mounted) {
         _showErrorDialog(e.toString().replaceFirst('Exception: ', ''));
       }
@@ -528,14 +604,24 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
 
   Widget _buildReportOption(StateSetter setDialogState, String title) {
     return InkWell(
-      onTap: () => setDialogState(() => selectedReportReason = title),
+      onTap: () => setDialogState(() {
+        selectedReportReason = title;
+        if (title != "Other") {
+          _reportDescriptionController.clear();
+        }
+      }),
       child: Row(
         children: [
           Radio<String>(
             value: title,
             groupValue: selectedReportReason,
             activeColor: const Color(0xFF1A1C43),
-            onChanged: (value) => setDialogState(() => selectedReportReason = value),
+            onChanged: (value) => setDialogState(() {
+              selectedReportReason = value;
+              if (value != "Other") {
+                _reportDescriptionController.clear();
+              }
+            }),
           ),
           Text(title, style: const TextStyle(fontSize: 14, color: Color(0xFF1A1C43))),
         ],

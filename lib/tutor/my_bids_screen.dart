@@ -471,9 +471,9 @@ class _BidListTile extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => BidDetailsScreen(
-                    studentName: studentName,
+                    courseId: item['courseId'] ?? 0,
+                    studentName: item['studentName'] ?? 'Student',
                     isRequest: isRequest,
-                    bidData: item,
                   ),
                 ),
               );

@@ -92,12 +92,12 @@ class _TutorDashboardState extends State<TutorDashboard> with WidgetsBindingObse
   bool _isLoading = true;
   int profileId = 0;
   String _accountStatus = "";
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Set status bar after frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       StatusBarConfig.setLightStatusBar();
     });
@@ -142,7 +142,10 @@ class _TutorDashboardState extends State<TutorDashboard> with WidgetsBindingObse
   }
 
   Future<void> _loadDashboardData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -184,7 +187,7 @@ class _TutorDashboardState extends State<TutorDashboard> with WidgetsBindingObse
             tutorName: (profileData['firstName'] ?? '') + " " + (profileData['lastName'] ?? ''),
             subject: course['subject'] ?? '',
             grade: course['category'] ?? '',
-            price: "Rs ${course['price']}",
+            price: course['price'] != null ? "Rs ${course['price']}" : "Rs 0",
             rating: (course['averageRating'] ?? 0.0).toString(),
             mode: _formatMode(course['teachingMode']),
             courseColor: CourseColors.getCourseColor(course['id']),
@@ -206,7 +209,25 @@ class _TutorDashboardState extends State<TutorDashboard> with WidgetsBindingObse
 
     } catch (e) {
       print('Error loading dashboard: $e');
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        // Clear data on error
+        userName = "";
+        profileImageUrl = null;
+        activeStudents = 0;
+        activeCourses = 0;
+        topCourses = [];
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load data. Please check your connection.'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -401,7 +422,7 @@ class _TutorDashboardState extends State<TutorDashboard> with WidgetsBindingObse
                     const SizedBox(height: 50),
                     _TopProfileRow(
                       greeting: _getGreeting(),
-                      name: userName,
+                      name: userName.isNotEmpty ? userName : "Tutor",
                       profileImageUrl: profileImageUrl,
                       isPending: true,
                       onPendingTap: _showPendingPopup,
@@ -416,6 +437,146 @@ class _TutorDashboardState extends State<TutorDashboard> with WidgetsBindingObse
                 ),
               ],
             ),
+          ),
+        ),
+      );
+    }
+
+    // Check for error state (no data)
+    // Check for error state (no data)
+    final bool hasNoData = userName.isEmpty && topCourses.isEmpty && activeStudents == 0 && activeCourses == 0;
+
+    if (hasNoData) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F9FB),
+        body: RefreshIndicator(
+          onRefresh: _refreshDashboard,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              // Header Sliver
+              SliverToBoxAdapter(
+                child: Container(
+                  height: 180,
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1A1A1A),
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(35),
+                      bottomRight: Radius.circular(35),
+                    ),
+                  ),
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 30,
+                            backgroundColor: Colors.white,
+                            child: const Icon(Icons.person, color: Colors.black54, size: 30),
+                          ),
+                          const SizedBox(width: 15),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _getGreeting(),
+                                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const Text(
+                                  "Tutor",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(color: Colors.white12, shape: BoxShape.circle),
+                            child: const Icon(Icons.search, color: Colors.white, size: 22),
+                          ),
+                          const SizedBox(width: 10),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(color: Colors.white12, shape: BoxShape.circle),
+                            child: const Icon(Icons.notifications_none, color: Colors.white, size: 22),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // Centered Error Content Sliver
+              SliverFillRemaining(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.wifi_off_outlined,
+                          size: 80,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          "Unable to load data",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          "Please check your internet connection",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Pull down to refresh",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        ElevatedButton(
+                          onPressed: _refreshDashboard,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            "Retry",
+                            style: TextStyle(color: Colors.white, fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -463,7 +624,7 @@ class _TutorDashboardState extends State<TutorDashboard> with WidgetsBindingObse
                   const SizedBox(height: 50),
                   _TopProfileRow(
                     greeting: _getGreeting(),
-                    name: userName,
+                    name: userName.isNotEmpty ? userName : "Tutor",
                     profileImageUrl: profileImageUrl,
                     isPending: false,
                     onPendingTap: _showPendingPopup,
@@ -655,25 +816,42 @@ class CourseCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(course.tutorName,
-                        style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 13)),
+                    Text(
+                      course.tutorName.isNotEmpty ? course.tutorName : "Tutor",
+                      style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
                     const SizedBox(height: 4),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(course.subject, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        Text(course.grade, style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500)),
+                        Expanded(
+                          child: Text(
+                            course.subject.isNotEmpty ? course.subject : "Course",
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          course.grade.isNotEmpty ? course.grade : "Grade",
+                          style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Text(course.price, style: const TextStyle(color: Color(0xFF0961F5), fontWeight: FontWeight.bold, fontSize: 15)),
+                        Text(
+                          course.price.isNotEmpty ? course.price : "Rs 0",
+                          style: const TextStyle(color: Color(0xFF0961F5), fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
                         _buildDivider(),
                         const Icon(Icons.star, color: Colors.amber, size: 18),
                         Text(" ${course.rating}", style: const TextStyle(fontWeight: FontWeight.bold)),
                         _buildDivider(),
-                        Text(course.mode.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        Text(
+                          course.mode.toUpperCase(),
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
                       ],
                     ),
                   ],
@@ -1038,12 +1216,29 @@ class _TopProfileRow extends StatelessWidget {
                 : null,
           ),
           const SizedBox(width: 15),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(greeting, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-            Text(name, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-          ]),
-          const Spacer(),
-          // Search icon - shows pending popup when pending
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  greeting,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  name.isNotEmpty ? name : "Tutor",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
           GestureDetector(
             onTap: isPending
                 ? () => onPendingTap("Search")
@@ -1058,7 +1253,6 @@ class _TopProfileRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          // Notification icon - works normally even in pending state (no popup, full opacity)
           GestureDetector(
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsScreen())),
             child: Container(

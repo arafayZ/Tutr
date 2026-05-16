@@ -39,15 +39,17 @@ class CourseColors {
 }
 
 class BidDetailsScreen extends StatefulWidget {
+  final int courseId;
   final String studentName;
   final bool isRequest;
-  final Map<String, dynamic>? bidData;
+  final VoidCallback? onRefresh;
 
   const BidDetailsScreen({
     super.key,
+    required this.courseId,
     required this.studentName,
     required this.isRequest,
-    this.bidData,
+    this.onRefresh,
   });
 
   @override
@@ -57,21 +59,39 @@ class BidDetailsScreen extends StatefulWidget {
 class _BidDetailsScreenState extends State<BidDetailsScreen> {
   String _selectedStatus = "";
   bool _isLoading = false;
+  bool _isFetching = true;
+  bool _isRefreshing = false;
+
+  // Bid Data from API
   Map<String, dynamic>? _bidData;
+
+  // Student Data
   String? _studentImage;
+  String? _studentName;
+  int? _studentId;
+
+  // Course Data
+  int? _courseId;
   String? _courseName;
   int? _originalPrice;
   int? _studentOffer;
   int? _tutorOffer;
   int? _connectionId;
-  int? _courseId;
-  String? _studentId;
+  String? _status;
+
+  // Course Details from API
+  String _courseCategory = '';
+  double _courseRating = 0.0;
+  String _courseTeachingMode = '';
+
+  // Tutor Info
+  int _tutorId = 0;
 
   @override
   void initState() {
     super.initState();
     StatusBarConfig.setLightStatusBar();
-    _initializeData();
+    _loadTutorIdAndFetchData();
   }
 
   @override
@@ -79,20 +99,63 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
     super.dispose();
   }
 
-  void _initializeData() {
-    if (widget.bidData != null) {
+  Future<void> _loadTutorIdAndFetchData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    _tutorId = prefs.getInt('profileId') ?? 0;
+    await _fetchBidData();
+  }
+
+  Future<void> _fetchBidData() async {
+    if (_isRefreshing) return;
+
+    setState(() => _isFetching = true);
+
+    try {
+      final response = await ConnectionService.getTutorBidForCourse(_tutorId, widget.courseId);
+
+      if (response.isNotEmpty) {
+        setState(() {
+          _bidData = response;
+
+          _connectionId = _convertToInt(_bidData?['connectionId']);
+          _courseId = _bidData?['courseId'] ?? widget.courseId;
+          _studentId = _bidData?['studentId']?.toInt();
+          _studentName = _bidData?['studentName'] ?? widget.studentName;
+          _studentImage = _bidData?['studentImage']?.toString();
+          _courseName = _bidData?['subject'] ?? 'Course';
+          _originalPrice = _convertToInt(_bidData?['originalPrice']);
+          _studentOffer = _convertToInt(_bidData?['studentBidPrice']);
+          _tutorOffer = _convertToInt(_bidData?['tutorOffer']);
+          _status = _bidData?['status'] ?? 'NEGOTIATING';
+
+          _courseCategory = _bidData?['category'] ?? 'General';
+          _courseRating = _bidData?['averageRating']?.toDouble() ?? 0.0;
+          _courseTeachingMode = _bidData?['teachingMode'] ?? 'ONLINE';
+
+          _isFetching = false;
+          _isRefreshing = false;
+        });
+      } else {
+        setState(() {
+          _isFetching = false;
+          _isRefreshing = false;
+        });
+        _showErrorDialog('No bid found for this course');
+      }
+    } catch (e) {
       setState(() {
-        _bidData = widget.bidData;
-        _connectionId = _bidData?['id'];
-        _courseId = _bidData?['courseId'];
-        _studentId = _bidData?['studentId']?.toString();
-        _studentImage = _bidData?['studentImage']?.toString();
-        _courseName = _bidData?['courseName'] ?? 'Course';
-        _originalPrice = _convertToInt(_bidData?['originalPrice']);
-        _studentOffer = _convertToInt(_bidData?['studentBidPrice']);
-        _tutorOffer = _convertToInt(_bidData?['tutorCounterOffer']);
+        _isFetching = false;
+        _isRefreshing = false;
       });
+      _showErrorDialog(e.toString().replaceFirst('Exception: ', ''));
     }
+  }
+
+  Future<void> _refreshData() async {
+    if (_isRefreshing) return;
+    setState(() => _isRefreshing = true);
+    await _fetchBidData();
+    widget.onRefresh?.call();
   }
 
   int _convertToInt(dynamic value) {
@@ -100,6 +163,36 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
     if (value is int) return value;
     if (value is double) return value.toInt();
     return 0;
+  }
+
+  String _getCategoryDisplayName(String category) {
+    switch (category.toUpperCase()) {
+      case 'MATRIC':
+        return 'Matric';
+      case 'INTERMEDIATE':
+        return 'Intermediate';
+      case 'O_LEVEL':
+        return 'O Level';
+      case 'A_LEVEL':
+        return 'A Level';
+      case 'ENTRY_TEST':
+        return 'Entrance Test';
+      default:
+        return category;
+    }
+  }
+
+  String _formatTeachingMode(String mode) {
+    switch (mode.toUpperCase()) {
+      case 'ONLINE':
+        return 'Online';
+      case 'STUDENT_HOME':
+        return "Student's Home";
+      case 'TUTOR_HOME':
+        return "Tutor's Home";
+      default:
+        return mode;
+    }
   }
 
   Future<void> _acceptBid() async {
@@ -202,7 +295,7 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
               const SizedBox(height: 10),
               Text(
-                "You're now connected with ${widget.studentName}.",
+                "You're now connected with $_studentName.",
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.grey, fontSize: 13),
               ),
@@ -210,7 +303,8 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
               ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  Navigator.pushReplacementNamed(context, '/connection', arguments: widget.studentName);
+                  widget.onRefresh?.call();
+                  Navigator.pop(context, true);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black,
@@ -259,6 +353,7 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
               ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
+                  widget.onRefresh?.call();
                   Navigator.pop(context, true);
                 },
                 style: ElevatedButton.styleFrom(
@@ -364,7 +459,6 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
     final TextEditingController _amountController = TextEditingController();
     String? _errorMessage;
 
-    // Calculate min and max
     final int minOffer = (_studentOffer ?? 0) + 1;
     final int maxOffer = (_tutorOffer != null && _tutorOffer! > 0)
         ? _tutorOffer! - 1
@@ -382,7 +476,7 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Blue Box showing Original Price
+                  // Blue Box showing Original Price - FIXED OVERFLOW
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -394,10 +488,16 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text("Original Price",
-                            style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500)),
-                        Text("${_originalPrice ?? 0} PKR",
-                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blue)),
+                        const Text(
+                          "Original Price: ",
+                          style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500),
+                        ),
+                        Text(
+                          "${_originalPrice ?? 0} PKR",
+                          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: Colors.blue),
+                          overflow: TextOverflow.ellipsis,
+                          softWrap: true,
+                        ),
                       ],
                     ),
                   ),
@@ -429,8 +529,10 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
                               const Text("Offer Range",
                                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey)),
                               const SizedBox(height: 2),
-                              Text("Min: $minOffer PKR | Max: $maxOffer PKR",
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black87)),
+                              Text(
+                                "Min: $minOffer PKR | Max: $maxOffer PKR",
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black87),
+                              ),
                             ],
                           ),
                         ),
@@ -565,281 +667,299 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final yourOfferPrice = _tutorOffer ?? 0;
+    final categoryDisplay = _getCategoryDisplayName(_courseCategory);
+    final teachingModeDisplay = _formatTeachingMode(_courseTeachingMode);
+    final courseColor = CourseColors.getCourseColor(_courseId ?? widget.courseId);
+
+    if (_isFetching) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F9FB),
+        body: const Center(child: CircularProgressIndicator(color: Colors.black)),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
-      body: Column(
-        children: [
-          // Header with Back Button and Shadow
-          Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 15,
-                  offset: Offset(0, 8),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          width: 45,
-                          height: 45,
-                          decoration: const BoxDecoration(
-                            color: Colors.black,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.arrow_back,
-                            color: Colors.white,
-                            size: 22,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Text(
-                      "Details",
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+      body: RefreshIndicator(
+        onRefresh: _refreshData,
+        color: Colors.black,
+        backgroundColor: Colors.white,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _CourseHeaderCard(
-                    courseId: _courseId ?? 0,
-                    courseName: _courseName ?? 'Course',
-                    originalPrice: _originalPrice ?? 0,
-                  ),
-                  const SizedBox(height: 25),
-                  const Text("Student",
-                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 16)),
-                  const SizedBox(height: 12),
-                  InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => StudentProfileScreen(
-                            student: StudentDetails(
-                              id: _studentId ?? "0",
-                              connectionId: _connectionId?.toString() ?? "0",
-                              name: widget.studentName,
-                              profilePic: _studentImage ?? '',
-                              location: _bidData?['location'] ?? "Not specified",
-                              dob: "Not specified",
-                              gender: _bidData?['gender'] ?? "Not specified",
-                              college: "Not specified",
-                              school: "Not specified",
-                              phone: _bidData?['phoneNumber'] ?? "Not available",
-                              email: _bidData?['email'] ?? "Not available",
+                  // Header
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(30),
+                        bottomRight: Radius.circular(30),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 15,
+                          offset: Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: GestureDetector(
+                                onTap: () => Navigator.pop(context),
+                                child: Container(
+                                  width: 45,
+                                  height: 45,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.arrow_back,
+                                    color: Colors.white,
+                                    size: 22,
+                                  ),
+                                ),
+                              ),
                             ),
-                            onDisconnect: (String id) => debugPrint("Disconnected: $id"),
-                          ),
+                            const Text(
+                              "Bid Details",
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ],
                         ),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(15),
-                    child: _StudentTile(
-                      name: widget.studentName,
-                      imageUrl: _studentImage,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 30),
-                  if (widget.isRequest) ...[
-                    const SizedBox.shrink(),
-                  ] else ...[
-                    _PriceRow(
-                      label: "Your Offer:",
-                      price: "$yourOfferPrice PKR",
-                      color: Colors.red,
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Course Card
+                        InkWell(
+                          onTap: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CourseDetailScreen(
+                                  courseId: _courseId ?? widget.courseId,
+                                  onCourseUpdated: () {},
+                                ),
+                              ),
+                            );
+                            if (result == true) {
+                              _refreshData();
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.all(15),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 85,
+                                  height: 85,
+                                  decoration: BoxDecoration(
+                                    color: courseColor,
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                  child: Center(
+                                    child: Image.asset(
+                                      'assets/icon/app_icon.png',
+                                      width: 40,
+                                      height: 40,
+                                      color: Colors.white,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Text(
+                                          _courseName?[0].toUpperCase() ?? 'C',
+                                          style: const TextStyle(
+                                            fontSize: 30,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 15),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text("Tutor", style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
+                                      const SizedBox(height: 4),
+                                      Text(_courseName ?? 'Course', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          Text("${_originalPrice ?? 0} PKR", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14)),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey.shade100,
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                            child: Text(categoryDisplay, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.star, color: Colors.amber, size: 14),
+                                          const SizedBox(width: 4),
+                                          Text(_courseRating.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                          const SizedBox(width: 12),
+                                          Icon(
+                                            teachingModeDisplay == 'Online' ? Icons.wifi :
+                                            teachingModeDisplay == "Student's Home" ? Icons.home : Icons.location_city,
+                                            size: 12,
+                                            color: Colors.grey,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(teachingModeDisplay, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 25),
+                        const Text("Student",
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 16)),
+                        const SizedBox(height: 12),
+                        InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => StudentProfileScreen(
+                                  student: StudentDetails(
+                                    id: _studentId?.toString() ?? "0",
+                                    connectionId: _connectionId?.toString() ?? "0",
+                                    name: _studentName ?? widget.studentName,
+                                    profilePic: _studentImage ?? '',
+                                    location: _bidData?['location'] ?? "Not specified",
+                                    dob: "Not specified",
+                                    gender: _bidData?['gender'] ?? "Not specified",
+                                    college: "Not specified",
+                                    school: "Not specified",
+                                    phone: _bidData?['phoneNumber'] ?? "Not available",
+                                    email: _bidData?['email'] ?? "Not available",
+                                  ),
+                                  onDisconnect: (String id) => debugPrint("Disconnected: $id"),
+                                ),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(15),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(15),
+                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 5)],
+                            ),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 25,
+                                  backgroundColor: Colors.grey.shade300,
+                                  backgroundImage: _studentImage != null && _studentImage!.isNotEmpty
+                                      ? NetworkImage('${ApiConfig.baseUrl}$_studentImage')
+                                      : null,
+                                  child: _studentImage == null || _studentImage!.isEmpty
+                                      ? const Icon(Icons.person, color: Colors.grey, size: 25)
+                                      : null,
+                                ),
+                                const SizedBox(width: 15),
+                                Text(_studentName ?? widget.studentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+                        if (!widget.isRequest) ...[
+                          _PriceRow(
+                            label: "Your Offer:",
+                            price: "$yourOfferPrice PKR",
+                            color: Colors.red,
+                          ),
+                          const SizedBox(height: 15),
+                          _PriceRow(
+                            label: "Student Offer:",
+                            price: "${_studentOffer ?? 0} PKR",
+                            color: Colors.red,
+                          ),
+                        ],
+                      ],
                     ),
-                    const SizedBox(height: 15),
-                    _PriceRow(
-                      label: "Student Offer:",
-                      price: "${_studentOffer ?? 0} PKR",
-                      color: Colors.red,
-                    ),
-                  ],
+                  ),
                 ],
               ),
             ),
-          ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_selectedStatus != "Rejected") ...[
-                    // Accept Button with Confirmation
-                    _ActionButton(
-                      label: widget.isRequest ? "Accept Request" : "Accept Offer",
-                      color: Colors.black,
-                      onTap: _showAcceptConfirmationDialog,  // ✅ Shows confirmation popup
-                      isLoading: _isLoading,
-                    ),
-                    if (!widget.isRequest)
-                      _ActionButton(
-                        label: "Counter Offer",
-                        color: const Color(0xFFE0E0E0),
-                        textColor: Colors.black,
-                        onTap: _showCounterOfferPopup,
-                        isLoading: _isLoading,
-                      ),
-                    // Reject Button with Confirmation
-                    _ActionButton(
-                      label: widget.isRequest ? "Reject Request" : "Reject Offer",
-                      color: const Color(0xFFE0E0E0),
-                      textColor: Colors.black,
-                      onTap: _showRejectConfirmationDialog,  // ✅ Shows confirmation popup
-                      isLoading: _isLoading,
-                    ),
-                  ] else ...[
-                    const _RejectedStatusBox(),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// --- COURSE CARD with Dynamic Color ---
-class _CourseHeaderCard extends StatelessWidget {
-  final int courseId;
-  final String courseName;
-  final int originalPrice;
-
-  const _CourseHeaderCard({
-    required this.courseId,
-    required this.courseName,
-    required this.originalPrice,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final Color courseColor = CourseColors.getCourseColor(courseId);
-
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CourseDetailScreen(
-              courseId: courseId,
-              onCourseUpdated: () {},
-            ),
-          ),
-        );
-      },
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 85,
-              height: 85,
-              decoration: BoxDecoration(
-                color: courseColor,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Center(
-                child: Image.asset(
-                  'assets/icon/app_icon.png',
-                  width: 40,
-                  height: 40,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-            const SizedBox(width: 15),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("Tutor", style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
-                  Text(courseName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                  Text("$originalPrice PKR", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
-                  const Row(children: [
-                    Icon(Icons.star, color: Colors.amber, size: 14),
-                    Text(" 4.2 | ONLINE", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))
-                  ]),
-                ],
-              ),
-            )
           ],
         ),
       ),
-    );
-  }
-}
-
-// --- STUDENT TILE ---
-class _StudentTile extends StatelessWidget {
-  final String name;
-  final String? imageUrl;
-
-  const _StudentTile({required this.name, this.imageUrl});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 5)],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 25,
-            backgroundColor: Colors.grey.shade300,
-            backgroundImage: imageUrl != null && imageUrl!.isNotEmpty
-                ? NetworkImage('${ApiConfig.baseUrl}$imageUrl')
-                : null,
-            child: imageUrl == null || imageUrl!.isEmpty
-                ? const Icon(Icons.person, color: Colors.grey, size: 25)
-                : null,
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_selectedStatus != "Rejected") ...[
+                _ActionButton(
+                  label: widget.isRequest ? "Accept Request" : "Accept Offer",
+                  color: Colors.black,
+                  onTap: _showAcceptConfirmationDialog,
+                  isLoading: _isLoading,
+                ),
+                if (!widget.isRequest)
+                  _ActionButton(
+                    label: "Counter Offer",
+                    color: const Color(0xFFE0E0E0),
+                    textColor: Colors.black,
+                    onTap: _showCounterOfferPopup,
+                    isLoading: _isLoading,
+                  ),
+                _ActionButton(
+                  label: widget.isRequest ? "Reject Request" : "Reject Offer",
+                  color: const Color(0xFFE0E0E0),
+                  textColor: Colors.black,
+                  onTap: _showRejectConfirmationDialog,
+                  isLoading: _isLoading,
+                ),
+              ] else ...[
+                const _RejectedStatusBox(),
+              ],
+            ],
           ),
-          const SizedBox(width: 15),
-          Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black)),
-        ],
+        ),
       ),
     );
   }

@@ -20,7 +20,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _showErrors = false;
   bool _isLoading = true;
   Timer? _timer;
-  int _remainingSeconds = 600;
+  int _remainingSeconds = 180;
   bool _canResend = false;
   bool _emailValid = true;
 
@@ -176,7 +176,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() {
       _isLoading = true;
       _canResend = false;
-      _remainingSeconds = 600;
+      _remainingSeconds = 180;
     });
 
     try {

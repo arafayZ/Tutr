@@ -129,6 +129,13 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
+  // Helper to check if any filters are applied
+  bool get _hasActiveFilters {
+    return selectedCategories.values.contains(true) ||
+        selectedModes.values.contains(true) ||
+        searchQuery.isNotEmpty;
+  }
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
 
@@ -157,7 +164,7 @@ class _SearchScreenState extends State<SearchScreen> {
             price: course['price']?.toString() ?? '0',
             rating: (course['averageRating'] ?? 0.0).toString(),
             mode: _mapBackendModeToDisplay(course['teachingMode']),
-            color: CourseColors.getCourseColor(courseId), // Using dynamic color
+            color: CourseColors.getCourseColor(courseId),
           );
         }).toList();
       });
@@ -170,14 +177,12 @@ class _SearchScreenState extends State<SearchScreen> {
     try {
       List<Map<String, dynamic>> connections = await ConnectionService.getTutorConfirmedConnections(_tutorProfileId);
 
-      // Group connections by studentId (each student appears only once)
       Map<String, Map<String, dynamic>> groupedStudents = {};
 
       for (var conn in connections) {
         String studentId = conn['studentId'].toString();
 
         if (groupedStudents.containsKey(studentId)) {
-          // Student already exists, add course to their list
           groupedStudents[studentId]!['courses'].add({
             'courseName': conn['courseName'] ?? conn['subject'] ?? 'Course',
             'agreedPrice': conn['agreedPrice'] ?? 0,
@@ -185,7 +190,6 @@ class _SearchScreenState extends State<SearchScreen> {
             'connectionId': conn['connectionId'],
           });
         } else {
-          // New student, create entry with courses list
           groupedStudents[studentId] = {
             'studentId': studentId,
             'name': conn['studentName'] ?? 'Unknown Student',
@@ -205,7 +209,6 @@ class _SearchScreenState extends State<SearchScreen> {
         }
       }
 
-      // Convert grouped map to list
       List<StudentData> groupedList = [];
       for (var entry in groupedStudents.values) {
         groupedList.add(StudentData(
@@ -239,7 +242,6 @@ class _SearchScreenState extends State<SearchScreen> {
 
     try {
       if (selectedCats.isEmpty && selectedModesList.isEmpty) {
-        // No filters - show all students
         setState(() {
           _filteredStudents = List.from(_allStudents);
           _isLoading = false;
@@ -247,7 +249,6 @@ class _SearchScreenState extends State<SearchScreen> {
         return;
       }
 
-      // Get filtered connection IDs from API
       String? categoryBackend;
       String? modeBackend;
 
@@ -264,13 +265,11 @@ class _SearchScreenState extends State<SearchScreen> {
         teachingMode: modeBackend,
       );
 
-      // Get filtered student IDs
       Set<String> filteredStudentIds = {};
       for (var conn in filteredConnections) {
         filteredStudentIds.add(conn['studentId'].toString());
       }
 
-      // Filter from _allStudents (preserving all course data)
       List<StudentData> filteredList = _allStudents.where((student) =>
           filteredStudentIds.contains(student.studentId)
       ).toList();
@@ -292,7 +291,6 @@ class _SearchScreenState extends State<SearchScreen> {
       return;
     }
 
-    // Filter from _allStudents based on name search
     setState(() {
       _filteredStudents = _allStudents.where((s) =>
           s.name.toLowerCase().contains(query.toLowerCase())
@@ -376,6 +374,21 @@ class _SearchScreenState extends State<SearchScreen> {
         },
       ),
     );
+  }
+
+  void _clearAllFilters() {
+    setState(() {
+      searchQuery = "";
+      selectedCategories.updateAll((k, v) => false);
+      selectedModes.updateAll((k, v) => false);
+    });
+
+    if (isSearchingCourses) {
+      // Refresh courses view
+      setState(() {});
+    } else {
+      _filterStudents();
+    }
   }
 
   @override
@@ -554,58 +567,58 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildNoResultsMessage() {
-    return SingleChildScrollView(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isSearchingCourses ? Icons.search_off : Icons.person_search,
-              size: 80,
-              color: Colors.grey.shade400,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              isSearchingCourses ? "No Courses Found" : "No Students Found",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade500,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isSearchingCourses
-                  ? "Try adjusting your search or filter criteria"
-                  : "No students match your search or filter criteria",
-              style: TextStyle(
-                fontSize: 14,
+    final bool hasActiveFilters = _hasActiveFilters;
+
+    return Center(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                isSearchingCourses ? Icons.search_off : Icons.person_search,
+                size: 80,
                 color: Colors.grey.shade400,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  searchQuery = "";
-                  selectedCategories.updateAll((k, v) => false);
-                  selectedModes.updateAll((k, v) => false);
-                  if (isSearchingCourses) {
-                    // Refresh courses
-                  } else {
-                    _filterStudents();
-                  }
-                });
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              const SizedBox(height: 16),
+              Text(
+                isSearchingCourses ? "No Courses Found" : "No Students Found",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade600,
+                ),
               ),
-              child: const Text("Clear Filters", style: TextStyle(color: Colors.white)),
-            ),
-            const SizedBox(height: 40),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                hasActiveFilters
+                    ? (isSearchingCourses
+                    ? "No courses match your search or filter criteria"
+                    : "No students match your search or filter criteria")
+                    : (isSearchingCourses
+                    ? "No courses available at the moment"
+                    : "No students connected yet"),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (hasActiveFilters) ...[
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: _clearAllFilters,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text("Clear Filters", style: TextStyle(color: Colors.white)),
+                ),
+              ],
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
@@ -654,12 +667,11 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
         child: Row(
           children: [
-            // Colored container with app icon - using dynamic course color
             Container(
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: course.color, // Using dynamic course color
+                color: course.color,
                 borderRadius: BorderRadius.circular(15),
               ),
               child: Center(

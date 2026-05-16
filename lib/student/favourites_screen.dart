@@ -120,7 +120,7 @@ class _FavouritesScreenState extends State<FavouritesScreen> with WidgetsBinding
         _isLoading = false;
         _isRefreshing = false;
       });
-      _showErrorDialog(e.toString().replaceFirst('Exception: ', ''));
+      //_showErrorDialog(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 

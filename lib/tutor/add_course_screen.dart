@@ -32,6 +32,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
   String? _selectedCategory;
   String? _selectedMode;
   bool _isLocationEditable = true;
+  bool _isClassesManuallyEdited = false; // Track if user manually edited classes
 
   TimeOfDay _startTime = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 10, minute: 0);
@@ -44,7 +45,8 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
   @override
   void initState() {
     super.initState();
-    _classesController.text = "12";
+    // Initialize with calculated value
+    _updateClassesPerMonth();
   }
 
   @override
@@ -55,6 +57,52 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
     _feeController.dispose();
     _classesController.dispose();
     super.dispose();
+  }
+
+  // Calculate number of classes per month based on selected days
+  int _calculateDaysInRange(String fromDay, String toDay) {
+    const List<String> daysOrder = [
+      "Monday", "Tuesday", "Wednesday", "Thursday",
+      "Friday", "Saturday", "Sunday"
+    ];
+
+    int startIndex = daysOrder.indexOf(fromDay);
+    int endIndex = daysOrder.indexOf(toDay);
+
+    // Same day = 1 day
+    if (startIndex == endIndex) {
+      return 1;
+    }
+
+    // Normal range (from day comes before to day)
+    if (startIndex < endIndex) {
+      return endIndex - startIndex + 1;
+    }
+
+    // Wraparound (from day after to day, crossing weekend)
+    // Example: Friday (4) to Monday (0) = (7-4) + (0+1) = 3 + 1 = 4 days
+    return (7 - startIndex) + (endIndex + 1);
+  }
+
+  int _calculateClassesPerMonth(String fromDay, String toDay) {
+    int daysInRange = _calculateDaysInRange(fromDay, toDay);
+    // Using exactly 4 weeks per month
+    return daysInRange * 4;
+  }
+
+  // Update classes field with calculated value (only if not manually edited)
+  void _updateClassesPerMonth() {
+    if (!_isClassesManuallyEdited) {
+      int calculatedClasses = _calculateClassesPerMonth(_startDay, _endDay);
+      _classesController.text = calculatedClasses.toString();
+    }
+  }
+
+  // Reset manual edit flag when days change
+  void _onDayChanged() {
+    // If days change, reset the manual edit flag and auto-calculate
+    _isClassesManuallyEdited = false;
+    _updateClassesPerMonth();
   }
 
   void _updateLocationBasedOnMode(String? mode) {
@@ -237,23 +285,41 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
           Row(
             children: [
               Expanded(
-                  child: _buildSmallDropdown("Days", _dayList, _startDay,
-                          (v) => setState(() => _startDay = v!))),
+                  child: _buildSmallDropdown("From", _dayList, _startDay,
+                          (v) {
+                        setState(() {
+                          _startDay = v!;
+                          _onDayChanged(); // Auto-calculate classes
+                        });
+                      })),
               const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 10, vertical: 20),
                   child: Text("To")),
               Expanded(
-                  child: _buildSmallDropdown("Days", _dayList, _endDay,
-                          (v) => setState(() => _endDay = v!))),
+                  child: _buildSmallDropdown("To", _dayList, _endDay,
+                          (v) {
+                        setState(() {
+                          _endDay = v!;
+                          _onDayChanged(); // Auto-calculate classes
+                        });
+                      })),
             ],
           ),
           const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
-                child: _buildField("Classes (Month)", _classesController,
-                    "Max 25",
-                    isNumeric: true, maxValue: 25),
+                child: _buildField(
+                  "Classes (Month)",
+                  _classesController,
+                  "Auto-calculated (editable)",
+                  isNumeric: true,
+                  maxValue: 31,
+                  onChanged: () {
+                    // Mark as manually edited when user types
+                    _isClassesManuallyEdited = true;
+                  },
+                ),
               ),
               const SizedBox(width: 15),
               Expanded(
@@ -318,7 +384,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
   }
 
   Widget _buildField(String label, TextEditingController controller, String hint,
-      {bool isNumeric = false, int? maxValue, bool readOnly = false}) {
+      {bool isNumeric = false, int? maxValue, bool readOnly = false, VoidCallback? onChanged}) {
     int? val = int.tryParse(controller.text);
     bool hasError = _showErrors &&
         (controller.text.trim().isEmpty ||
@@ -338,6 +404,10 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
           keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
           inputFormatters:
           isNumeric ? [FilteringTextInputFormatter.digitsOnly] : [],
+          onChanged: (value) {
+            setState(() {});
+            if (onChanged != null) onChanged();
+          },
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: Color(0xFFBDBDBD), fontSize: 14),
@@ -496,10 +566,10 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
     double startDouble = _startTime.hour + _startTime.minute / 60.0;
     double endDouble = _endTime.hour + _endTime.minute / 60.0;
 
-    if ((classes != null && classes > 25) || (fee != null && fee > 50000)) {
-      String errorTitle = (classes ?? 0) > 25 ? "Invalid Class Count" : "Invalid Fee";
-      String errorMsg = (classes ?? 0) > 25
-          ? "You cannot add more than 25 classes per month."
+    if ((classes != null && classes > 31) || (fee != null && fee > 50000)) {
+      String errorTitle = (classes ?? 0) > 31 ? "Invalid Class Count" : "Invalid Fee";
+      String errorMsg = (classes ?? 0) > 31
+          ? "You cannot add more than 31 classes per month."
           : "The tuition fee cannot exceed 50,000 PKR.";
       _showErrorPopup(errorTitle, errorMsg);
       setState(() => _showErrors = true);

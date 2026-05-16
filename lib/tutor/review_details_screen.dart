@@ -130,23 +130,45 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> with WidgetsB
   }
 
   String _formatDate(String? dateStr) {
-    if (dateStr == null) return "Recently";
+    if (dateStr == null || dateStr.isEmpty) return "Recently";
     try {
-      final date = DateTime.parse(dateStr);
+      // Clean the date string by removing milliseconds
+      String cleanedDate = dateStr;
+      if (cleanedDate.contains('.')) {
+        cleanedDate = cleanedDate.substring(0, cleanedDate.indexOf('.'));
+      }
+
+      final date = DateTime.parse(cleanedDate);
       final now = DateTime.now();
       final difference = now.difference(date);
 
-      if (difference.inDays < 7) {
-        if (difference.inDays == 0) return "Today";
-        if (difference.inDays == 1) return "Yesterday";
-        return "${difference.inDays} days ago";
-      } else if (difference.inDays < 30) {
-        final weeks = (difference.inDays / 7).floor();
-        return "$weeks week${weeks > 1 ? 's' : ''} ago";
-      } else {
-        return "${date.day}/${date.month}/${date.year}";
+      // Years
+      if (difference.inDays > 365) {
+        final years = (difference.inDays / 365).floor();
+        return "$years year${years > 1 ? 's' : ''} ago";
+      }
+      // Months
+      else if (difference.inDays > 30) {
+        final months = (difference.inDays / 30).floor();
+        return "$months month${months > 1 ? 's' : ''} ago";
+      }
+      // Days
+      else if (difference.inDays > 0) {
+        return "${difference.inDays} day${difference.inDays > 1 ? 's' : ''} ago";
+      }
+      // Hours
+      else if (difference.inHours > 0) {
+        return "${difference.inHours} hour${difference.inHours > 1 ? 's' : ''} ago";
+      }
+      // Minutes
+      else if (difference.inMinutes > 0) {
+        return "${difference.inMinutes} minute${difference.inMinutes > 1 ? 's' : ''} ago";
+      }
+      else {
+        return "Just now";
       }
     } catch (e) {
+      print("Error parsing date: $e");
       return "Recently";
     }
   }

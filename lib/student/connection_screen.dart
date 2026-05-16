@@ -399,67 +399,53 @@ class _ConnectionScreenState extends State<ConnectionScreen> with WidgetsBinding
         onRefresh: _refreshData,
         color: Colors.black,
         backgroundColor: Colors.white,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            // Header (non-scrolling)
-            SliverToBoxAdapter(
-              child: Column(
-                children: [
-                  _buildHeader(),
-                  _buildSearchBar(),
-                  const SizedBox(height: 10),
-                  _buildToggleButtons(),
-                  const SizedBox(height: 15),
-                  if (_searchQuery.isNotEmpty) _buildResultBar(filteredList.length),
-                ],
+        child: Column(
+          children: [
+
+            _buildHeader(),
+            _buildSearchBar(),
+            const SizedBox(height: 10),
+            _buildToggleButtons(),
+            const SizedBox(height: 15),
+            if (_searchQuery.isNotEmpty) _buildResultBar(filteredList.length),
+
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: Colors.black))
+                  : showEmptyState
+                  ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(isConnectedTab ? Icons.people_outline : Icons.gavel_outlined, size: 64, color: Colors.grey[400]),
+                    const SizedBox(height: 16),
+                    Text(
+                      isConnectedTab ? "No Connected Tutors" : "No Active Bids",
+                      style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      isConnectedTab
+                          ? "Connect with tutors to see them here"
+                          : "Send offers to tutors to see bids here",
+                      style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                    ),
+                  ],
+                ),
+              )
+                  : ListView.builder(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(20, 10, 20, bottomPadding + 20),
+                itemCount: filteredList.length,
+                itemBuilder: (context, index) {
+                  if (isConnectedTab) {
+                    return _buildTutorCard(filteredList[index], index);
+                  } else {
+                    return _buildBidCard(filteredList[index]);
+                  }
+                },
               ),
             ),
-
-            // Scrollable content
-            if (_isLoading)
-              const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator(color: Colors.black)),
-              )
-            else if (showEmptyState)
-              SliverFillRemaining(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(isConnectedTab ? Icons.people_outline : Icons.gavel_outlined, size: 64, color: Colors.grey[400]),
-                      const SizedBox(height: 16),
-                      Text(
-                        isConnectedTab ? "No Connected Tutors" : "No Active Bids",
-                        style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.w500),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        isConnectedTab
-                            ? "Connect with tutors to see them here"
-                            : "Send offers to tutors to see bids here",
-                        style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              SliverPadding(
-                padding: EdgeInsets.fromLTRB(20, 10, 20, bottomPadding + 20),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                      if (isConnectedTab) {
-                        return _buildTutorCard(filteredList[index], index);
-                      } else {
-                        return _buildBidCard(filteredList[index]);
-                      }
-                    },
-                    childCount: filteredList.length,
-                  ),
-                ),
-              ),
           ],
         ),
       ),

@@ -120,7 +120,7 @@ class StudentDashboard extends StatefulWidget {
 class _StudentDashboardState extends State<StudentDashboard> with WidgetsBindingObserver {
   int _selectedIndex = 0;
   int _studentId = 0;
-  String _studentName = "Student";
+  String _studentName = "";
   String _studentImage = "";
 
   // API Data
@@ -129,6 +129,7 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
   bool _isLoading = true;
   bool _useApi = true;
   bool _isFirstLoad = true;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -177,7 +178,10 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
   }
 
   Future<void> _loadDashboardData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
     try {
       if (_studentId != 0 && _useApi) {
@@ -185,11 +189,23 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
         if (!mounted) return;
         _processDashboardData(response);
       } else {
-        _loadDummyData();
+        _showEmptyState();
       }
     } catch (e) {
       print('Error loading dashboard: $e');
-      _loadDummyData();
+      _showEmptyState();
+      setState(() {
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load data. Please check your connection.'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -197,36 +213,15 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
     }
   }
 
-  void _loadDummyData() {
-    _studentName = "Emaz Ali Khan";
+  void _showEmptyState() {
+    _studentName = "";
     _studentImage = "";
-    _topTutors = [
-      Tutor(id: 1, name: "Sana Khan", subject: "Mathematics", rating: "4.9", location: "Karachi", profilePic: null),
-      Tutor(id: 2, name: "Ali Khan", subject: "Physics", rating: "4.8", location: "Lahore", profilePic: null),
-      Tutor(id: 3, name: "Fatima Iqbal", subject: "Chemistry", rating: "4.7", location: "Islamabad", profilePic: null),
-      Tutor(id: 4, name: "Hassan Javed", subject: "Computer Science", rating: "4.9", location: "Online", profilePic: null),
-    ];
-    _recommendedCourses = [
-      Course(
-        id: 1,
-        tutorName: "Emaz Ali Khan",
-        subject: "Chemistry",
-        level: "Intermediate",
-        price: "5000 PKR",
-        rating: "4.0",
-        mode: "ONLINE",
-        location: "Nazimabad, Karachi",
-        themeColor: CourseColors.getCourseColor(1),
-        tutorId: 1,
-        tutorImage: "",
-        priceValue: 5000,
-        isFavorited: false,
-      ),
-    ];
+    _topTutors = [];
+    _recommendedCourses = [];
   }
 
   void _processDashboardData(Map<String, dynamic> data) {
-    _studentName = data['studentName'] ?? 'Student';
+    _studentName = data['studentName'] ?? '';
     _studentImage = data['studentImage'] ?? '';
 
     final List<dynamic> topTutorsList = data['topTutors'] ?? [];
@@ -237,10 +232,10 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
       }
       return Tutor(
         id: tutor['tutorId'] ?? 0,
-        name: tutor['tutorName'] ?? 'Unknown',
-        subject: tutor['topSubjects']?.isNotEmpty == true ? tutor['topSubjects'][0] : 'General',
+        name: tutor['tutorName'] ?? '',
+        subject: tutor['topSubjects']?.isNotEmpty == true ? tutor['topSubjects'][0] : '',
         rating: tutor['averageRating']?.toString() ?? '0.0',
-        location: tutor['location'] ?? 'Online',
+        location: tutor['location'] ?? '',
         profilePic: imageUrl,
       );
     }).toList();
@@ -276,13 +271,13 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
 
       return Course(
         id: course['courseId'] ?? 0,
-        tutorName: course['tutorName'] ?? 'Unknown Tutor',
-        subject: course['subject'] ?? 'General',
+        tutorName: course['tutorName'] ?? '',
+        subject: course['subject'] ?? '',
         level: levelDisplay,
-        price: '${priceValue.toStringAsFixed(0)} PKR',
+        price: priceValue > 0 ? '${priceValue.toStringAsFixed(0)} PKR' : '',
         rating: ratingValue.toStringAsFixed(1),
         mode: teachingModeText,
-        location: course['location'] ?? 'Online',
+        location: course['location'] ?? '',
         themeColor: CourseColors.getCourseColor(course['courseId'] ?? 0),
         tutorId: course['tutorId'] ?? 0,
         tutorImage: '',
@@ -390,6 +385,75 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
       return const Center(child: CircularProgressIndicator(color: Colors.black));
     }
 
+    // Check if there's no data (server error or empty response)
+    final bool hasNoData = _topTutors.isEmpty && _recommendedCourses.isEmpty && _studentName.isEmpty;
+
+    if (hasNoData && !_isLoading) {
+      return RefreshIndicator(
+        onRefresh: _refreshData,
+        color: Colors.black,
+        backgroundColor: Colors.white,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              _HeaderSection(
+                greeting: _getGreeting(),
+                name: "Student",
+                profileImage: "",
+              ),
+              const SizedBox(height: 50),
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.wifi_off_outlined,
+                      size: 80,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      "Unable to load data",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Please check your internet connection\nand pull down to refresh",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: _refreshData,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        "Retry",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 100),
+            ],
+          ),
+        ),
+      );
+    }
+
     final bool showSeeAll = _topTutors.length > 4;
     final displayTutors = showSeeAll ? _topTutors.sublist(0, 4) : _topTutors;
 
@@ -403,7 +467,7 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
           children: [
             _HeaderSection(
               greeting: _getGreeting(),
-              name: _studentName,
+              name: _studentName.isNotEmpty ? _studentName : "Student",
               profileImage: _studentImage,
             ),
             Padding(
@@ -416,7 +480,7 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
                   const SizedBox(height: 30),
                   const _CategorySelector(),
                   const SizedBox(height: 30),
-                  _buildSectionTitle("Top Tutor", showSeeAll: showSeeAll),
+                  _buildSectionTitle("Top Tutor", showSeeAll: showSeeAll && _topTutors.isNotEmpty),
                   const SizedBox(height: 15),
                   _TopTutorsList(tutors: displayTutors),
                   const SizedBox(height: 30),
@@ -501,7 +565,10 @@ class _HeaderSection extends StatelessWidget {
                 backgroundColor: Colors.white,
                 backgroundImage: profileImage.isNotEmpty
                     ? NetworkImage('${ApiConfig.baseUrl}$profileImage')
-                    : const AssetImage('assets/images/rafay.jpeg') as ImageProvider,
+                    : null,
+                child: profileImage.isEmpty
+                    ? const Icon(Icons.person, color: Colors.black54, size: 26)
+                    : null,
               ),
               const Spacer(),
               _HeaderActionBtn(
@@ -677,18 +744,12 @@ class _TopTutorsList extends StatelessWidget {
   Widget build(BuildContext context) {
     if (tutors.isEmpty) {
       return Container(
-        height: 150,
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+        height: 110,
+        decoration: BoxDecoration(color: Colors.transparent),
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.person_outline, size: 50, color: Colors.grey[400]),
-              const SizedBox(height: 12),
-              Text("No Top Tutors Available", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.grey[600])),
-              const SizedBox(height: 4),
-              Text("Check back later for new tutors", style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-            ],
+          child: Text(
+            "No tutors available",
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
           ),
         ),
       );
@@ -737,7 +798,11 @@ class _TopTutorsList extends StatelessWidget {
                         : null,
                   ),
                   const SizedBox(height: 8),
-                  Text(tutor.name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                  Text(
+                    tutor.name.isNotEmpty ? tutor.name : "Tutor",
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
@@ -787,15 +852,15 @@ class _RecommendedCoursesListState extends State<_RecommendedCoursesList> {
       return Container(
         height: 200,
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-        child: Center(
+        child: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.school_outlined, size: 60, color: Colors.grey[400]),
-              const SizedBox(height: 16),
-              Text("No Courses Available", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[600])),
-              const SizedBox(height: 8),
-              Text("Check back later for new courses", style: TextStyle(fontSize: 14, color: Colors.grey[500])),
+              Icon(Icons.school_outlined, size: 60, color: Colors.grey),
+              SizedBox(height: 16),
+              Text("No Courses Available", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey)),
+              SizedBox(height: 8),
+              Text("Check back later for new courses", style: TextStyle(fontSize: 14, color: Colors.grey)),
             ],
           ),
         ),
@@ -890,12 +955,21 @@ class _RecommendedCoursesListState extends State<_RecommendedCoursesList> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(course.tutorName, style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
+                      Text(
+                        course.tutorName.isNotEmpty ? course.tutorName : "Tutor",
+                        style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
                       const SizedBox(height: 4),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(course.subject, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          Expanded(
+                            child: Text(
+                              course.subject.isNotEmpty ? course.subject : "Course",
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(color: badgeColors['bg'], borderRadius: BorderRadius.circular(12)),
@@ -906,7 +980,7 @@ class _RecommendedCoursesListState extends State<_RecommendedCoursesList> {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          Text(course.price, style: const TextStyle(color: Color(0xFF2979FF), fontWeight: FontWeight.bold, fontSize: 15)),
+                          Text(course.price.isNotEmpty ? course.price : "0 PKR", style: const TextStyle(color: Color(0xFF2979FF), fontWeight: FontWeight.bold, fontSize: 15)),
                           const Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Text("|", style: TextStyle(color: Colors.grey, fontSize: 16))),
                           const Icon(Icons.star, color: Colors.amber, size: 16),
                           Text(" ${course.rating}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
@@ -921,7 +995,7 @@ class _RecommendedCoursesListState extends State<_RecommendedCoursesList> {
                         children: [
                           const Icon(Icons.location_on_outlined, size: 13, color: Colors.grey),
                           const SizedBox(width: 4),
-                          Expanded(child: Text(course.location, style: const TextStyle(fontSize: 11, color: Colors.grey), overflow: TextOverflow.ellipsis)),
+                          Expanded(child: Text(course.location.isNotEmpty ? course.location : "Location", style: const TextStyle(fontSize: 11, color: Colors.grey), overflow: TextOverflow.ellipsis)),
                         ],
                       ),
                     ],

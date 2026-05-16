@@ -207,6 +207,48 @@ class ConnectionService {
     }
   }
 
+  static Future<Map<String, dynamic>> getTutorBidForCourse(int tutorId, int courseId) async {
+    if (useRealApi) {
+      try {
+        final response = await http.get(
+          Uri.parse('${ApiConfig.getFullUrl(ApiConfig.getTutorBids)}/$tutorId/course/$courseId/bids'),
+          headers: {'Content-Type': 'application/json'},
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
+          if (data.isNotEmpty) {
+            return Map<String, dynamic>.from(data.first);
+          }
+          return {};
+        } else {
+          final errorData = response.body.isNotEmpty ? json.decode(response.body) : {};
+          throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Failed to fetch tutor bid'));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      return {
+        'connectionId': 1,
+        'courseId': courseId,
+        'studentName': 'Sample Student',
+        'studentImage': null,
+        'originalPrice': 5000,
+        'studentBidPrice': 2500,
+        'tutorOffer': 2502,
+        'status': 'NEGOTIATING',
+        'averageRating': 3.5,
+        'category': 'MATRIC',
+        'teachingMode': 'STUDENT_HOME',
+        'subject': 'Biology',
+      };
+    }
+  }
+
+
+
   static Future<Map<String, dynamic>> tutorRespond(
       int connectionId, {
         required bool accept,
@@ -356,38 +398,38 @@ class ConnectionService {
     }
   }
 
-  static Future<Map<String, dynamic>> getConnectionStatus(int studentId, int courseId) async {
-    if (useRealApi) {
-      try {
-        final url = ApiConfig.getFullUrl('${ApiConfig.getConnectionStatus}/$studentId/status/$courseId');
-
-        final response = await http.get(
-          Uri.parse(url),
-          headers: {'Content-Type': 'application/json'},
-        ).timeout(const Duration(seconds: 15));
-
-        if (response.statusCode == 200) {
-          final Map<String, dynamic> data = json.decode(response.body);
-          return {
-            'status': data['status'],
-            'connectionId': data['connectionId'],
-            'agreedPrice': data['agreedPrice'],
-            'originalPrice': data['originalPrice'],
-          };
-        } else if (response.statusCode == 404) {
-          return {'status': 'NONE', 'connectionId': null};
-        } else {
-          final errorData = response.body.isNotEmpty ? json.decode(response.body) : {};
-          throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Failed to get connection status'));
-        }
-      } catch (e) {
-        return {'status': 'NONE', 'connectionId': null};
-      }
-    } else {
-      await Future.delayed(const Duration(milliseconds: 500));
-      return {'status': 'NONE', 'connectionId': null};
-    }
-  }
+  // static Future<Map<String, dynamic>> getConnectionStatus(int studentId, int courseId) async {
+  //   if (useRealApi) {
+  //     try {
+  //       final url = ApiConfig.getFullUrl('${ApiConfig.getConnectionStatus}/$studentId/status/$courseId');
+  //
+  //       final response = await http.get(
+  //         Uri.parse(url),
+  //         headers: {'Content-Type': 'application/json'},
+  //       ).timeout(const Duration(seconds: 15));
+  //
+  //       if (response.statusCode == 200) {
+  //         final Map<String, dynamic> data = json.decode(response.body);
+  //         return {
+  //           'status': data['status'],
+  //           'connectionId': data['connectionId'],
+  //           'agreedPrice': data['agreedPrice'],
+  //           'originalPrice': data['originalPrice'],
+  //         };
+  //       } else if (response.statusCode == 404) {
+  //         return {'status': 'NONE', 'connectionId': null};
+  //       } else {
+  //         final errorData = response.body.isNotEmpty ? json.decode(response.body) : {};
+  //         throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Failed to get connection status'));
+  //       }
+  //     } catch (e) {
+  //       return {'status': 'NONE', 'connectionId': null};
+  //     }
+  //   } else {
+  //     await Future.delayed(const Duration(milliseconds: 500));
+  //     return {'status': 'NONE', 'connectionId': null};
+  //   }
+  // }
 
   static Future<Map<String, dynamic>> requestConnection({
     required int courseId,

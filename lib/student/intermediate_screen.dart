@@ -116,8 +116,8 @@ class _IntermediateScreenState extends State<IntermediateScreen> {
         teachingModeText = 'Online';
       } else if (teachingMode == 'STUDENT_HOME') {
         teachingModeText = "Student's Home";
-      } else if (teachingMode == 'TUTOR_PLACE') {
-        teachingModeText = "Tutor's Place";
+      } else if (teachingMode == 'TUTOR_HOME') {
+        teachingModeText = "Tutor's Home";
       }
 
       String tutorLocation = course['location']?.toString() ?? '';
@@ -156,30 +156,33 @@ class _IntermediateScreenState extends State<IntermediateScreen> {
   void _applyFilters() {
     setState(() {
       filteredTutors = allTutors.where((tutor) {
+        // Search filter
         bool matchesSearch = currentSearchQuery.isEmpty ||
             tutor['name'].toLowerCase().contains(currentSearchQuery.toLowerCase()) ||
             tutor['subject'].toLowerCase().contains(currentSearchQuery.toLowerCase());
 
-        bool matchesMode = activeModes.isEmpty || activeModes.contains(tutor['teachingMode']);
+        // Teaching mode filter
+        bool matchesMode = activeModes.isEmpty;
+        if (!matchesMode) {
+          for (String mode in activeModes) {
+            if (tutor['teachingMode'] == mode) {
+              matchesMode = true;
+              break;
+            }
+          }
+        }
+
         bool matchesBudget = activeBudget.isEmpty || _isPriceInRange(tutor['priceValue'], activeBudget);
+
+        // Location filter
         bool matchesLocation = activeLocation.isEmpty ||
             tutor['tutorLocation'].toLowerCase().contains(activeLocation.toLowerCase());
 
-        bool matchesModeOrBudget;
-        if (activeModes.isNotEmpty && activeBudget.isNotEmpty) {
-          matchesModeOrBudget = matchesMode || matchesBudget;
-        } else if (activeModes.isNotEmpty) {
-          matchesModeOrBudget = matchesMode;
-        } else if (activeBudget.isNotEmpty) {
-          matchesModeOrBudget = matchesBudget;
-        } else {
-          matchesModeOrBudget = true;
-        }
-
-        return matchesSearch && matchesModeOrBudget && matchesLocation;
+        return matchesSearch && matchesMode && matchesBudget && matchesLocation;
       }).toList();
     });
   }
+
 
   bool _isPriceInRange(double price, String budgetRange) {
     if (budgetRange.contains('-')) {
@@ -334,21 +337,12 @@ class _IntermediateScreenState extends State<IntermediateScreen> {
             activeLocation: activeLocation,
             onApplyFilters: (newCats, newModes, newBudget, newLocation) {
               setState(() {
-                if (newModes.isNotEmpty) {
-                  if (activeModes.contains(newModes.first)) {
-                    activeModes = [];
-                  } else {
-                    activeModes = newModes;
-                  }
-                }
+                activeModes = List.from(newModes);
 
-                if (activeBudget == newBudget && newBudget.isNotEmpty) {
-                  activeBudget = '';
-                } else {
-                  activeBudget = newBudget;
-                }
+                activeBudget = newBudget;
 
                 activeLocation = newLocation;
+
                 _applyFilters();
               });
             },

@@ -256,24 +256,77 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
+  //  helper method
+  String _normalizeCategoryForFilter(String category) {
+    if (category.isEmpty) return '';
+    String upper = category.toUpperCase();
+    switch (upper) {
+      case 'O LEVEL':
+        return 'O_LEVEL';
+      case 'A LEVEL':
+        return 'A_LEVEL';
+      case 'MATRIC':
+        return 'MATRIC';
+      case 'INTERMEDIATE':
+        return 'INTERMEDIATE';
+      case 'ENTRANCE TEST':
+        return 'ENTRY_TEST';
+      default:
+        return upper;
+    }
+  }
+
   void _applyCourseFilters() {
     setState(() {
       filteredCourses = allCourses.where((course) {
+        // Search by name or subject
         bool matchesSearch = currentSearchQuery.isEmpty ||
             course['name'].toLowerCase().contains(currentSearchQuery.toLowerCase()) ||
             course['sub'].toLowerCase().contains(currentSearchQuery.toLowerCase());
 
+        // Filter by location
         bool matchesLocation = activeLocation.isEmpty ||
             course['location'].toLowerCase().contains(activeLocation.toLowerCase());
 
-        bool matchesCategory = activeCategories.isEmpty ||
-            activeCategories.any((cat) =>
-            course['category'].toUpperCase().contains(cat.toUpperCase()) ||
-                cat.toUpperCase().contains(course['category'].toUpperCase()));
+        // Filter by category
+        bool matchesCategory = activeCategories.isEmpty;
+        if (!matchesCategory) {
+          String courseCategory = _normalizeCategoryForFilter(course['category'] ?? '');
+          for (String selectedCat in activeCategories) {
+            String normalizedSelected = _normalizeCategoryForFilter(selectedCat);
+            if (courseCategory == normalizedSelected) {
+              matchesCategory = true;
+              break;
+            }
+          }
+        }
 
+        // Filter by teaching mode
+        bool matchesMode = activeModes.isEmpty;
+        if (!matchesMode) {
+          String courseMode = course['teachingMode']?.toString().toLowerCase() ?? '';
+          for (String selectedMode in activeModes) {
+            String selectedLower = selectedMode.toLowerCase();
+
+            // Check mode matching
+            if (selectedLower == 'online' && courseMode.contains('online')) {
+              matchesMode = true;
+              break;
+            } else if (selectedLower == "student's home" && courseMode.contains('student')) {
+              matchesMode = true;
+              break;
+            } else if ((selectedLower == "tutor's home") &&
+                (courseMode.contains('tutor') || courseMode.contains('place'))) {
+              matchesMode = true;
+              break;
+            }
+          }
+        }
+
+        // Filter by budget
         bool matchesBudget = activeBudget.isEmpty || _isPriceInRange(course['priceValue'], activeBudget);
 
-        return matchesSearch && matchesLocation && matchesCategory && matchesBudget;
+        return matchesSearch && matchesLocation && matchesCategory && matchesMode && matchesBudget;
       }).toList();
     });
   }

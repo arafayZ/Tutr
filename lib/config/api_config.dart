@@ -3,12 +3,10 @@ class ApiConfig {
   static const bool useRealApi = true;  // true = real backend, false = dummy data
   // ============ BASE URL ============
   // Change this when switching environments
-  // static const String baseUrl = 'http://192.168.100.10:8080'; // Home IP
-   static const String baseUrl = 'http://192.168.43.166:8080'; // Emaz IP
+   static const String baseUrl = 'http://192.168.100.10:8080'; // Home IP
+  // static const String baseUrl = 'http://192.168.43.166:8080'; // Emaz IP
   // static const String baseUrl = 'https://pulsatory-preeffectual-ila.ngrok-free.dev'; // ngrok
 
-  // static const String baseUrl = 'http://localhost:8080'; // iOS Simulator
-  // static const String baseUrl = 'http://192.168.1.100:8080'; // Physical Device
 
   // ============ AUTHENTICATION APIS ============
   static const String login = '/api/auth/login';//done
@@ -101,9 +99,9 @@ class ApiConfig {
   static const String getStudentConfirmedConnections = '/api/connections/student'; // + /{studentId}/confirmed
   static const String getPendingRequests = '/api/connections/tutor'; // + /{tutorId}/pending
   static const String getNegotiations = '/api/connections/tutor'; // + /{tutorId}/negotiations
-  static const String getTutorBids = '/api/connections/tutor'; // + /{tutorId}/bids-with-cards
+  static const String getTutorBids = '/api/connections/tutor'; // + /{tutorId}/course/{courseId}/bids
   static const String getStudentBids = '/api/connections/student'; // + /{studentId}/course/{courseId}/bids
-  static const String getTutorBidsForCourse = '/api/connections/tutor'; // + /{tutorId}/course/{courseId}/bids
+  // static const String getTutorBidsForCourse = '/api/connections/tutor';
   // static const String getConnectionStatus = '/api/connections/student'; // + /{studentId}/status/{connectionId}
 
   // ============ BLOCK/REPORT APIS ============

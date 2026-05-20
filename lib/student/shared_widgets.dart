@@ -257,7 +257,7 @@ void _showFilterSheet(
                   const Text("Teaching Mode:",
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
                   const SizedBox(height: 10),
-                  ...["Online", "Student's Home", "Tutor's Place"]
+                  ...["Online", "Student's Home", "Tutor's Home"]
                       .map((mode) => _buildFilterOption(mode, tempModes.contains(mode), (v) => toggleMode(mode))),
 
                   const SizedBox(height: 25),

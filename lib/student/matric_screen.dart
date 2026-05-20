@@ -119,8 +119,8 @@ class _MatricScreenState extends State<MatricScreen> {
         teachingModeText = 'Online';
       } else if (teachingMode == 'STUDENT_HOME') {
         teachingModeText = "Student's Home";
-      } else if (teachingMode == 'TUTOR_PLACE') {
-        teachingModeText = "Tutor's Place";
+      } else if (teachingMode == 'TUTOR_HOME') {
+        teachingModeText = "Tutor's Home";
       }
 
       // Get tutor location from API
@@ -170,29 +170,23 @@ class _MatricScreenState extends State<MatricScreen> {
             tutor['subject'].toLowerCase().contains(currentSearchQuery.toLowerCase());
 
         // Teaching mode filter
-        bool matchesMode = activeModes.isEmpty || activeModes.contains(tutor['teachingMode']);
+        bool matchesMode = activeModes.isEmpty;
+        if (!matchesMode) {
+          for (String mode in activeModes) {
+            if (tutor['teachingMode'] == mode) {
+              matchesMode = true;
+              break;
+            }
+          }
+        }
 
-        // Price range filter
         bool matchesBudget = activeBudget.isEmpty || _isPriceInRange(tutor['priceValue'], activeBudget);
 
         // Location filter
         bool matchesLocation = activeLocation.isEmpty ||
             tutor['tutorLocation'].toLowerCase().contains(activeLocation.toLowerCase());
 
-        // OR logic between Mode and Budget, AND with Location
-        bool matchesModeOrBudget;
-
-        if (activeModes.isNotEmpty && activeBudget.isNotEmpty) {
-          matchesModeOrBudget = matchesMode || matchesBudget;
-        } else if (activeModes.isNotEmpty) {
-          matchesModeOrBudget = matchesMode;
-        } else if (activeBudget.isNotEmpty) {
-          matchesModeOrBudget = matchesBudget;
-        } else {
-          matchesModeOrBudget = true;
-        }
-
-        return matchesSearch && matchesModeOrBudget && matchesLocation;
+        return matchesSearch && matchesMode && matchesBudget && matchesLocation;
       }).toList();
     });
   }
@@ -358,21 +352,12 @@ class _MatricScreenState extends State<MatricScreen> {
               activeLocation: activeLocation,
               onApplyFilters: (newCats, newModes, newBudget, newLocation) {
                 setState(() {
-                  if (newModes.isNotEmpty) {
-                    if (activeModes.contains(newModes.first)) {
-                      activeModes = [];
-                    } else {
-                      activeModes = newModes;
-                    }
-                  }
+                  activeModes = List.from(newModes);
 
-                  if (activeBudget == newBudget && newBudget.isNotEmpty) {
-                    activeBudget = '';
-                  } else {
-                    activeBudget = newBudget;
-                  }
+                  activeBudget = newBudget;
 
                   activeLocation = newLocation;
+
                   _applyFilters();
                 });
               },

@@ -1473,7 +1473,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                const SizedBox(height: 2),  // ✅ Small spacing between name and headline
+                                const SizedBox(height: 2),
                                 Text(
                                   _tutorHeadline.isNotEmpty ? _tutorHeadline : "Expert Tutor",
                                   style: const TextStyle(
@@ -1486,7 +1486,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                               ],
                             ),
                           ),
-                          const SizedBox(width: 8),  //  Small spacing before arrow
+                          const SizedBox(width: 8),
                           const Icon(
                               Icons.arrow_forward_ios,
                               size: 14,

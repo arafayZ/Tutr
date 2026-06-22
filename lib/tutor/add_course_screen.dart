@@ -412,7 +412,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
             hintText: hint,
             hintStyle: const TextStyle(color: Color(0xFFBDBDBD), fontSize: 14),
             filled: true,
-            fillColor: readOnly ? Colors.grey[100] : Colors.white,
+            fillColor: readOnly ? Colors.grey[30] : Colors.white,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(
@@ -459,7 +459,7 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
         const SizedBox(height: 5),
         Align(
           alignment: Alignment.centerRight,
-          child: Text("$wordCount/100 words",
+          child: Text("$wordCount/30 words",
               style: const TextStyle(color: Colors.grey, fontSize: 11)),
         ),
       ],
@@ -582,8 +582,8 @@ class _AddCourseScreenState extends State<AddCourseScreen> {
       return;
     }
 
-    if (wordCount > 100) {
-      _showErrorPopup("Text Too Long", "The 'About' section cannot exceed 100 words.");
+    if (wordCount > 30) {
+      _showErrorPopup("Text Too Long", "The 'About' section cannot exceed 30 words.");
       setState(() => _showErrors = true);
       return;
     }

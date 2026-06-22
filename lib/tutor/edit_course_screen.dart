@@ -489,7 +489,7 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
           decoration: InputDecoration(
             hintText: hint,
             filled: true,
-            fillColor: readOnly ? Colors.grey[100] : Colors.white,
+            fillColor: readOnly ? Colors.grey[30] : Colors.white,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: hasError ? Colors.red : Colors.transparent),
@@ -516,7 +516,7 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
           child: TextField(controller: _aboutController, maxLines: 4, onChanged: (v) => setState(() => {}), decoration: const InputDecoration(border: InputBorder.none, hintText: "Describe your course...")),
         ),
         const SizedBox(height: 5),
-        Align(alignment: Alignment.centerRight, child: Text("$wordCount/100 words", style: const TextStyle(color: Colors.grey, fontSize: 11))),
+        Align(alignment: Alignment.centerRight, child: Text("$wordCount/30 words", style: const TextStyle(color: Colors.grey, fontSize: 11))),
       ],
     );
   }
@@ -629,8 +629,8 @@ class _EditCourseScreenState extends State<EditCourseScreen> {
       return;
     }
 
-    if (wordCount > 100) {
-      _showErrorPopup("Text Too Long", "About section cannot exceed 100 words.");
+    if (wordCount > 30) {
+      _showErrorPopup("Text Too Long", "About section cannot exceed 30 words.");
       return;
     }
 

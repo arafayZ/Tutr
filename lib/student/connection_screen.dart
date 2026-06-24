@@ -7,7 +7,6 @@ import '../services/connection_service.dart';
 import '../services/connection_refresh_service.dart';
 import '../config/api_config.dart';
 
-// --- COURSE COLORS (Same as other screens) ---
 class CourseColors {
   static const List<Color> colors = [
     Color(0xFF1A1A2E),
@@ -36,7 +35,6 @@ class CourseColors {
   }
 }
 
-// Category Badge Colors Helper
 Map<String, Color> getCategoryBadgeColors(String category) {
   switch (category.toUpperCase()) {
     case 'MATRIC':
@@ -54,7 +52,6 @@ Map<String, Color> getCategoryBadgeColors(String category) {
   }
 }
 
-// Teaching Mode Icon Helper
 IconData getTeachingModeIcon(String mode) {
   switch (mode.toLowerCase()) {
     case 'online':
@@ -94,7 +91,6 @@ class _ConnectionScreenState extends State<ConnectionScreen> with WidgetsBinding
     WidgetsBinding.instance.addObserver(this);
     _loadStudentId();
 
-    // Listen for refresh events from BidDetailsScreen
     ConnectionRefreshService().onRefreshConnections.listen((_) {
       if (mounted) {
         _refreshData();
@@ -120,7 +116,6 @@ class _ConnectionScreenState extends State<ConnectionScreen> with WidgetsBinding
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Refresh when screen becomes visible (returns from other screens)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_isLoading && !_isRefreshing && mounted && _studentId != 0) {
         _refreshData();
@@ -374,7 +369,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> with WidgetsBinding
       MaterialPageRoute(
         builder: (context) => CourseDetailsScreen(courseData: courseData),
       ),
-    );
+    ).then((_) {
+      _refreshData();
+    });
   }
 
   @override
@@ -389,7 +386,6 @@ class _ConnectionScreenState extends State<ConnectionScreen> with WidgetsBinding
           subject.contains(_searchQuery.toLowerCase());
     }).toList();
 
-    // Determine if we should show empty state or list
     final bool isEmpty = filteredList.isEmpty && !_isLoading;
     final bool showEmptyState = isEmpty && !_isRefreshing;
 
@@ -401,14 +397,12 @@ class _ConnectionScreenState extends State<ConnectionScreen> with WidgetsBinding
         backgroundColor: Colors.white,
         child: Column(
           children: [
-
             _buildHeader(),
             _buildSearchBar(),
             const SizedBox(height: 10),
             _buildToggleButtons(),
             const SizedBox(height: 15),
             if (_searchQuery.isNotEmpty) _buildResultBar(filteredList.length),
-
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator(color: Colors.black))
@@ -434,7 +428,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> with WidgetsBinding
                 ),
               )
                   : ListView.builder(
-                physics: const BouncingScrollPhysics(),
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: EdgeInsets.fromLTRB(20, 10, 20, bottomPadding + 20),
                 itemCount: filteredList.length,
                 itemBuilder: (context, index) {
@@ -680,7 +674,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> with WidgetsBinding
                                     studentId: tutor['studentId'],
                                   ),
                                 ),
-                              );
+                              ).then((_) {
+                                _refreshData();
+                              });
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.black,
@@ -723,7 +719,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> with WidgetsBinding
               onRefresh: _refreshData,
             ),
           ),
-        );
+        ).then((_) {
+          _refreshData();
+        });
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 // --- Imports for your existing screens and widgets ---
 import '../services/favorite_refresh_service.dart';
+import '../services/connection_refresh_service.dart';
 import '../services/dashboard_service.dart';
 import '../services/course_service.dart';
 import '../widgets/student_bottom_nav.dart';
@@ -368,6 +369,9 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
             setState(() {
               _selectedIndex = index;
             });
+            if (index == 1) {
+              ConnectionRefreshService().notifyRefresh();
+            }
             if (index == 3) {
               FavoriteRefreshService().notifyRefresh();
             }

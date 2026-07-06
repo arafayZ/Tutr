@@ -205,17 +205,44 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   }
 
   Future<void> _selectDate() async {
+    // Parse the current date from the controller if it exists
+    DateTime? initialDate;
+
+    if (_dobController.text.isNotEmpty) {
+      try {
+        // Parse the date from DD/MM/YYYY format
+        var parts = _dobController.text.split('/');
+        if (parts.length == 3) {
+          int day = int.parse(parts[0]);
+          int month = int.parse(parts[1]);
+          int year = int.parse(parts[2]);
+          initialDate = DateTime(year, month, day);
+        }
+      } catch (e) {
+        // If parsing fails, use default date
+        initialDate = DateTime(2000);
+      }
+    } else {
+      initialDate = DateTime(2000);
+    }
+
     DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime(2000),
+      initialDate: initialDate,
       firstDate: DateTime(1950),
       lastDate: DateTime.now(),
       builder: (context, child) => Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: Colors.black, onPrimary: Colors.white, onSurface: Colors.black),
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(
+              primary: Colors.black,
+              onPrimary: Colors.white,
+              onSurface: Colors.black
           ),
-          child: child!),
+        ),
+        child: child!,
+      ),
     );
+
     if (picked != null) {
       setState(() => _dobController.text = "${picked.day}/${picked.month}/${picked.year}");
     }

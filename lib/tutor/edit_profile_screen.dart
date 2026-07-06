@@ -192,29 +192,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  Future<void> _selectDate() async {
-    DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime(2000),
-      firstDate: DateTime(1950),
-      lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Colors.black,
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null) {
-      setState(() => _dobController.text = "${picked.day}/${picked.month}/${picked.year}");
-    }
-  }
+  // Future<void> _selectDate() async {
+  //   DateTime? picked = await showDatePicker(
+  //     context: context,
+  //     initialDate: DateTime(2000),
+  //     firstDate: DateTime(1950),
+  //     lastDate: DateTime.now(),
+  //     builder: (context, child) {
+  //       return Theme(
+  //         data: Theme.of(context).copyWith(
+  //           colorScheme: const ColorScheme.light(
+  //             primary: Colors.black,
+  //             onPrimary: Colors.white,
+  //             onSurface: Colors.black,
+  //           ),
+  //         ),
+  //         child: child!,
+  //       );
+  //     },
+  //   );
+  //   if (picked != null) {
+  //     setState(() => _dobController.text = "${picked.day}/${picked.month}/${picked.year}");
+  //   }
+  // }
 
   Future<void> _handleSave() async {
     String email = _emailController.text.trim();
@@ -472,16 +472,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  GestureDetector(
-                    onTap: _selectDate,
-                    child: AbsorbPointer(
-                      child: _buildTextField(
-                        hint: "Date of Birth",
-                        icon: Icons.calendar_today_outlined,
-                        controller: _dobController,
-                      ),
-                    ),
+                  _buildTextField(
+                    hint: "Date of Birth",
+                    icon: Icons.calendar_today_outlined,
+                    controller: _dobController,
+                    readOnly: true, // Make it read-only like email
                   ),
+
                   const SizedBox(height: 12),
 
                   _buildTextField(hint: "Area, City", icon: Icons.location_on_outlined, controller: _locationController),

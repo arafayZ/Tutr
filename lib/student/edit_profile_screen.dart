@@ -142,33 +142,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: selectedDate ?? DateTime(2000),
-      firstDate: DateTime(1950),
-      lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Colors.black,
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null) {
-      setState(() {
-        selectedDate = picked;
-        _dateController.text = "${picked.day} ${_getMonthName(picked.month)} ${picked.year}";
-      });
-    }
-  }
+  // Future<void> _selectDate(BuildContext context) async {
+  //   final DateTime? picked = await showDatePicker(
+  //     context: context,
+  //     initialDate: selectedDate ?? DateTime(2000),
+  //     firstDate: DateTime(1950),
+  //     lastDate: DateTime.now(),
+  //     builder: (context, child) {
+  //       return Theme(
+  //         data: Theme.of(context).copyWith(
+  //           colorScheme: const ColorScheme.light(
+  //             primary: Colors.black,
+  //             onPrimary: Colors.white,
+  //             onSurface: Colors.black,
+  //           ),
+  //         ),
+  //         child: child!,
+  //       );
+  //     },
+  //   );
+  //
+  //   if (picked != null) {
+  //     setState(() {
+  //       selectedDate = picked;
+  //       _dateController.text = "${picked.day} ${_getMonthName(picked.month)} ${picked.year}";
+  //     });
+  //   }
+  // }
 
   bool _isValidEmail(String email) {
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
@@ -372,15 +372,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       readOnly: true,
                     ),
 
-                    GestureDetector(
-                      onTap: () => _selectDate(context),
-                      child: AbsorbPointer(
-                        child: _customTextField(
-                            hint: "Date of Birth",
-                            controller: _dateController,
-                            icon: Icons.calendar_month_outlined
-                        ),
-                      ),
+                    _customTextField(
+                      hint: "Date of Birth",
+                      controller: _dateController,
+                      icon: Icons.calendar_month_outlined,
+                      readOnly: true, // Make it read-only like email
                     ),
 
                     _customTextField(

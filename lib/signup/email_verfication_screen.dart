@@ -33,7 +33,16 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   void initState() {
     super.initState();
     _startTimer();
-    _sendOtpOnInit();
+    // Show success message when screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Verification code sent to your email'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    });
   }
 
   @override
@@ -56,35 +65,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         }
       });
     });
-  }
-
-  void _sendOtpOnInit() async {
-    setState(() => _isLoading = true);
-    try {
-      await AuthService.sendOtp(widget.email);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Verification code sent to your email'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        String errorMsg = e.toString().replaceFirst('Exception: ', '');
-        _showErrorPopup(
-          title: "Failed to Send Code",
-          message: errorMsg,
-          icon: Icons.mail_outline,
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
   }
 
   void _resendOtp() async {
@@ -133,7 +113,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       _showErrorPopup(
         title: "Incomplete Code",
         message: "Please enter the complete 4-digit verification code.",
-        icon: Icons.looks_one,  // Changed from code_off
+        icon: Icons.looks_one,
       );
       return;
     }
@@ -257,54 +237,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                 "Try Again",
                 style: TextStyle(
                   color: Colors.red.shade700,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showResendPopup() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.email_outlined, color: Colors.blue, size: 50),
-            SizedBox(height: 16),
-            Text(
-              "Code Resent!",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0D1B3E),
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              "A new verification code has been sent to your email.",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-          ],
-        ),
-        actions: [
-          Center(
-            child: TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                "OK",
-                style: TextStyle(
-                  color: Colors.black,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),

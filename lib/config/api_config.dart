@@ -3,9 +3,7 @@ class ApiConfig {
   static const bool useRealApi = true;  // true = real backend, false = dummy data
   // ============ BASE URL ============
   // Change this when switching environments
-   static const String baseUrl = 'http://192.168.100.10:8080'; // Home IP
-  // static const String baseUrl = 'http://192.168.43.166:8080'; // Emaz IP
-   //static const String baseUrl = 'https://pulsatory-preeffectual-ila.ngrok-free.dev'; // ngrok
+   //static const String baseUrl = ; // ngrok
 
 
   // ============ AUTHENTICATION APIS ============

@@ -367,20 +367,20 @@ class _TopTutorsScreenState extends State<TopTutorsScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(Icons.location_on, size: 10, color: Colors.grey),
-                                const SizedBox(width: 2),
-                                Text(
-                                  tutor.location,
-                                  style: const TextStyle(
-                                    fontSize: 9,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
+                            // const SizedBox(height: 4),
+                            // Row(
+                            //   children: [
+                            //     const Icon(Icons.location_on, size: 10, color: Colors.grey),
+                            //     const SizedBox(width: 2),
+                            //     Text(
+                            //       tutor.location,
+                            //       style: const TextStyle(
+                            //         fontSize: 9,
+                            //         color: Colors.grey,
+                            //       ),
+                            //     ),
+                            //   ],
+                            // ),
                           ],
                         ),
                         const SizedBox(width: 8),

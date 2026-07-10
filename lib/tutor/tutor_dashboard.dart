@@ -57,6 +57,7 @@ class Course {
   final Color courseColor;
   final String? backgroundImage;
   final bool isAvailable;
+  final int rank;
 
   Course({
     required this.id,
@@ -69,6 +70,7 @@ class Course {
     required this.courseColor,
     this.backgroundImage,
     required this.isAvailable,
+    this.rank = 0,
   });
 }
 
@@ -180,22 +182,37 @@ class _TutorDashboardState extends State<TutorDashboard> with WidgetsBindingObse
       List<dynamic> courses = await CourseService.getTutorCourses(profileId);
 
       List<Course> availableCourses = [];
+
+      Map<int, int> rankMap = {};
+      if (dashboardData['topCourses'] != null) {
+        for (var topCourse in dashboardData['topCourses']) {
+          int courseId = topCourse['courseId'] ?? 0;
+          int rank = topCourse['rank'] ?? 999;
+          if (courseId > 0) {
+            rankMap[courseId] = rank;
+          }
+        }
+      }
+
       for (var course in courses) {
         if (course['isAvailable'] == true) {
+          int courseId = course['id'];
+          int rank = rankMap[courseId] ?? 999; // Get rank from map, default to 999
           availableCourses.add(Course(
-            id: course['id'],
+            id: courseId,
             tutorName: (profileData['firstName'] ?? '') + " " + (profileData['lastName'] ?? ''),
             subject: course['subject'] ?? '',
             grade: course['category'] ?? '',
             price: course['price'] != null ? "Rs ${course['price']}" : "Rs 0",
             rating: (course['averageRating'] ?? 0.0).toString(),
             mode: _formatMode(course['teachingMode']),
-            courseColor: CourseColors.getCourseColor(course['id']),
+            courseColor: CourseColors.getCourseColor(courseId),
             isAvailable: course['isAvailable'] ?? true,
+            rank: rank,
           ));
         }
       }
-
+      availableCourses.sort((a, b) => a.rank.compareTo(b.rank));
       int uniqueStudentsCount = await _getUniqueActiveStudentsCount();
 
       setState(() {

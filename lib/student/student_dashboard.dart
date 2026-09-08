@@ -7,6 +7,7 @@ import '../services/favorite_refresh_service.dart';
 import '../services/connection_refresh_service.dart';
 import '../services/dashboard_service.dart';
 import '../services/course_service.dart';
+import '../tutor/inbox_screen.dart';
 import '../widgets/student_bottom_nav.dart';
 import 'search_screen.dart';
 import 'connection_screen.dart';
@@ -358,7 +359,7 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
           children: [
             _buildHomeContent(),
             const ConnectionScreen(),
-            const InboxScreen(),
+            const StudentInboxScreen(),
             const FavouritesScreen(),
             const ProfileScreen(),
           ],

@@ -12,25 +12,25 @@ import '../utils/status_bar_config.dart';
 // --- COURSE COLORS (Same as dashboard) ---
 class CourseColors {
   static const List<Color> colors = [
-    Color(0xFF1A1A2E), // Dark Navy
-    Color(0xFF16213E), // Deep Navy
-    Color(0xFF0F3460), // Dark Blue
-    Color(0xFF8B1E3F), // Dark Crimson
-    Color(0xFF2C3E50), // Dark Slate
-    Color(0xFF1B4F72), // Deep Teal
-    Color(0xFF145A32), // Dark Green
-    Color(0xFF7B2C3E), // Deep Maroon
-    Color(0xFF4A235A), // Dark Violet
-    Color(0xFF1C2833), // Almost Black Blue
-    Color(0xFF6E2C00), // Dark Orange-Brown
-    Color(0xFF0B5345), // Dark Cyan-Green
-    Color(0xFF424949), // Dark Gray
-    Color(0xFF5D4037), // Dark Brown
-    Color(0xFF283747), // Dark Steel Blue
-    Color(0xFF7E5109), // Dark Gold
-    Color(0xFF4A4A4A), // Dark Gray
-    Color(0xFF3E2723), // Very Dark Brown
-    Color(0xFF1A237E), // Deep Indigo
+    Color(0xFF1A1A2E),
+    Color(0xFF16213E),
+    Color(0xFF0F3460),
+    Color(0xFF8B1E3F),
+    Color(0xFF2C3E50),
+    Color(0xFF1B4F72),
+    Color(0xFF145A32),
+    Color(0xFF7B2C3E),
+    Color(0xFF4A235A),
+    Color(0xFF1C2833),
+    Color(0xFF6E2C00),
+    Color(0xFF0B5345),
+    Color(0xFF424949),
+    Color(0xFF5D4037),
+    Color(0xFF283747),
+    Color(0xFF7E5109),
+    Color(0xFF4A4A4A),
+    Color(0xFF3E2723),
+    Color(0xFF1A237E),
   ];
 
   static Color getCourseColor(int courseId) {
@@ -41,6 +41,7 @@ class CourseColors {
 class BidDetailsScreen extends StatefulWidget {
   final int courseId;
   final String studentName;
+  final int studentId;
   final bool isRequest;
   final VoidCallback? onRefresh;
 
@@ -48,6 +49,7 @@ class BidDetailsScreen extends StatefulWidget {
     super.key,
     required this.courseId,
     required this.studentName,
+    required this.studentId,
     required this.isRequest,
     this.onRefresh,
   });
@@ -111,27 +113,33 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
     setState(() => _isFetching = true);
 
     try {
-      final response = await ConnectionService.getTutorBidForCourse(_tutorId, widget.courseId);
+      final response = await ConnectionService.getTutorBidForCourseAndStudent(
+          _tutorId, widget.courseId, widget.studentId);
 
       if (response.isNotEmpty) {
         setState(() {
           _bidData = response;
-
-          _connectionId = _convertToInt(_bidData?['connectionId']);
-          _courseId = _bidData?['courseId'] ?? widget.courseId;
-          _studentId = _bidData?['studentId']?.toInt();
-          _studentName = _bidData?['studentName'] ?? widget.studentName;
-          _studentImage = _bidData?['studentImage']?.toString();
-          _courseName = _bidData?['subject'] ?? 'Course';
-          _originalPrice = _convertToInt(_bidData?['originalPrice']);
-          _studentOffer = _convertToInt(_bidData?['studentBidPrice']);
-          _tutorOffer = _convertToInt(_bidData?['tutorOffer']);
-          _status = _bidData?['status'] ?? 'NEGOTIATING';
-
-          _courseCategory = _bidData?['category'] ?? 'General';
-          _courseRating = _bidData?['averageRating']?.toDouble() ?? 0.0;
-          _courseTeachingMode = _bidData?['teachingMode'] ?? 'ONLINE';
-
+          _studentId = widget.studentId;
+          _studentName = widget.studentName;
+          _studentImage = response['studentImage']?.toString() ?? '';
+          _connectionId = _convertToInt(response['connectionId']);
+          _courseId = response['courseId'] ?? widget.courseId;
+          _courseName = response['subject']?.toString() ?? 'Course';
+          _originalPrice = _convertToInt(response['originalPrice']);
+          _studentOffer = _convertToInt(
+              response['studentBidPrice'] ??
+                  response['studentCounterOffer'] ??
+                  0
+          );
+          _tutorOffer = _convertToInt(
+              response['tutorOffer'] ??
+                  response['tutorCounterOffer'] ??
+                  0
+          );
+          _status = response['status']?.toString() ?? 'NEGOTIATING';
+          _courseCategory = response['category']?.toString() ?? 'General';
+          _courseRating = response['averageRating']?.toDouble() ?? 0.0;
+          _courseTeachingMode = response['teachingMode']?.toString() ?? 'ONLINE';
           _isFetching = false;
           _isRefreshing = false;
         });
@@ -140,7 +148,7 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
           _isFetching = false;
           _isRefreshing = false;
         });
-        _showErrorDialog('No bid found for this course');
+        _showErrorDialog('No bid found for this student');
       }
     } catch (e) {
       setState(() {
@@ -476,7 +484,6 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Blue Box showing Original Price - FIXED OVERFLOW
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -502,8 +509,6 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-
-                  // Offer Range Info Box
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                     decoration: BoxDecoration(
@@ -540,8 +545,6 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-
-                  // Enter Your Offer Field
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -608,8 +611,6 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-
-                  // Buttons
                   Row(
                     children: [
                       Expanded(
@@ -690,7 +691,6 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
             SliverToBoxAdapter(
               child: Column(
                 children: [
-                  // Header
                   Container(
                     decoration: const BoxDecoration(
                       color: Colors.white,
@@ -749,7 +749,6 @@ class _BidDetailsScreenState extends State<BidDetailsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Course Card
                         InkWell(
                           onTap: () async {
                             final result = await Navigator.push(

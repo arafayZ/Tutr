@@ -82,7 +82,6 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Set status bar to black with white text
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.black,
@@ -95,7 +94,6 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
 
   @override
   void dispose() {
-    // DO NOT reset status bar here - let the dashboard handle it
     super.dispose();
   }
 
@@ -123,6 +121,8 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
           'courseName': conn['courseName'] ?? conn['subject'] ?? 'Course',
           'agreedPrice': conn['agreedPrice'] ?? 0,
           'originalPrice': conn['originalPrice'] ?? 0,
+          'connectionId': conn['connectionId'], // ✅ Add connectionId
+          'studentUserId': conn['studentUserId'], // ✅ Add studentUserId
         });
         courseIndex++;
       }
@@ -219,6 +219,35 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
     return '${ApiConfig.baseUrl}$imageUrl';
   }
 
+  // ✅ NEW: Open chat with proper parameters
+  void _openChat() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int tutorId = prefs.getInt('profileId') ?? 0;
+    int tutorUserId = prefs.getInt('userId') ?? 0;
+
+    // Get student info
+    String studentId = widget.student.id;
+    int studentUserId = _studentData?['studentUserId'] ?? 0;
+    String displayName = _studentData?['studentName'] as String? ?? widget.student.name;
+    String displayImage = _studentData?['studentImage'] as String? ?? widget.student.profilePic;
+    int connectionId = int.parse(widget.student.connectionId);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TutorChatDetailsScreen(
+          userName: displayName,
+          userImage: displayImage,
+          studentId: int.tryParse(studentId) ?? 0,
+          studentUserId: studentUserId,
+          tutorId: tutorId,
+          tutorUserId: tutorUserId,
+          connectionId: connectionId,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isFetching) {
@@ -312,15 +341,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                                   GestureDetector(
                                     onTap: () {
                                       setState(() => activeBtn = "message");
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => ChatDetailsScreen(
-                                            userName: displayName,
-                                            userImage: displayImage, // Pass the image
-                                          ),
-                                        ),
-                                      );
+                                      _openChat(); // ✅ Use the new method
                                     },
                                     child: _buildAdaptiveButton(label: "Message", id: "message"),
                                   ),

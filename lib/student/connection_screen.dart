@@ -668,7 +668,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> with WidgetsBinding
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => ChatDetailsScreen(
+                                  builder: (context) => StudentChatDetailsScreen(
                                     userName: tutor['name'],
                                     tutorId: tutor['tutorId'],
                                     studentId: tutor['studentId'],

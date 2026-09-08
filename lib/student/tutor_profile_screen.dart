@@ -58,7 +58,9 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
   List<Map<String, dynamic>> filteredCourses = [];
   bool _isLoading = true;
   int _studentId = 0;
+  int _studentUserId = 0;
   int _tutorId = 0;
+  int _tutorUserId = 0;
   bool _isTutorBlocked = false;
 
   // Tutor Profile Data
@@ -93,8 +95,14 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       _studentId = prefs.getInt('profileId') ?? 0;
+      _studentUserId = prefs.getInt('userId') ?? 0;
       _tutorId = widget.tutorData['id'] ?? widget.tutorData['tutorId'] ?? 0;
+      // ✅ Don't set _tutorUserId here - it will come from API response
     });
+
+    print('🔍 Student: ID=$_studentId, UserID=$_studentUserId');
+    print('🔍 Tutor: ID=$_tutorId');
+
     await Future.wait([
       _loadTutorProfile(),
       _checkBlockedStatus(),
@@ -151,6 +159,11 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
     _totalStudents = profile['totalStudents'] ?? 0;
     _totalRatings = profile['totalRatings'] ?? 0;
     _averageRating = profile['averageRating']?.toDouble() ?? 0.0;
+
+    // ✅ Get tutor user ID from API response
+    _tutorUserId = profile['tutorUserId'] ?? 0;
+
+    print('🔍 Tutor User ID from API: $_tutorUserId');
 
     final List<dynamic> courses = profile['courses'] ?? [];
     allCourses = _transformCoursesResponse(courses);
@@ -470,7 +483,7 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
             return Dialog(
               backgroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              child: SingleChildScrollView(  // ✅ Add this wrapper
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -588,7 +601,7 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
         studentId: _studentId,
         tutorId: _tutorId,
         reason: selectedReportReason ?? 'Other',
-        description: description, // Pass description to backend
+        description: description,
       );
       if (mounted) {
         setState(() => _isSubmittingReport = false);
@@ -703,19 +716,36 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
     return dob;
   }
 
+  // ✅ Navigate to chat with correct tutorUserId from API
   void _navigateToChat() {
     if (_isTutorBlocked) {
       _showErrorDialog("You have blocked this tutor. Unblock them to send messages.");
       return;
     }
 
+    // ✅ Check if we have the required IDs
+    if (_tutorId == 0 || _studentId == 0 || _tutorUserId == 0) {
+      _showErrorDialog("Unable to open chat. Please try again.");
+      return;
+    }
+
+    print('🔍 Navigating to chat:');
+    print('   Tutor: $_tutorName');
+    print('   Tutor ID: $_tutorId');
+    print('   Tutor User ID: $_tutorUserId');  // ✅ Now from API
+    print('   Student ID: $_studentId');
+    print('   Student User ID: $_studentUserId');
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ChatDetailsScreen(
+        builder: (context) => StudentChatDetailsScreen(
           userName: _tutorName,
+          userImage: _tutorImage.isNotEmpty ? _tutorImage : null,
           tutorId: _tutorId,
+          tutorUserId: _tutorUserId,  // ✅ From API
           studentId: _studentId,
+          studentUserId: _studentUserId,
         ),
       ),
     );

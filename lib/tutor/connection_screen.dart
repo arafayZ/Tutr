@@ -66,6 +66,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
           // New student, create entry with courses list
           groupedStudents[studentId] = {
             'studentId': studentId,
+            'studentUserId': conn['studentUserId'],
             'name': conn['studentName'] ?? 'Unknown Student',
             'studentImage': conn['studentImage'],
             'location': conn['location'],
@@ -443,11 +444,32 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     return SizedBox(
       height: 32,
       child: ElevatedButton(
-        onPressed: () {
+        onPressed: () async {
           if (label == "Disconnect") {
             _disconnectStudent(name, courses);
           } else if (label == "Message") {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => ChatDetailsScreen(userName: name, userImage: person['studentImage']?.toString() ?? '',)));
+            // ✅ Only get userId for chat
+            SharedPreferences prefs = await SharedPreferences.getInstance();
+            int tutorId = prefs.getInt('profileId') ?? 0;
+            int tutorUserId = prefs.getInt('userId') ?? 0;  // ✅ Get userId
+
+            // Use first connection
+            int connectionId = courses[0]['connectionId'];
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TutorChatDetailsScreen(
+                  userName: name,
+                  userImage: person['studentImage']?.toString() ?? '',
+                  studentId: int.tryParse(person['studentId']?.toString() ?? '0') ?? 0,
+                  studentUserId: person['studentUserId'] ?? 0,  // ✅ Pass userId
+                  tutorId: tutorId,
+                  tutorUserId: tutorUserId,  // ✅ Pass userId
+                  connectionId: connectionId,
+                ),
+              ),
+            );
           }
         },
         style: ElevatedButton.styleFrom(

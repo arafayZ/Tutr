@@ -1,74 +1,123 @@
+// lib/student/inbox_screen.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/chat_service.dart';
+import '../models/chat_models.dart';
+import '../config/api_config.dart';
 import 'chat_details_screen.dart';
 
-class InboxScreen extends StatefulWidget {
-  const InboxScreen({super.key});
+class StudentInboxScreen extends StatefulWidget {
+  const StudentInboxScreen({super.key});
 
   @override
-  State<InboxScreen> createState() => _InboxScreenState();
+  State<StudentInboxScreen> createState() => _StudentInboxScreenState();
 }
 
-class _InboxScreenState extends State<InboxScreen> {
-  // Original messages list with tutorId and studentId
-  final List<Map<String, dynamic>> _allMessages = [
-    {"name": "Bilal Raza", "msg": "Hi, Good Evening Bro.!", "time": "14:59", "count": "03", "tutorId": 1, "studentId": 101},
-    {"name": "Fatima Iqbal", "msg": "I Just Finished It.!", "time": "06:35", "count": "02", "tutorId": 2, "studentId": 101},
-    {"name": "Hassan Javed", "msg": "How are you?", "time": "08:10", "count": "", "tutorId": 3, "studentId": 101},
-    {"name": "Ali Khan", "msg": "OMG, This is Amazing..", "time": "21:07", "count": "05", "tutorId": 4, "studentId": 101},
-    {"name": "Ahmed Malik", "msg": "Wow, This is Really Epic", "time": "09:15", "count": "", "tutorId": 5, "studentId": 101},
-    {"name": "Bilal Ahmed", "msg": "Hi, Good Evening Bro.!", "time": "14:59", "count": "03", "tutorId": 6, "studentId": 101},
-  ];
-
-  // Filtered messages list for display
-  List<Map<String, dynamic>> _filteredMessages = [];
-
-  // Search controller
+class _StudentInboxScreenState extends State<StudentInboxScreen> {
+  List<ChatRoom> _chatRooms = [];
+  List<ChatRoom> _filteredRooms = [];
   final TextEditingController _searchController = TextEditingController();
-
-  // Search query
-  String _searchQuery = "";
-
-  int _studentId = 0;
+  bool _isLoading = true;
+  int _userId = 0;
+  int _totalUnreadCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadStudentId();
+    _loadUserId();
   }
 
-  Future<void> _loadStudentId() async {
+  Future<void> _loadUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    print('🔍 All SharedPreferences values:');
+    print('   userId: ${prefs.getInt('userId')}');
+    print('   profileId: ${prefs.getInt('profileId')}');
+    print('   userRole: ${prefs.getString('userRole')}');
+
     setState(() {
-      _studentId = prefs.getInt('profileId') ?? 0;
-      // Update studentId in all messages
-      for (var message in _allMessages) {
-        message['studentId'] = _studentId;
+      _userId = prefs.getInt('userId') ?? 0;
+      if (_userId == 0) {
+        _userId = prefs.getInt('profileId') ?? 0;
       }
-      _filteredMessages = List.from(_allMessages);
     });
+
+    print('🔍 Student _userId: $_userId');
+    await _loadChatRooms();
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  Future<void> _loadChatRooms() async {
+    setState(() => _isLoading = true);
+    try {
+      print('📡 Fetching chat rooms for student userId: $_userId');
+
+      final rooms = await ChatService.getUserChatRooms(_userId);
+
+      print('📊 Loaded ${rooms.length} chat rooms');
+      for (var room in rooms) {
+        print('   Room: id=${room.id}, tutor=${room.tutorName}, unread=${room.unreadCount}');
+      }
+
+      final totalUnread = await ChatService.getUnreadCount(_userId);
+      print('📊 Total unread: $totalUnread');
+
+      setState(() {
+        _chatRooms = rooms;
+        _filteredRooms = List.from(rooms);
+        _totalUnreadCount = totalUnread;
+        _isLoading = false;
+      });
+
+      if (rooms.isEmpty) {
+        print('⚠️ No chat rooms found for student $_userId');
+      }
+
+    } catch (e) {
+      print('❌ Error loading chat rooms: $e');
+      setState(() => _isLoading = false);
+    }
   }
 
-  void _filterMessages(String query) {
+  void _filterRooms(String query) {
     setState(() {
-      _searchQuery = query.toLowerCase();
-
-      if (_searchQuery.isEmpty) {
-        _filteredMessages = List.from(_allMessages);
+      if (query.isEmpty) {
+        _filteredRooms = List.from(_chatRooms);
       } else {
-        _filteredMessages = _allMessages.where((message) {
-          final name = message["name"].toString().toLowerCase();
-          final msg = message["msg"].toString().toLowerCase();
-          return name.contains(_searchQuery) || msg.contains(_searchQuery);
+        _filteredRooms = _chatRooms.where((room) {
+          final name = room.tutorName.toLowerCase();
+          final course = room.courseName.toLowerCase();
+          final lastMsg = room.lastMessage?.toLowerCase() ?? '';
+          return name.contains(query.toLowerCase()) ||
+              course.contains(query.toLowerCase()) ||
+              lastMsg.contains(query.toLowerCase());
         }).toList();
       }
     });
+  }
+
+  String _formatTime(DateTime time) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final date = DateTime(time.year, time.month, time.day);
+    final diff = today.difference(date).inDays;
+
+    int hour = time.hour;
+    final minute = time.minute;
+    final amPm = hour >= 12 ? 'PM' : 'AM';
+    int hour12 = hour % 12;
+    if (hour12 == 0) hour12 = 12;
+    final timeStr = "$hour12:${minute.toString().padLeft(2, '0')} $amPm";
+
+    if (diff == 0) {
+      return timeStr;
+    } else if (diff == 1) {
+      return "Yesterday";
+    } else if (diff < 7) {
+      final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return weekdays[time.weekday - 1];
+    } else {
+      return "${date.day}/${date.month}/${date.year}";
+    }
   }
 
   @override
@@ -81,101 +130,15 @@ class _InboxScreenState extends State<InboxScreen> {
         bottom: false,
         child: Column(
           children: [
-            // Header
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 25),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 15,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: const Center(
-                child: Text(
-                  "Inbox",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-            ),
-
-            // Search Bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 25, 20, 10),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    )
-                  ],
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: _filterMessages,
-                  cursorColor: Colors.black,
-                  decoration: const InputDecoration(
-                    hintText: "Search Message",
-                    prefixIcon: Icon(Icons.search, color: Colors.black),
-                    suffixIcon: Icon(Icons.filter_list, color: Colors.black),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(vertical: 15),
-                  ),
-                ),
-              ),
-            ),
-
-            // Search Result Bar (shows when searching)
-            if (_searchQuery.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 5),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(color: Colors.black87, fontSize: 14),
-                        children: [
-                          const TextSpan(text: "Results for \""),
-                          TextSpan(
-                            text: _searchQuery,
-                            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
-                          ),
-                          const TextSpan(text: "\""),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      "${_filteredMessages.length} found",
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            // Messages List
+            _buildHeader(),
+            _buildSearchBar(),
+            if (_searchController.text.isNotEmpty) _buildResultBar(),
             Expanded(
-              child: Container(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: Colors.black))
+                  : _filteredRooms.isEmpty
+                  ? _buildEmptyState()
+                  : Container(
                 margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                 decoration: const BoxDecoration(
                   color: Colors.white,
@@ -189,61 +152,46 @@ class _InboxScreenState extends State<InboxScreen> {
                     topLeft: Radius.circular(25),
                     topRight: Radius.circular(25),
                   ),
-                  child: _filteredMessages.isEmpty
-                      ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.search_off,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          "No messages found",
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          "Try a different search term",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                      : ListView.separated(
+                  child: ListView.separated(
                     physics: const BouncingScrollPhysics(),
-                    shrinkWrap: false,
                     padding: EdgeInsets.fromLTRB(0, 10, 0, bottomPadding + 80),
-                    itemCount: _filteredMessages.length,
+                    itemCount: _filteredRooms.length,
                     separatorBuilder: (context, index) => const Divider(
                       height: 1,
                       indent: 80,
                       color: Color(0xFFF1F1F1),
                     ),
                     itemBuilder: (context, index) {
-                      final chat = _filteredMessages[index];
+                      final room = _filteredRooms[index];
                       return InkWell(
-                        onTap: () {
-                          Navigator.push(
+                        onTap: () async {
+                          await ChatService.markAllAsRead(room.id, _userId);
+
+                          print('🔍 Opening chat with tutor: ${room.tutorName}');
+                          print('   tutorId: ${room.tutorId}');
+                          print('   tutorUserId: ${room.tutorUserId}');
+                          print('   studentId: $_userId');
+                          print('   studentUserId: ${room.studentUserId}');
+
+                          await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ChatDetailsScreen(
-                                userName: chat["name"],
-                                tutorId: chat["tutorId"],
-                                studentId: chat["studentId"],
+                              builder: (context) => StudentChatDetailsScreen(
+                                userName: room.tutorName,
+                                userImage: room.tutorImage,
+                                tutorId: room.tutorId,
+                                tutorUserId: room.tutorUserId ?? room.tutorId,
+                                studentId: _userId,
+                                studentUserId: room.studentUserId ?? _userId,
+                                chatRoomId: room.id,
+                                connectionId: room.connectionId,
                               ),
                             ),
                           );
+
+                          await _loadChatRooms();
                         },
-                        child: _buildChatItem(chat),
+                        child: _buildChatItem(room),
                       );
                     },
                   ),
@@ -256,53 +204,199 @@ class _InboxScreenState extends State<InboxScreen> {
     );
   }
 
-  Widget _buildChatItem(Map<String, dynamic> chat) {
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 25),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: const Center(
+        child: Text(
+          "Inbox",
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: TextField(
+          controller: _searchController,
+          onChanged: _filterRooms,
+          cursorColor: Colors.black,
+          decoration: InputDecoration(
+            hintText: "Search Tutors...",
+            prefixIcon: const Icon(Icons.search, color: Colors.black),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+              icon: const Icon(Icons.clear, color: Colors.grey),
+              onPressed: () {
+                _searchController.clear();
+                _filterRooms("");
+              },
+            )
+                : null,
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 15),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResultBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(color: Colors.black87, fontSize: 14),
+              children: [
+                const TextSpan(text: "Results for \""),
+                TextSpan(
+                  text: _searchController.text,
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
+                ),
+                const TextSpan(text: "\""),
+              ],
+            ),
+          ),
+          Text(
+            "${_filteredRooms.length} found",
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.chat_bubble_outline,
+            size: 64,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "No messages yet",
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Chat with tutors after connecting",
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[500],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChatItem(ChatRoom room) {
+    final image = room.tutorImage;
+    final name = room.tutorName;
+    final unreadCount = room.unreadCount ?? 0;
+
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-      leading: const CircleAvatar(
+      leading: CircleAvatar(
         radius: 28,
         backgroundColor: Colors.black,
-        child: Icon(Icons.person, color: Colors.white, size: 30),
+        backgroundImage: image != null && image.isNotEmpty
+            ? NetworkImage('${ApiConfig.baseUrl}$image')
+            : null,
+        child: image == null || image.isEmpty
+            ? const Icon(Icons.person, color: Colors.white, size: 30)
+            : null,
       ),
       title: Text(
-        chat["name"],
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        name,
+        style: TextStyle(
+          fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.w600,
+          fontSize: 16,
+        ),
       ),
       subtitle: Text(
-        chat["msg"],
+        room.lastMessage ?? "No messages yet",
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: Colors.grey.shade600),
+        style: TextStyle(
+          color: unreadCount > 0 ? Colors.black87 : Colors.grey.shade600,
+          fontWeight: unreadCount > 0 ? FontWeight.w600 : FontWeight.normal,
+        ),
       ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (chat["count"] != "")
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(
-                color: Color(0xFF2979FF),
-                shape: BoxShape.circle,
-              ),
-              child: Text(
-                chat["count"],
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold
-                ),
+          if (room.lastMessageAt != null)
+            Text(
+              _formatTime(room.lastMessageAt!),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.black54,
               ),
             ),
           const SizedBox(height: 4),
-          Text(
-            chat["time"],
-            style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.black54
+          if (unreadCount > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2979FF),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                unreadCount > 99 ? '99+' : unreadCount.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );

@@ -390,7 +390,7 @@ class _BidListTile extends StatelessWidget {
     final String courseName = item['courseName']?.toString() ?? 'Course';
     final String? studentImage = item['studentImage']?.toString();
 
-    final int price = _getPriceValue();
+    final int price = _getStudentOfferPrice();  // ✅ Changed to always show student offer
     final String status = item['status']?.toString() ?? 'PENDING';
 
     return Container(
@@ -473,6 +473,7 @@ class _BidListTile extends StatelessWidget {
                   builder: (context) => BidDetailsScreen(
                     courseId: item['courseId'] ?? 0,
                     studentName: item['studentName'] ?? 'Student',
+                    studentId: item['studentId'] ?? 0,
                     isRequest: isRequest,
                   ),
                 ),
@@ -492,29 +493,27 @@ class _BidListTile extends StatelessWidget {
     );
   }
 
-  int _getPriceValue() {
-    if (isRequest) {
-      var studentOffer = item['studentBidPrice'];
-      var origPrice = item['originalPrice'];
+  //  Always return student offer price
+  int _getStudentOfferPrice() {
+    var studentOffer = item['studentBidPrice'];
+    var studentCounterOffer = item['studentCounterOffer'];
+    var origPrice = item['originalPrice'];
 
-      if (studentOffer != null && studentOffer > 0) {
-        return studentOffer is double ? studentOffer.toInt() : (studentOffer as int);
-      } else if (origPrice != null && origPrice > 0) {
-        return origPrice is double ? origPrice.toInt() : (origPrice as int);
-      }
-    } else {
-      var tutorOffer = item['tutorCounterOffer'];
-      var studentOffer = item['studentBidPrice'];
-      var origPrice = item['originalPrice'];
-
-      if (tutorOffer != null && tutorOffer > 0) {
-        return tutorOffer is double ? tutorOffer.toInt() : (tutorOffer as int);
-      } else if (studentOffer != null && studentOffer > 0) {
-        return studentOffer is double ? studentOffer.toInt() : (studentOffer as int);
-      } else if (origPrice != null && origPrice > 0) {
-        return origPrice is double ? origPrice.toInt() : (origPrice as int);
-      }
+    // Try studentBidPrice first
+    if (studentOffer != null && studentOffer > 0) {
+      return studentOffer is double ? studentOffer.toInt() : (studentOffer as int);
     }
+
+    // Try studentCounterOffer next
+    if (studentCounterOffer != null && studentCounterOffer > 0) {
+      return studentCounterOffer is double ? studentCounterOffer.toInt() : (studentCounterOffer as int);
+    }
+
+    // Fallback to original price
+    if (origPrice != null && origPrice > 0) {
+      return origPrice is double ? origPrice.toInt() : (origPrice as int);
+    }
+
     return 0;
   }
 

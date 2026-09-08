@@ -1,0 +1,162 @@
+// lib/services/chat_service.dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../config/api_config.dart';
+import '../models/chat_models.dart';
+
+class ChatService {
+  static Future<Map<String, String>> _getHeaders() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('auth_token');
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+
+  // In chat_service.dart
+  static Future<ChatRoom> getOrCreateChatRoom(int connectionId, int userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.getChatRoom}/$connectionId?userId=$userId'),
+        headers: await _getHeaders(),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return ChatRoom.fromJson(data);
+      } else {
+        throw Exception('Failed to get chat room');
+      }
+    } catch (e) {
+      throw Exception('Error: ${e.toString().replaceFirst('Exception: ', '')}');
+    }
+  }
+
+  static Future<List<ChatRoom>> getUserChatRooms(int userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.getUserChatRooms}/$userId'),
+        headers: await _getHeaders(),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((json) => ChatRoom.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to get chat rooms');
+      }
+    } catch (e) {
+      throw Exception('Error: ${e.toString().replaceFirst('Exception: ', '')}');
+    }
+  }
+
+  static Future<Message> sendMessage(SendMessageRequest request) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.sendMessage}'),
+        headers: await _getHeaders(),
+        body: json.encode(request.toJson()),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return Message.fromJson(data);
+      } else {
+        throw Exception('Failed to send message');
+      }
+    } catch (e) {
+      throw Exception('Error: ${e.toString().replaceFirst('Exception: ', '')}');
+    }
+  }
+
+  // In chat_service.dart
+  static Future<List<Message>> getMessages(int roomId, int userId, {int page = 0, int size = 50}) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.getMessages}/$roomId?userId=$userId&page=$page&size=$size'),
+        headers: await _getHeaders(),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((json) => Message.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to get messages');
+      }
+    } catch (e) {
+      throw Exception('Error: ${e.toString().replaceFirst('Exception: ', '')}');
+    }
+  }
+
+  static Future<void> markAllAsRead(int roomId, int userId) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.markAsRead}/$roomId/read-all?userId=$userId'),
+        headers: await _getHeaders(),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to mark as read');
+      }
+    } catch (e) {
+      throw Exception('Error: ${e.toString().replaceFirst('Exception: ', '')}');
+    }
+  }
+
+  static Future<int> getUnreadCount(int userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.getUnreadCount}/$userId'),
+        headers: await _getHeaders(),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['unreadCount'] ?? 0;
+      } else {
+        throw Exception('Failed to get unread count');
+      }
+    } catch (e) {
+      throw Exception('Error: ${e.toString().replaceFirst('Exception: ', '')}');
+    }
+  }
+
+  // In chat_service.dart
+  static Future<void> deleteMessage(int messageId, int userId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.deleteMessage}/$messageId?userId=$userId'),
+        headers: await _getHeaders(),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        // Success
+        return;
+      } else {
+        throw Exception('Failed to delete message');
+      }
+    } catch (e) {
+      throw Exception('Error: ${e.toString().replaceFirst('Exception: ', '')}');
+    }
+  }
+
+  static Future<bool> isChatAvailable(int connectionId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.checkChatAvailable}/$connectionId'),
+        headers: await _getHeaders(),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['isAvailable'] ?? false;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      return false;
+    }
+  }
+}

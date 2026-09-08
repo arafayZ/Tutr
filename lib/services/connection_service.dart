@@ -247,6 +247,35 @@ class ConnectionService {
     }
   }
 
+  static Future<Map<String, dynamic>> getTutorBidForCourseAndStudent(
+      int tutorId, int courseId, int studentId) async {
+    if (useRealApi) {
+      try {
+        final response = await http.get(
+          Uri.parse('${ApiConfig.getFullUrl(ApiConfig.getTutorBidForStudent)}/$tutorId/course/$courseId/student/$studentId/bid'),
+          headers: {'Content-Type': 'application/json'},
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          // If response is empty list or null, return empty map
+          if (data is List && data.isEmpty) {
+            return {};
+          }
+          return data;
+        } else {
+          final errorData = response.body.isNotEmpty ? json.decode(response.body) : {};
+          throw Exception(_cleanErrorMessage(errorData['error'] ?? 'Failed to fetch bid'));
+        }
+      } catch (e) {
+        throw Exception(_cleanErrorMessage(e.toString()));
+      }
+    } else {
+      await Future.delayed(const Duration(seconds: 1));
+      return {};
+    }
+  }
+
 
 
   static Future<Map<String, dynamic>> tutorRespond(

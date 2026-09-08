@@ -111,7 +111,7 @@ class TutrApp extends StatelessWidget {
           return TutorVerificationScreen(userId: args?['userId'] ?? 0);
         },
         '/profile': (context) => const ProfileScreen(),
-        '/inbox': (context) => const InboxScreen(),
+        '/inbox': (context) => const TutorInboxScreen(),
         '/profile_creation': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
           return ProfileCreationScreen(
@@ -127,7 +127,7 @@ class TutrApp extends StatelessWidget {
           return EditProfileScreen(profileId: args['profileId']);
         },
         '/terms_conditions': (context) => const TermsConditionsScreen(),
-        '/chat_details': (context) => const ChatDetailsScreen(userName: 'User'),
+        '/chat_details': (context) => const TutorChatDetailsScreen(userName: 'User'),
         '/security': (context) => const SecurityScreen(),
         '/unavailable_courses': (context) => const UnavailableCoursesScreen(),
         '/notifications': (context) => const NotificationsScreen(),

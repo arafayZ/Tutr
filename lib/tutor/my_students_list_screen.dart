@@ -129,6 +129,28 @@ class _MyStudentsListScreenState extends State<MyStudentsListScreen> {
     );
   }
 
+  // ✅ NEW: Open chat with proper parameters
+  void _openChat(String studentName, String studentImage, int connectionId, String studentId, int studentUserId) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int tutorId = prefs.getInt('profileId') ?? 0;
+    int tutorUserId = prefs.getInt('userId') ?? 0;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TutorChatDetailsScreen(
+          userName: studentName,
+          userImage: studentImage,
+          studentId: int.tryParse(studentId) ?? 0,
+          studentUserId: studentUserId,
+          tutorId: tutorId,
+          tutorUserId: tutorUserId,
+          connectionId: connectionId,
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -269,6 +291,7 @@ class _MyStudentsListScreenState extends State<MyStudentsListScreen> {
     final int connectionId = student['connectionId'] ?? 0;
     final String? studentImage = student['studentImage']?.toString();
     final String studentId = student['studentId']?.toString() ?? "";
+    final int studentUserId = student['studentUserId'] ?? 0; // ✅ Get studentUserId
     final String location = student['location']?.toString() ?? "Not specified";
     final String phone = student['phoneNumber']?.toString() ?? "Not available";
     final String gender = student['gender']?.toString() ?? "Not specified";
@@ -340,6 +363,9 @@ class _MyStudentsListScreenState extends State<MyStudentsListScreen> {
 
   Future<void> _showStudentDetailsPopup(BuildContext context, Map<String, dynamic> student, int connectionId) async {
     final String name = student['studentName']?.toString() ?? "Unknown Student";
+    final String studentId = student['studentId']?.toString() ?? "";
+    final int studentUserId = student['studentUserId'] ?? 0; // ✅ Get studentUserId
+    final String? studentImage = student['studentImage']?.toString();
 
     // Show loading indicator
     showDialog(
@@ -381,7 +407,7 @@ class _MyStudentsListScreenState extends State<MyStudentsListScreen> {
       final String location = studentDetail['location']?.toString() ?? "Not specified";
       final String phone = studentDetail['phoneNumber']?.toString() ?? "Not available";
       final String gender = studentDetail['gender']?.toString() ?? "Not specified";
-      final String? studentImage = studentDetail['studentImage']?.toString();
+      final String? image = studentDetail['studentImage']?.toString() ?? studentImage;
 
       // Handle double to int conversion for prices
       final int agreedPrice = (studentDetail['agreedPrice'] is double)
@@ -413,10 +439,10 @@ class _MyStudentsListScreenState extends State<MyStudentsListScreen> {
                       CircleAvatar(
                         radius: 35,
                         backgroundColor: Colors.grey.shade300,
-                        backgroundImage: studentImage != null && studentImage.isNotEmpty
-                            ? NetworkImage('${ApiConfig.baseUrl}$studentImage')
+                        backgroundImage: image != null && image.isNotEmpty
+                            ? NetworkImage('${ApiConfig.baseUrl}$image')
                             : null,
-                        child: studentImage == null || studentImage.isEmpty
+                        child: image == null || image.isEmpty
                             ? const Icon(Icons.person, color: Colors.grey, size: 30)
                             : null,
                       ),
@@ -473,7 +499,8 @@ class _MyStudentsListScreenState extends State<MyStudentsListScreen> {
                         child: ElevatedButton(
                           onPressed: () {
                             Navigator.pop(context);
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => ChatDetailsScreen(userName: fullName,userImage: studentImage ?? '',)));
+                            // ✅ Use _openChat with all parameters
+                            _openChat(fullName, image ?? '', connectionId, studentId, studentUserId);
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.black,
@@ -499,6 +526,7 @@ class _MyStudentsListScreenState extends State<MyStudentsListScreen> {
       _showErrorDialog("Failed to load student details: ${e.toString().replaceFirst('Exception: ', '')}");
     }
   }
+
   Widget _buildInfoRow(IconData icon, String text) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),

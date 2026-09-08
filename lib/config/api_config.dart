@@ -3,7 +3,9 @@ class ApiConfig {
   static const bool useRealApi = true;  // true = real backend, false = dummy data
   // ============ BASE URL ============
   // Change this when switching environments
-   //static const String baseUrl = ; // ngrok
+  static const String baseUrl = 'http://192.168.100.10:8080'; // Home IP
+  //static const String baseUrl = 'http://192.168.43.166:8080'; // Emaz IP
+  // static const String baseUrl = 'https://pulsatory-preeffectual-ila.ngrok-free.dev'; // ngrok
 
 
   // ============ AUTHENTICATION APIS ============
@@ -98,6 +100,7 @@ class ApiConfig {
   static const String getPendingRequests = '/api/connections/tutor'; // + /{tutorId}/pending
   static const String getNegotiations = '/api/connections/tutor'; // + /{tutorId}/negotiations
   static const String getTutorBids = '/api/connections/tutor'; // + /{tutorId}/course/{courseId}/bids
+  static const String getTutorBidForStudent = '/api/connections/tutor'; // + /{tutorId}/course/{courseId}/student/{studentId}/bid
   static const String getStudentBids = '/api/connections/student'; // + /{studentId}/course/{courseId}/bids
   // static const String getTutorBidsForCourse = '/api/connections/tutor';
   // static const String getConnectionStatus = '/api/connections/student'; // + /{studentId}/status/{connectionId}
@@ -110,9 +113,28 @@ class ApiConfig {
   static const String reportTutor = '/api/student/block/report';
  // static const String getMyReports = '/api/student/block'; // + /{studentId}/reports
 
+  // ============ CHAT APIS ============
+  static const String getChatRoom = '/api/chat/room'; // + /{connectionId}
+  static const String getUserChatRooms = '/api/chat/rooms'; // + /{userId}
+  static const String sendMessage = '/api/chat/messages/send';
+  static const String getMessages = '/api/chat/messages'; // + /{roomId}
+  static const String markAsRead = '/api/chat/rooms'; // + /{roomId}/read-all
+  static const String getUnreadCount = '/api/chat/unread-count'; // + /{userId}
+  static const String deleteMessage = '/api/chat/messages'; // + /{messageId}
+  static const String checkChatAvailable = '/api/chat/available'; // + /{connectionId}
+
   // ============ HELPER METHODS ============
   static String getFullUrl(String endpoint) {
     return '$baseUrl$endpoint';
+  }
+
+// ============ WEB SOCKET ============
+  static String get wsUrl {
+    String base = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    String wsBase = base.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://');
+
+
+    return '$wsBase/ws/websocket';
   }
 
   static String getFullUrlWithParams(String endpoint, Map<String, String> params) {

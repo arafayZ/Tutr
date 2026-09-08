@@ -1,82 +1,347 @@
+// lib/tutor/chat_details_screen.dart
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/chat_service.dart';
+import '../services/websocket_service.dart';
+import '../models/chat_models.dart';
 import '../config/api_config.dart';
 
-class ChatDetailsScreen extends StatefulWidget {
+class TutorChatDetailsScreen extends StatefulWidget {
   final String userName;
   final String? userImage;
-  final int? tutorId;
-  final int? studentId;
+  final int? studentId;       // Profile ID (for reference only)
+  final int? studentUserId;   // User ID from users table
+  final int? tutorId;         // Profile ID (for reference only)
+  final int? tutorUserId;     // User ID from users table
+  final int? chatRoomId;
+  final int? connectionId;
 
-  const ChatDetailsScreen({
+  const TutorChatDetailsScreen({
     super.key,
     required this.userName,
     this.userImage,
-    this.tutorId,
     this.studentId,
+    this.studentUserId,
+    this.tutorId,
+    this.tutorUserId,
+    this.chatRoomId,
+    this.connectionId,
   });
 
   @override
-  State<ChatDetailsScreen> createState() => _ChatDetailsScreenState();
+  State<TutorChatDetailsScreen> createState() => _TutorChatDetailsScreenState();
 }
 
-class _ChatDetailsScreenState extends State<ChatDetailsScreen> {
-  // Controller to handle the text input
+class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
   final TextEditingController _messageController = TextEditingController();
-  // Controller to handle automatic scrolling to the bottom
   final ScrollController _scrollController = ScrollController();
 
-  final List<Map<String, dynamic>> _messages = [
-    {"text": "Can we shift today's class to 6 PM?", "isMe": false, "time": "4:30 AM"},
-    {"text": "Yes, 6 PM works.", "isMe": true, "time": "9:30 AM"},
-    {"text": "Perfect, see you then.", "isMe": false, "time": "9:44 AM"},
-    {"text": "Thank you!", "isMe": true, "time": "9:50 AM"},
-  ];
+  List<Message> _messages = [];
+  Set<int> _messageIds = {}; // ✅ Track message IDs to prevent duplicates
+  int _chatRoomId = 0;
+  int _senderId = 0;
+  int _recipientId = 0;
+  bool _isLoading = true;
+  bool _isSending = false;
 
-  // Function to handle sending messages
-  void _sendMessage() {
-    final text = _messageController.text.trim();
-    if (text.isNotEmpty) {
-      setState(() {
-        _messages.add({
-          "text": text,
-          "isMe": true,
-          "time": _getCurrentTime(),
-        });
-        _messageController.clear();
-      });
+  @override
+  void initState() {
+    super.initState();
+    _initializeChat();
+  }
 
-      // Small delay to ensure the ListView has rendered the new item before scrolling
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
+  Future<void> _initializeChat() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    _senderId = prefs.getInt('userId') ?? 0;
+    if (_senderId == 0) {
+      _senderId = prefs.getInt('profileId') ?? 0;
+    }
+
+    if (widget.tutorUserId != null && widget.tutorUserId! > 0) {
+      _recipientId = widget.tutorUserId!;
+    } else if (widget.studentUserId != null && widget.studentUserId! > 0) {
+      _recipientId = widget.studentUserId!;
+    } else {
+      if (_senderId == widget.tutorId) {
+        _recipientId = widget.studentUserId ?? 0;
+      } else {
+        _recipientId = widget.tutorUserId ?? 0;
+      }
+    }
+
+    await _getOrCreateChatRoom();
+    await _loadMessages();
+    _connectWebSocket();
+  }
+
+  Future<void> _getOrCreateChatRoom() async {
+    try {
+      if (widget.chatRoomId != null && widget.chatRoomId! > 0) {
+        _chatRoomId = widget.chatRoomId!;
+        return;
+      }
+
+      if (widget.connectionId != null && widget.connectionId! > 0) {
+        final chatRoom = await ChatService.getOrCreateChatRoom(
+          widget.connectionId!,
+          _senderId,
+        );
+        _chatRoomId = chatRoom.id;
+        if (chatRoom.studentUserId != null && chatRoom.studentUserId != _senderId) {
+          _recipientId = chatRoom.studentUserId!;
+        } else if (chatRoom.tutorUserId != null && chatRoom.tutorUserId != _senderId) {
+          _recipientId = chatRoom.tutorUserId!;
         }
+      }
+    } catch (e) {
+      print('Error getting chat room: $e');
+      setState(() {
+        _isLoading = false;
       });
     }
   }
 
-  // Helper to format current time
-  String _getCurrentTime() {
+  Future<void> _loadMessages() async {
+    if (_chatRoomId == 0) {
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
+    try {
+      final messages = await ChatService.getMessages(_chatRoomId, _senderId);
+      setState(() {
+        _messages = messages.reversed.toList();
+        _messageIds = _messages.map((m) => m.id).toSet(); // ✅ Update Set
+        _isLoading = false;
+      });
+      _scrollToBottom();
+    } catch (e) {
+      print('Error loading messages: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _connectWebSocket() {
+    WebSocketService.instance.connect(_senderId);
+    WebSocketService.instance.addListener(_onNewMessage);
+  }
+
+  // ✅ Fixed: Use Set to prevent duplicates
+  void _onNewMessage(Message message) {
+    if (message.chatRoomId == _chatRoomId || _chatRoomId == 0) {
+      setState(() {
+        if (!_messageIds.contains(message.id)) {
+          _messageIds.add(message.id);
+          _messages.add(message);
+        }
+      });
+      _scrollToBottom();
+    }
+  }
+
+  void _sendMessage() async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty || _isSending) return;
+
+    setState(() => _isSending = true);
+
+    try {
+      if (_chatRoomId > 0 && _recipientId > 0) {
+        final request = SendMessageRequest(
+          chatRoomId: _chatRoomId,
+          senderId: _senderId,
+          recipientId: _recipientId,
+          content: text,
+        );
+        final message = await ChatService.sendMessage(request);
+
+        setState(() {
+          // ✅ Add to Set and List
+          if (!_messageIds.contains(message.id)) {
+            _messageIds.add(message.id);
+            _messages.add(message);
+          }
+          _messageController.clear();
+          _isSending = false;
+        });
+
+        WebSocketService.instance.sendMessage(message);
+      } else {
+        setState(() {
+          _isSending = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Chat room not initialized'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      _scrollToBottom();
+    } catch (e) {
+      print('Error sending message: $e');
+      setState(() => _isSending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to send message'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _deleteMessage(Message message) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Message'),
+        content: const Text('Are you sure you want to delete this message?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await ChatService.deleteMessage(message.id, _senderId);
+      setState(() {
+        _messages.removeWhere((m) => m.id == message.id);
+        _messageIds.remove(message.id); // ✅ Remove from Set
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Message deleted'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print('Error deleting message: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to delete message'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteAllMessages() async {
+    if (_messages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No messages to delete'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete All Messages'),
+        content: Text(
+          'Are you sure you want to delete all messages in this chat with ${widget.userName}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      for (var message in _messages) {
+        await ChatService.deleteMessage(message.id, _senderId);
+      }
+
+      setState(() {
+        _messages.clear();
+        _messageIds.clear(); // ✅ Clear Set
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All messages deleted'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print('Error deleting all messages: $e');
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to delete messages'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  String _formatMessageTime(DateTime time) {
     final now = DateTime.now();
-    int hour = now.hour;
-    final minute = now.minute;
+    final today = DateTime(now.year, now.month, now.day);
+    final date = DateTime(time.year, time.month, time.day);
+    final diff = today.difference(date).inDays;
+
+    int hour = time.hour;
+    final minute = time.minute;
     final amPm = hour >= 12 ? 'PM' : 'AM';
+    int hour12 = hour % 12;
+    if (hour12 == 0) hour12 = 12;
+    final timeStr = "$hour12:${minute.toString().padLeft(2, '0')} $amPm";
 
-    if (hour > 12) {
-      hour = hour - 12;
+    if (diff == 0) {
+      return timeStr;
+    } else if (diff == 1) {
+      return "Yesterday $timeStr";
+    } else if (diff < 7) {
+      final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return "${weekdays[time.weekday - 1]} $timeStr";
+    } else {
+      return "${date.day}/${date.month}/${date.year} $timeStr";
     }
-    if (hour == 0) {
-      hour = 12;
-    }
-
-    return "$hour:${minute.toString().padLeft(2, '0')} $amPm";
   }
 
   @override
   void dispose() {
+    WebSocketService.instance.removeListener(_onNewMessage);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -84,8 +349,7 @@ class _ChatDetailsScreenState extends State<ChatDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Get the user image URL
-    final String? userImageUrl = widget.userImage != null && widget.userImage!.isNotEmpty
+    final userImageUrl = widget.userImage != null && widget.userImage!.isNotEmpty
         ? '${ApiConfig.baseUrl}${widget.userImage}'
         : null;
 
@@ -95,78 +359,36 @@ class _ChatDetailsScreenState extends State<ChatDetailsScreen> {
         bottom: false,
         child: Column(
           children: [
-            // --- ROUNDED HEADER ---
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 15,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  InkWell(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      height: 40,
-                      width: 40,
-                      decoration: const BoxDecoration(
-                        color: Colors.black,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
-                    ),
-                  ),
-                  const SizedBox(width: 15),
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: Colors.grey[300],
-                    backgroundImage: userImageUrl != null
-                        ? NetworkImage(userImageUrl)
-                        : null,
-                    child: userImageUrl == null
-                        ? const Icon(Icons.person, color: Colors.white, size: 20)
-                        : null,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      widget.userName,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // --- MESSAGES LIST ---
+            _buildHeader(userImageUrl),
             Expanded(
-              child: ListView.builder(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: Colors.black))
+                  : _messages.isEmpty
+                  ? const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.chat_bubble_outline, size: 60, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text("No messages yet", style: TextStyle(color: Colors.grey, fontSize: 16)),
+                    Text("Start the conversation!", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  ],
+                ),
+              )
+                  : ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.all(20),
                 itemCount: _messages.length,
                 itemBuilder: (context, index) {
-                  return _buildMessageBubble(_messages[index]);
+                  final message = _messages[index];
+                  final bool isMe = message.senderId == _senderId;
+                  return GestureDetector(
+                    onLongPress: () => _deleteMessage(message),
+                    child: _buildMessageBubble(message, isMe),
+                  );
                 },
               ),
             ),
-
-            // --- INPUT AREA ---
             _buildMessageInput(),
           ],
         ),
@@ -174,56 +396,140 @@ class _ChatDetailsScreenState extends State<ChatDetailsScreen> {
     );
   }
 
-  Widget _buildMessageBubble(Map<String, dynamic> msg) {
-    bool isMe = msg["isMe"];
-    return Column(
-      crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      children: [
-        Container(
-          margin: const EdgeInsets.symmetric(vertical: 5),
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
-          decoration: BoxDecoration(
-            color: isMe ? Colors.black : Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(15),
-              topRight: const Radius.circular(15),
-              bottomLeft: isMe ? const Radius.circular(15) : Radius.zero,
-              bottomRight: isMe ? Radius.zero : const Radius.circular(15),
+  Widget _buildHeader(String? userImageUrl) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          InkWell(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              height: 40,
+              width: 40,
+              decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
+              child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
             ),
-            boxShadow: isMe ? [] : [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 5,
-                offset: const Offset(0, 2),
-              )
+          ),
+          const SizedBox(width: 15),
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: Colors.grey[300],
+            backgroundImage: userImageUrl != null ? NetworkImage(userImageUrl) : null,
+            child: userImageUrl == null ? const Icon(Icons.person, color: Colors.white, size: 20) : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              widget.userName,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'delete_all') {
+                _deleteAllMessages();
+              }
+            },
+            icon: const Icon(Icons.more_vert, color: Colors.black, size: 28),
+            itemBuilder: (context) => [
+              const PopupMenuItem<String>(
+                value: 'delete_all',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_sweep, color: Colors.red, size: 20),
+                    SizedBox(width: 8),
+                    Text('Delete All Messages'),
+                  ],
+                ),
+              ),
             ],
           ),
-          child: Text(
-            msg["text"],
-            style: TextStyle(
-              color: isMe ? Colors.white : Colors.black,
-              fontSize: 15,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(Message message, bool isMe) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Flexible(
+            child: Column(
+              crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isMe ? Colors.black : Colors.grey.shade200,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(16),
+                      topRight: const Radius.circular(16),
+                      bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
+                      bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
+                    ),
+                  ),
+                  child: Text(
+                    message.content,
+                    style: TextStyle(
+                      color: isMe ? Colors.white : Colors.black87,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, left: 4, right: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _formatMessageTime(message.sentAt),
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                      ),
+                      if (isMe) ...[
+                        const SizedBox(width: 4),
+                        Icon(
+                          message.isRead ? Icons.done_all : Icons.done,
+                          size: 14,
+                          color: message.isRead ? Colors.blue : Colors.grey,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10, left: 4, right: 4),
-          child: Text(
-            msg["time"],
-            style: const TextStyle(fontSize: 10, color: Colors.grey),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildMessageInput() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-      ),
+      decoration: const BoxDecoration(color: Colors.white),
       child: SafeArea(
         child: Container(
           margin: EdgeInsets.only(
@@ -241,6 +547,7 @@ class _ChatDetailsScreenState extends State<ChatDetailsScreen> {
                 child: TextField(
                   controller: _messageController,
                   onSubmitted: (_) => _sendMessage(),
+                  enabled: !_isSending,
                   decoration: const InputDecoration(
                     hintText: "Type message...",
                     border: InputBorder.none,
@@ -249,8 +556,14 @@ class _ChatDetailsScreenState extends State<ChatDetailsScreen> {
                 ),
               ),
               IconButton(
-                onPressed: _sendMessage,
-                icon: const Icon(
+                onPressed: _isSending ? null : _sendMessage,
+                icon: _isSending
+                    ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+                    : const Icon(
                   Icons.send_rounded,
                   color: Colors.black,
                   size: 24,

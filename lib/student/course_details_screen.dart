@@ -255,6 +255,9 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
       case 'REJECTED':
         _statusMessage = 'Offer rejected. You can send a new request or offer.';
         break;
+      case 'EXPIRED':
+        _statusMessage = 'Request expired (48 hours passed). Please send a new request.';
+        break;
       default:
         _statusMessage = '';
     }
@@ -267,7 +270,8 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
     return (_connectionStatus == 'NONE' ||
         _connectionStatus == 'CANCELLED' ||
         _connectionStatus == 'DISCONNECTED' ||
-        _connectionStatus == 'REJECTED') &&
+        _connectionStatus == 'REJECTED' ||
+        _connectionStatus == 'EXPIRED') &&
         !_isSendingRequest &&
         !_isSendingOffer;
   }
@@ -279,7 +283,8 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
     return (_connectionStatus == 'NONE' ||
         _connectionStatus == 'CANCELLED' ||
         _connectionStatus == 'DISCONNECTED' ||
-        _connectionStatus == 'REJECTED') &&
+        _connectionStatus == 'REJECTED' ||
+        _connectionStatus == 'EXPIRED') &&
         !_isSendingRequest &&
         !_isSendingOffer;
   }
@@ -307,6 +312,8 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
       case 'DISCONNECTED':
         return 'Connect Request';
       case 'REJECTED':
+        return 'Connect Request';
+      case 'EXPIRED':
         return 'Connect Request';
       default:
         return 'Connect Request';
@@ -1459,7 +1466,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                                 : null,
                           ),
                           const SizedBox(width: 15),
-                          Expanded(  //  Wrap Column with Expanded to take available space
+                          Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -1604,7 +1611,9 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                               : (_connectionStatus == 'PENDING' ||
                               _connectionStatus == 'NEGOTIATING'
                               ? Colors.orange.withOpacity(0.1)
-                              : Colors.grey.withOpacity(0.1))),
+                              : (_connectionStatus == 'EXPIRED'
+                              ? Colors.red.withOpacity(0.1)
+                              : Colors.grey.withOpacity(0.1)))),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: _connectionStatus == 'CONFIRMED'
@@ -1614,7 +1623,9 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                                 : (_connectionStatus == 'PENDING' ||
                                 _connectionStatus == 'NEGOTIATING'
                                 ? Colors.orange.withOpacity(0.3)
-                                : Colors.grey.withOpacity(0.3))),
+                                : (_connectionStatus == 'EXPIRED'
+                                ? Colors.red.withOpacity(0.3)
+                                : Colors.grey.withOpacity(0.3)))),
                           ),
                         ),
                         child: Row(
@@ -1628,7 +1639,9 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                                   ? Icons.hourglass_empty
                                   : (_connectionStatus == 'NEGOTIATING'
                                   ? Icons.send
-                                  : Icons.info))),
+                                  : (_connectionStatus == 'EXPIRED'
+                                  ? Icons.timer_off
+                                  : Icons.info)))),
                               size: 20,
                               color: _connectionStatus == 'CONFIRMED'
                                   ? Colors.green
@@ -1637,7 +1650,9 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                                   : (_connectionStatus == 'PENDING' ||
                                   _connectionStatus == 'NEGOTIATING'
                                   ? Colors.orange
-                                  : Colors.grey)),
+                                  : (_connectionStatus == 'EXPIRED'
+                                  ? Colors.red
+                                  : Colors.grey))),
                             ),
                             const SizedBox(width: 10),
                             Expanded(child: Text(_statusMessage,
@@ -1650,7 +1665,10 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                                         : (_connectionStatus == 'PENDING' ||
                                         _connectionStatus == 'NEGOTIATING'
                                         ? Colors.orange
+                                        : (_connectionStatus == 'EXPIRED'
+                                        ? Colors.red
                                         : Colors.grey))))),
+                            ),
                           ],
                         ),
                       ),

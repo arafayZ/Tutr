@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/chat_service.dart';
+import '../services/websocket_service.dart';
 import '../models/chat_models.dart';
 import '../config/api_config.dart';
 import '../widgets/custom_bottom_nav.dart';
@@ -29,6 +30,14 @@ class _TutorInboxScreenState extends State<TutorInboxScreen> {
     _loadUserId();
   }
 
+  @override
+  void dispose() {
+    // ✅ Remove WebSocket listener
+    WebSocketService.instance.removeListener(_onNewMessage);
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -37,7 +46,13 @@ class _TutorInboxScreenState extends State<TutorInboxScreen> {
         _userId = prefs.getInt('profileId') ?? 0;
       }
     });
+    print('🔍 Tutor Inbox - User ID: $_userId');
+
+    // ✅ Load chat rooms first
     await _loadChatRooms();
+
+    // ✅ Then connect WebSocket after rooms are loaded
+    _connectWebSocket();
   }
 
   Future<void> _loadChatRooms() async {
@@ -55,6 +70,35 @@ class _TutorInboxScreenState extends State<TutorInboxScreen> {
     } catch (e) {
       print('Error loading chat rooms: $e');
       setState(() => _isLoading = false);
+    }
+  }
+
+  // ✅ Connect to WebSocket for real-time updates
+  void _connectWebSocket() {
+    if (_userId > 0) {
+      print('🔌 Connecting WebSocket for tutor inbox - User: $_userId');
+
+      // ✅ Connect WebSocket
+      WebSocketService.instance.connect(_userId);
+
+      // ✅ Remove any existing listener first to prevent duplicates
+      WebSocketService.instance.removeListener(_onNewMessage);
+
+      // ✅ Add the listener
+      WebSocketService.instance.addListener(_onNewMessage);
+
+      print('✅ WebSocket listener registered for tutor inbox');
+    }
+  }
+
+  // ✅ Handle new messages in real-time
+  void _onNewMessage(Message message) {
+    print('📩 New message received in tutor inbox: ${message.content}');
+    print('📩 ChatRoom ID: ${message.chatRoomId}');
+
+    // ✅ Refresh inbox immediately when new message arrives
+    if (mounted) {
+      _loadChatRooms();
     }
   }
 

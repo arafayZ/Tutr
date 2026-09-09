@@ -15,7 +15,27 @@ class ChatService {
     };
   }
 
-  // In chat_service.dart
+  // ✅ NEW: Get or create SHARED chat room (one per student-tutor pair)
+  static Future<ChatRoom> getOrCreateSharedChatRoom(int studentUserId, int tutorUserId, int userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.getSharedChatRoom}?studentId=$studentUserId&tutorId=$tutorUserId&userId=$userId'),
+        headers: await _getHeaders(),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return ChatRoom.fromJson(data);
+      } else {
+        final error = json.decode(response.body);
+        throw Exception(error['error'] ?? 'Failed to get/create shared chat room');
+      }
+    } catch (e) {
+      throw Exception('Error: ${e.toString().replaceFirst('Exception: ', '')}');
+    }
+  }
+
+  // ✅ EXISTING: Keep for backward compatibility (connection-based)
   static Future<ChatRoom> getOrCreateChatRoom(int connectionId, int userId) async {
     try {
       final response = await http.get(
@@ -71,7 +91,6 @@ class ChatService {
     }
   }
 
-  // In chat_service.dart
   static Future<List<Message>> getMessages(int roomId, int userId, {int page = 0, int size = 50}) async {
     try {
       final response = await http.get(
@@ -123,7 +142,6 @@ class ChatService {
     }
   }
 
-  // In chat_service.dart
   static Future<void> deleteMessage(int messageId, int userId) async {
     try {
       final response = await http.delete(
@@ -132,7 +150,6 @@ class ChatService {
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200 || response.statusCode == 204) {
-        // Success
         return;
       } else {
         throw Exception('Failed to delete message');

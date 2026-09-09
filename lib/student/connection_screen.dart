@@ -79,6 +79,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> with WidgetsBinding
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
   int _studentId = 0;
+  int _studentUserId = 0; // ✅ Add student user ID
   bool _isLoading = true;
   bool _isRefreshing = false;
 
@@ -128,8 +129,10 @@ class _ConnectionScreenState extends State<ConnectionScreen> with WidgetsBinding
     if (mounted) {
       setState(() {
         _studentId = prefs.getInt('profileId') ?? 0;
+        _studentUserId = prefs.getInt('userId') ?? 0; // ✅ Get user ID
       });
     }
+    print('🔍 Student Profile ID: $_studentId, User ID: $_studentUserId');
     await _loadData();
   }
 
@@ -198,11 +201,14 @@ class _ConnectionScreenState extends State<ConnectionScreen> with WidgetsBinding
           'location': conn['location'] ?? 'Online',
           'color': CourseColors.getCourseColor(conn['courseId'] ?? 0),
           'tutorId': conn['tutorId'] ?? 0,
+          'tutorUserId': conn['tutorUserId'] ?? 0, // ✅ Add tutor user ID
           'studentId': conn['studentId'] ?? _studentId,
+          'studentUserId': conn['studentUserId'] ?? _studentUserId, // ✅ Add student user ID
           'tutorHeadline': conn['tutorHeadline'] ?? 'Tutor',
           'status': conn['status'] ?? 'CONFIRMED',
           'averageRating': ratingValue,
           'totalRatings': conn['totalRatings'] ?? 0,
+          'tutorImage': conn['tutorImage']?.toString() ?? '',
         };
       }).toList();
 
@@ -248,7 +254,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> with WidgetsBinding
           'status': status,
           'courseId': conn['courseId'] ?? 0,
           'studentId': conn['studentId'] ?? _studentId,
+          'studentUserId': conn['studentUserId'] ?? _studentUserId, // ✅ Add student user ID
           'tutorId': conn['tutorId'] ?? 0,
+          'tutorUserId': conn['tutorUserId'] ?? 0, // ✅ Add tutor user ID
           'tutorImage': tutorImage,
           'averageRating': ratingValue,
           'location': conn['location'],
@@ -344,6 +352,39 @@ class _ConnectionScreenState extends State<ConnectionScreen> with WidgetsBinding
         );
       },
     );
+  }
+
+  // ✅ NEW: Open chat with shared room
+  void _openChat(Map<String, dynamic> tutor) async {
+    String tutorName = tutor['name'] ?? 'Tutor';
+    String tutorImage = tutor['tutorImage'] ?? '';
+    int tutorId = tutor['tutorId'] ?? 0;
+    int tutorUserId = tutor['tutorUserId'] ?? 0;
+    int studentId = tutor['studentId'] ?? _studentId;
+    int studentUserId = tutor['studentUserId'] ?? _studentUserId;
+    int connectionId = tutor['connectionId'] ?? 0;
+
+    print('🔍 Opening chat from Connection Screen:');
+    print('   Tutor: $tutorName (User ID: $tutorUserId)');
+    print('   Student User ID: $studentUserId');
+    print('   Connection ID: $connectionId');
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StudentChatDetailsScreen(
+          userName: tutorName,
+          userImage: tutorImage,
+          tutorId: tutorId,
+          tutorUserId: tutorUserId > 0 ? tutorUserId : tutorId,
+          studentId: studentId,
+          studentUserId: studentUserId > 0 ? studentUserId : studentId,
+          connectionId: connectionId,
+        ),
+      ),
+    ).then((_) {
+      _refreshData();
+    });
   }
 
   void _navigateToCourseDetail(Map<String, dynamic> course) {
@@ -664,20 +705,8 @@ class _ConnectionScreenState extends State<ConnectionScreen> with WidgetsBinding
                         const SizedBox(width: 8),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => StudentChatDetailsScreen(
-                                    userName: tutor['name'],
-                                    tutorId: tutor['tutorId'],
-                                    studentId: tutor['studentId'],
-                                  ),
-                                ),
-                              ).then((_) {
-                                _refreshData();
-                              });
-                            },
+                            // ✅ Use _openChat method
+                            onPressed: () => _openChat(tutor),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.black,
                               foregroundColor: Colors.white,

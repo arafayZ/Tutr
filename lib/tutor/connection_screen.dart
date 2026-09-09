@@ -46,24 +46,20 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       int tutorProfileId = prefs.getInt('profileId') ?? 0;
 
-      // Get ONLY confirmed tutor connections from API
       List<Map<String, dynamic>> connections = await ConnectionService.getTutorConfirmedConnections(tutorProfileId);
 
-      // Group connections by studentId (each student appears only once)
       Map<String, Map<String, dynamic>> groupedStudents = {};
 
       for (var conn in connections) {
         String studentId = conn['studentId'].toString();
 
         if (groupedStudents.containsKey(studentId)) {
-          // Student already exists, add course to their list
           groupedStudents[studentId]!['courses'].add({
             'courseId': conn['courseId'],
             'courseName': conn['subject'],
             'connectionId': conn['connectionId'],
           });
         } else {
-          // New student, create entry with courses list
           groupedStudents[studentId] = {
             'studentId': studentId,
             'studentUserId': conn['studentUserId'],
@@ -85,11 +81,11 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
         }
       }
 
-      // Convert grouped map to list for display
       List<Map<String, dynamic>> formattedConnections = [];
       for (var entry in groupedStudents.values) {
         formattedConnections.add({
           'studentId': entry['studentId'],
+          'studentUserId': entry['studentUserId'],
           'name': entry['name'],
           'studentImage': entry['studentImage'],
           'location': entry['location'],
@@ -141,7 +137,6 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
   }
 
   void _navigateToProfile(Map<String, dynamic> person) {
-    // Use the first connectionId from courses for profile (or pass all)
     final firstConnectionId = person['courses'].isNotEmpty
         ? person['courses'][0]['connectionId'].toString()
         : "0";
@@ -192,12 +187,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
   }
 
   Future<void> _disconnectStudent(String studentName, List<Map<String, dynamic>> courses) async {
-    // Show dialog asking which course to disconnect from
     if (courses.length == 1) {
-      // Single course, disconnect directly
       await _confirmAndDisconnect(studentName, courses[0]['connectionId']);
     } else {
-      // Multiple courses, show selection dialog
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -264,6 +256,42 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
       setState(() => _isLoading = false);
       _showErrorDialog("Failed to disconnect: ${e.toString().replaceFirst('Exception: ', '')}");
     }
+  }
+
+  // ✅ NEW: Open chat with shared room
+  void _openChat(Map<String, dynamic> person) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int tutorId = prefs.getInt('profileId') ?? 0;
+    int tutorUserId = prefs.getInt('userId') ?? 0;
+
+    String name = person['name'] ?? 'Student';
+    String studentImage = person['studentImage']?.toString() ?? '';
+    int studentId = int.tryParse(person['studentId']?.toString() ?? '0') ?? 0;
+    int studentUserId = person['studentUserId'] ?? 0;
+
+    // Get first connection ID
+    List<Map<String, dynamic>> courses = List<Map<String, dynamic>>.from(person['courses']);
+    int connectionId = courses.isNotEmpty ? courses[0]['connectionId'] : 0;
+
+    print('🔍 Opening chat from Connection Screen:');
+    print('   Student: $name (User ID: $studentUserId)');
+    print('   Tutor ID: $tutorUserId');
+    print('   Connection ID: $connectionId');
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TutorChatDetailsScreen(
+          userName: name,
+          userImage: studentImage,
+          studentId: studentId,
+          studentUserId: studentUserId,
+          tutorId: tutorId,
+          tutorUserId: tutorUserId,
+          connectionId: connectionId,
+        ),
+      ),
+    );
   }
 
   @override
@@ -359,7 +387,6 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     final String? studentImage = person['studentImage']?.toString();
     final String name = person['name'] ?? 'Unknown';
     final List<Map<String, dynamic>> courses = List<Map<String, dynamic>>.from(person['courses']);
-    final int courseCount = person['courseCount'] ?? 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -440,6 +467,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     );
   }
 
+  // ✅ Updated: Action button with proper chat navigation
   Widget _buildActionButton(Map<String, dynamic> person, String label, String name, List<Map<String, dynamic>> courses) {
     return SizedBox(
       height: 32,
@@ -448,28 +476,8 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
           if (label == "Disconnect") {
             _disconnectStudent(name, courses);
           } else if (label == "Message") {
-            // ✅ Only get userId for chat
-            SharedPreferences prefs = await SharedPreferences.getInstance();
-            int tutorId = prefs.getInt('profileId') ?? 0;
-            int tutorUserId = prefs.getInt('userId') ?? 0;  // ✅ Get userId
-
-            // Use first connection
-            int connectionId = courses[0]['connectionId'];
-
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => TutorChatDetailsScreen(
-                  userName: name,
-                  userImage: person['studentImage']?.toString() ?? '',
-                  studentId: int.tryParse(person['studentId']?.toString() ?? '0') ?? 0,
-                  studentUserId: person['studentUserId'] ?? 0,  // ✅ Pass userId
-                  tutorId: tutorId,
-                  tutorUserId: tutorUserId,  // ✅ Pass userId
-                  connectionId: connectionId,
-                ),
-              ),
-            );
+            // ✅ Use the new _openChat method
+            _openChat(person);
           }
         },
         style: ElevatedButton.styleFrom(

@@ -122,7 +122,7 @@ class ApiConfig {
   static const String getUnreadCount = '/api/chat/unread-count'; // + /{userId}
   static const String deleteMessage = '/api/chat/messages'; // + /{messageId}
   static const String checkChatAvailable = '/api/chat/available'; // + /{connectionId}
-
+  static const String getSharedChatRoom = '/api/chat/shared-room'; //?studentId={stduserid}&tutorId={tutoeuserid}&userId={senderid}
   // ============ HELPER METHODS ============
   static String getFullUrl(String endpoint) {
     return '$baseUrl$endpoint';

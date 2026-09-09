@@ -37,7 +37,7 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
   final ScrollController _scrollController = ScrollController();
 
   List<Message> _messages = [];
-  Set<int> _messageIds = {}; // ✅ Track message IDs to prevent duplicates
+  Set<int> _messageIds = {};
   int _chatRoomId = 0;
   int _senderId = 0;
   int _recipientId = 0;
@@ -60,6 +60,10 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
 
     _recipientId = widget.tutorUserId ?? widget.tutorId;
 
+    print('🔍 Student Chat Init:');
+    print('   Sender (Student) User ID: $_senderId');
+    print('   Recipient (Tutor) User ID: $_recipientId');
+
     await _getOrCreateChatRoom();
     await _loadMessages();
     _connectWebSocket();
@@ -67,26 +71,61 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
 
   Future<void> _getOrCreateChatRoom() async {
     try {
+      // ✅ If chatRoomId is provided, use it
       if (widget.chatRoomId != null && widget.chatRoomId! > 0) {
         _chatRoomId = widget.chatRoomId!;
+        print('✅ Using existing chat room ID: $_chatRoomId');
         return;
       }
 
-      if (widget.connectionId != null && widget.connectionId! > 0) {
-        final chatRoom = await ChatService.getOrCreateChatRoom(
-          widget.connectionId!,
-          _senderId,
-        );
-        _chatRoomId = chatRoom.id;
+      // ✅ Use SHARED chat room (one per student-tutor pair)
+      if (_senderId > 0 && widget.tutorUserId != null && widget.tutorUserId! > 0) {
+        print('🔍 Getting/Creating shared chat room for student: $_senderId, tutor: ${widget.tutorUserId}');
 
+        final chatRoom = await ChatService.getOrCreateSharedChatRoom(
+          _senderId,              // Student User ID
+          widget.tutorUserId!,    // Tutor User ID
+          _senderId,              // Current user (student)
+        );
+
+        _chatRoomId = chatRoom.id;
+        print('✅ Shared chat room ID: $_chatRoomId');
+
+        // Update recipient if needed
         if (chatRoom.tutorUserId != null && chatRoom.tutorUserId != _senderId) {
           _recipientId = chatRoom.tutorUserId!;
         } else if (chatRoom.studentUserId != null && chatRoom.studentUserId != _senderId) {
           _recipientId = chatRoom.studentUserId!;
         }
+      } else {
+        // Fallback: Try connection-based approach
+        if (widget.connectionId != null && widget.connectionId! > 0) {
+          print('⚠️ Fallback: Using connection-based chat room');
+          final chatRoom = await ChatService.getOrCreateChatRoom(
+            widget.connectionId!,
+            _senderId,
+          );
+          _chatRoomId = chatRoom.id;
+          if (chatRoom.tutorUserId != null && chatRoom.tutorUserId != _senderId) {
+            _recipientId = chatRoom.tutorUserId!;
+          } else if (chatRoom.studentUserId != null && chatRoom.studentUserId != _senderId) {
+            _recipientId = chatRoom.studentUserId!;
+          }
+        } else {
+          throw Exception('No tutorUserId or connectionId provided');
+        }
       }
     } catch (e) {
-      print('Error getting chat room: $e');
+      print('❌ Error getting chat room: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to open chat: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -102,7 +141,7 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
       final messages = await ChatService.getMessages(_chatRoomId, _senderId);
       setState(() {
         _messages = messages.reversed.toList();
-        _messageIds = _messages.map((m) => m.id).toSet(); // ✅ Update Set
+        _messageIds = _messages.map((m) => m.id).toSet();
         _isLoading = false;
       });
       _scrollToBottom();
@@ -119,7 +158,6 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
     WebSocketService.instance.addListener(_onNewMessage);
   }
 
-  // ✅ Fixed: Use Set to prevent duplicates
   void _onNewMessage(Message message) {
     if (message.chatRoomId == _chatRoomId) {
       setState(() {
@@ -158,7 +196,7 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
       await ChatService.deleteMessage(message.id, _senderId);
       setState(() {
         _messages.removeWhere((m) => m.id == message.id);
-        _messageIds.remove(message.id); // ✅ Remove from Set
+        _messageIds.remove(message.id);
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -220,7 +258,7 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
 
       setState(() {
         _messages.clear();
-        _messageIds.clear(); // ✅ Clear Set
+        _messageIds.clear();
         _isLoading = false;
       });
 
@@ -258,7 +296,6 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
       final message = await ChatService.sendMessage(request);
 
       setState(() {
-        // ✅ Add to Set and List
         if (!_messageIds.contains(message.id)) {
           _messageIds.add(message.id);
           _messages.add(message);

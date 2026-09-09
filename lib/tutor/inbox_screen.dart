@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/chat_service.dart';
 import '../services/websocket_service.dart';
+import '../services/unread_count_service.dart'; // ✅ Add this
 import '../models/chat_models.dart';
 import '../config/api_config.dart';
 import '../widgets/custom_bottom_nav.dart';
@@ -32,7 +33,6 @@ class _TutorInboxScreenState extends State<TutorInboxScreen> {
 
   @override
   void dispose() {
-    // ✅ Remove WebSocket listener
     WebSocketService.instance.removeListener(_onNewMessage);
     _searchController.dispose();
     super.dispose();
@@ -48,10 +48,7 @@ class _TutorInboxScreenState extends State<TutorInboxScreen> {
     });
     print('🔍 Tutor Inbox - User ID: $_userId');
 
-    // ✅ Load chat rooms first
     await _loadChatRooms();
-
-    // ✅ Then connect WebSocket after rooms are loaded
     _connectWebSocket();
   }
 
@@ -60,6 +57,9 @@ class _TutorInboxScreenState extends State<TutorInboxScreen> {
     try {
       final rooms = await ChatService.getUserChatRooms(_userId);
       final totalUnread = await ChatService.getUnreadCount(_userId);
+
+      // ✅ Update unread count in service (for bottom nav badge)
+      UnreadCountService().updateUnreadCount(totalUnread);
 
       setState(() {
         _chatRooms = rooms;
@@ -73,30 +73,22 @@ class _TutorInboxScreenState extends State<TutorInboxScreen> {
     }
   }
 
-  // ✅ Connect to WebSocket for real-time updates
   void _connectWebSocket() {
     if (_userId > 0) {
       print('🔌 Connecting WebSocket for tutor inbox - User: $_userId');
 
-      // ✅ Connect WebSocket
       WebSocketService.instance.connect(_userId);
-
-      // ✅ Remove any existing listener first to prevent duplicates
       WebSocketService.instance.removeListener(_onNewMessage);
-
-      // ✅ Add the listener
       WebSocketService.instance.addListener(_onNewMessage);
 
       print('✅ WebSocket listener registered for tutor inbox');
     }
   }
 
-  // ✅ Handle new messages in real-time
   void _onNewMessage(Message message) {
     print('📩 New message received in tutor inbox: ${message.content}');
     print('📩 ChatRoom ID: ${message.chatRoomId}');
 
-    // ✅ Refresh inbox immediately when new message arrives
     if (mounted) {
       _loadChatRooms();
     }

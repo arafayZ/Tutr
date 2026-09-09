@@ -2,7 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/chat_service.dart';
-import '../services/websocket_service.dart'; // ✅ Add this
+import '../services/websocket_service.dart';
+import '../services/unread_count_service.dart'; // ✅ Add this
 import '../models/chat_models.dart';
 import '../config/api_config.dart';
 import 'chat_details_screen.dart';
@@ -30,7 +31,6 @@ class _StudentInboxScreenState extends State<StudentInboxScreen> {
 
   @override
   void dispose() {
-    // ✅ Remove WebSocket listener
     WebSocketService.instance.removeListener(_onNewMessage);
     _searchController.dispose();
     super.dispose();
@@ -53,10 +53,7 @@ class _StudentInboxScreenState extends State<StudentInboxScreen> {
 
     print('🔍 Student _userId: $_userId');
 
-    // ✅ Load chat rooms first
     await _loadChatRooms();
-
-    // ✅ Then connect WebSocket after rooms are loaded
     _connectWebSocket();
   }
 
@@ -75,6 +72,9 @@ class _StudentInboxScreenState extends State<StudentInboxScreen> {
       final totalUnread = await ChatService.getUnreadCount(_userId);
       print('📊 Total unread: $totalUnread');
 
+      // ✅ Update unread count in service (for bottom nav badge)
+      UnreadCountService().updateUnreadCount(totalUnread);
+
       setState(() {
         _chatRooms = rooms;
         _filteredRooms = List.from(rooms);
@@ -92,30 +92,22 @@ class _StudentInboxScreenState extends State<StudentInboxScreen> {
     }
   }
 
-  // ✅ Connect to WebSocket for real-time updates
   void _connectWebSocket() {
     if (_userId > 0) {
       print('🔌 Connecting WebSocket for student inbox - User: $_userId');
 
-      // ✅ Connect WebSocket
       WebSocketService.instance.connect(_userId);
-
-      // ✅ Remove any existing listener first to prevent duplicates
       WebSocketService.instance.removeListener(_onNewMessage);
-
-      // ✅ Add the listener
       WebSocketService.instance.addListener(_onNewMessage);
 
       print('✅ WebSocket listener registered for student inbox');
     }
   }
 
-  // ✅ Handle new messages in real-time
   void _onNewMessage(Message message) {
     print('📩 New message received in student inbox: ${message.content}');
     print('📩 ChatRoom ID: ${message.chatRoomId}');
 
-    // ✅ Refresh inbox immediately when new message arrives
     if (mounted) {
       _loadChatRooms();
     }

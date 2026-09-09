@@ -3,16 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/chat_service.dart';
 import '../services/websocket_service.dart';
+import '../services/unread_count_service.dart'; // ✅ Add this
 import '../models/chat_models.dart';
 import '../config/api_config.dart';
 
 class TutorChatDetailsScreen extends StatefulWidget {
   final String userName;
   final String? userImage;
-  final int? studentId;       // Profile ID (for reference only)
-  final int? studentUserId;   // User ID from users table
-  final int? tutorId;         // Profile ID (for reference only)
-  final int? tutorUserId;     // User ID from users table
+  final int? studentId;
+  final int? studentUserId;
+  final int? tutorId;
+  final int? tutorUserId;
   final int? chatRoomId;
   final int? connectionId;
 
@@ -58,7 +59,6 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
       _senderId = prefs.getInt('profileId') ?? 0;
     }
 
-    // ✅ Determine recipient (student's user ID)
     _recipientId = widget.studentUserId ?? 0;
 
     print('🔍 Tutor Chat Init:');
@@ -72,35 +72,30 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
 
   Future<void> _getOrCreateChatRoom() async {
     try {
-      // ✅ If chatRoomId is provided, use it
       if (widget.chatRoomId != null && widget.chatRoomId! > 0) {
         _chatRoomId = widget.chatRoomId!;
         print('✅ Using existing chat room ID: $_chatRoomId');
         return;
       }
 
-      // ✅ Use SHARED chat room (one per student-tutor pair)
-      // Need both studentUserId and tutorUserId
       if (widget.studentUserId != null && widget.studentUserId! > 0 && _senderId > 0) {
         print('🔍 Getting/Creating shared chat room for student: ${widget.studentUserId}, tutor: $_senderId');
 
         final chatRoom = await ChatService.getOrCreateSharedChatRoom(
-          widget.studentUserId!,  // Student User ID
-          _senderId,              // Tutor User ID
-          _senderId,              // Current user (tutor)
+          widget.studentUserId!,
+          _senderId,
+          _senderId,
         );
 
         _chatRoomId = chatRoom.id;
         print('✅ Shared chat room ID: $_chatRoomId');
 
-        // Update recipient if needed
         if (chatRoom.studentUserId != null && chatRoom.studentUserId != _senderId) {
           _recipientId = chatRoom.studentUserId!;
         } else if (chatRoom.tutorUserId != null && chatRoom.tutorUserId != _senderId) {
           _recipientId = chatRoom.tutorUserId!;
         }
       } else {
-        // Fallback: Try connection-based approach
         if (widget.connectionId != null && widget.connectionId! > 0) {
           print('⚠️ Fallback: Using connection-based chat room');
           final chatRoom = await ChatService.getOrCreateChatRoom(
@@ -141,6 +136,11 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
 
     try {
       final messages = await ChatService.getMessages(_chatRoomId, _senderId);
+
+      // ✅ Update unread count after loading messages
+      final unreadCount = await ChatService.getUnreadCount(_senderId);
+      UnreadCountService().updateUnreadCount(unreadCount);
+
       setState(() {
         _messages = messages.reversed.toList();
         _messageIds = _messages.map((m) => m.id).toSet();
@@ -198,6 +198,10 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
         });
 
         WebSocketService.instance.sendMessage(message);
+
+        // ✅ Update unread count after sending message
+        final unreadCount = await ChatService.getUnreadCount(_senderId);
+        UnreadCountService().updateUnreadCount(unreadCount);
       } else {
         setState(() {
           _isSending = false;

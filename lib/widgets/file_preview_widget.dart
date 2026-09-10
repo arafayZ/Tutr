@@ -21,6 +21,7 @@ class FilePreviewWidget extends StatelessWidget {
   final List<FilePreview> previews;
   final VoidCallback onCancel;
   final VoidCallback onSend;
+  final ValueChanged<int> onRemove;   // 👈 per-file remove
   final bool isUploading;
 
   const FilePreviewWidget({
@@ -28,6 +29,7 @@ class FilePreviewWidget extends StatelessWidget {
     required this.previews,
     required this.onCancel,
     required this.onSend,
+    required this.onRemove,
     this.isUploading = false,
   });
 
@@ -83,11 +85,11 @@ class FilePreviewWidget extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                // Cancel
+                // Cancel all
                 IconButton(
                   icon: const Icon(Icons.close, color: Colors.grey),
                   onPressed: isUploading ? null : onCancel,
-                  tooltip: 'Cancel',
+                  tooltip: 'Cancel all',
                 ),
                 // Send
                 isUploading
@@ -107,8 +109,7 @@ class FilePreviewWidget extends StatelessWidget {
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
-                    icon: const Icon(Icons.send_rounded,
-                        color: Colors.white),
+                    icon: const Icon(Icons.send_rounded, color: Colors.white),
                     onPressed: onSend,
                   ),
                 ),
@@ -127,80 +128,108 @@ class FilePreviewWidget extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final preview = previews[index];
 
-                  return Container(
-                    width: 200,
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Row(
-                      children: [
-                        // Thumbnail
-                        if (preview.isImage)
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.file(
-                              preview.file,
-                              width: 44,
-                              height: 44,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 200,
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            // Thumbnail
+                            if (preview.isImage)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(
+                                  preview.file,
+                                  width: 44,
+                                  height: 44,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    width: 44,
+                                    height: 44,
+                                    color: Colors.grey.shade300,
+                                    child: const Icon(Icons.broken_image),
+                                  ),
+                                ),
+                              )
+                            else
+                              Container(
                                 width: 44,
                                 height: 44,
-                                color: Colors.grey.shade300,
-                                child: const Icon(Icons.broken_image),
-                              ),
-                            ),
-                          )
-                        else
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: _getColor(preview.fileType)
-                                  .withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              _getIcon(preview.fileType),
-                              color: _getColor(preview.fileType),
-                              size: 24,
-                            ),
-                          ),
-
-                        const SizedBox(width: 8),
-
-                        // Info
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                preview.fileName,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
+                                decoration: BoxDecoration(
+                                  color: _getColor(preview.fileType).withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                _formatSize(preview.fileSize),
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey.shade600,
+                                child: Icon(
+                                  _getIcon(preview.fileType),
+                                  color: _getColor(preview.fileType),
+                                  size: 24,
                                 ),
                               ),
-                            ],
+
+                            const SizedBox(width: 8),
+
+                            // Info
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    preview.fileName,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black87,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _formatSize(preview.fileSize),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Per-file remove button
+                      if (!isUploading)
+                        Positioned(
+                          top: -6,
+                          right: -6,
+                          child: GestureDetector(
+                            onTap: () => onRemove(index),
+                            child: Container(
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: Colors.black,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                            ),
                           ),
                         ),
-                      ],
-                    ),
+                    ],
                   );
                 },
               ),

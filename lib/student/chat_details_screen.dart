@@ -1133,6 +1133,14 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
             isUploading: _isUploadingFile,
             onCancel: _cancelPendingFile,
             onSend: _sendPendingFiles,
+            onRemove: (index) {
+              setState(() {
+                _pendingFiles.removeAt(index);
+                if (_pendingFiles.isEmpty) {
+                  _pendingFiles = [];
+                }
+              });
+            },
           )
         else
           Container(

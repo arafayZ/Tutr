@@ -79,6 +79,10 @@ class Message {
   final String? fileName;
   final int? fileSize;
   final String? fileType;
+  final int? replyToMessageId;
+  final String? replyToContent;
+  final String? replyToSenderName;
+  final String? replyToMessageType;
 
   Message({
     required this.id,
@@ -98,6 +102,10 @@ class Message {
     this.fileName,
     this.fileSize,
     this.fileType,
+    this.replyToMessageId,
+    this.replyToContent,
+    this.replyToSenderName,
+    this.replyToMessageType,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -119,6 +127,10 @@ class Message {
       fileName: json['fileName'],
       fileSize: json['fileSize'],
       fileType: json['fileType'],
+      replyToMessageId: json['replyToMessageId'],
+      replyToContent: json['replyToContent'],
+      replyToSenderName: json['replyToSenderName'],
+      replyToMessageType: json['replyToMessageType'],
     );
   }
 }
@@ -134,6 +146,7 @@ class SendMessageRequest {
   final String? fileName;
   final int? fileSize;
   final String? fileType;
+  final int? replyToMessageId;
 
   SendMessageRequest({
     required this.chatRoomId,
@@ -146,6 +159,7 @@ class SendMessageRequest {
     this.fileName,
     this.fileSize,
     this.fileType,
+    this.replyToMessageId,
   });
 
   Map<String, dynamic> toJson() {
@@ -160,6 +174,7 @@ class SendMessageRequest {
       if (fileName != null) 'fileName': fileName,
       if (fileSize != null) 'fileSize': fileSize,
       if (fileType != null) 'fileType': fileType,
+      if (replyToMessageId != null) 'replyToMessageId': replyToMessageId,
     };
   }
 }

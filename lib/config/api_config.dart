@@ -124,6 +124,7 @@ class ApiConfig {
   static const String checkChatAvailable = '/api/chat/available'; // + /{connectionId}
   static const String getSharedChatRoom = '/api/chat/shared-room'; //?studentId={stduserid}&tutorId={tutoeuserid}&userId={senderid}
   static const String uploadAudio = '/api/chat/upload/audio';
+  static const String uploadFile = '/api/chat/upload/file';
   // ============ HELPER METHODS ============
   static String getFullUrl(String endpoint) {
     return '$baseUrl$endpoint';

@@ -2,6 +2,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import '../services/chat_service.dart';
 import '../services/websocket_service.dart';
 import '../services/unread_count_service.dart';
@@ -9,6 +11,10 @@ import '../models/chat_models.dart';
 import '../config/api_config.dart';
 import '../widgets/audio_player_widget.dart';
 import '../widgets/audio_recorder_widget.dart';
+import '../widgets/file_message_widget.dart';
+import '../widgets/image_message_widget.dart';
+import '../widgets/attachment_sheet.dart';
+import '../widgets/file_preview_widget.dart';
 
 class TutorChatDetailsScreen extends StatefulWidget {
   final String userName;
@@ -49,6 +55,12 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
   bool _isSending = false;
   bool _showAudioRecorder = false;
 
+  // ✅ File preview state (multiple files)
+  List<FilePreview> _pendingFiles = [];
+  bool _isUploadingFile = false;
+
+  final ImagePicker _imagePicker = ImagePicker();
+
   @override
   void initState() {
     super.initState();
@@ -83,8 +95,6 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
       }
 
       if (widget.studentUserId != null && widget.studentUserId! > 0 && _senderId > 0) {
-        print('🔍 Getting/Creating shared chat room for student: ${widget.studentUserId}, tutor: $_senderId');
-
         final chatRoom = await ChatService.getOrCreateSharedChatRoom(
           widget.studentUserId!,
           _senderId,
@@ -92,7 +102,6 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
         );
 
         _chatRoomId = chatRoom.id;
-        print('✅ Shared chat room ID: $_chatRoomId');
 
         if (chatRoom.studentUserId != null && chatRoom.studentUserId != _senderId) {
           _recipientId = chatRoom.studentUserId!;
@@ -101,7 +110,6 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
         }
       } else {
         if (widget.connectionId != null && widget.connectionId! > 0) {
-          print('⚠️ Fallback: Using connection-based chat room');
           final chatRoom = await ChatService.getOrCreateChatRoom(
             widget.connectionId!,
             _senderId,
@@ -118,9 +126,7 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
       }
     } catch (e) {
       print('❌ Error getting chat room: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to open chat: ${e.toString().replaceFirst('Exception: ', '')}'),
@@ -132,15 +138,12 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
 
   Future<void> _loadMessages() async {
     if (_chatRoomId == 0) {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
       return;
     }
 
     try {
       final messages = await ChatService.getMessages(_chatRoomId, _senderId);
-
       final unreadCount = await ChatService.getUnreadCount(_senderId);
       UnreadCountService().updateUnreadCount(unreadCount);
 
@@ -152,9 +155,7 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
       _scrollToBottom();
     } catch (e) {
       print('Error loading messages: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
@@ -175,6 +176,9 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
     }
   }
 
+  // ============================================
+  // ✅ TEXT MESSAGE
+  // ============================================
   void _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty || _isSending) return;
@@ -205,15 +209,7 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
         final unreadCount = await ChatService.getUnreadCount(_senderId);
         UnreadCountService().updateUnreadCount(unreadCount);
       } else {
-        setState(() {
-          _isSending = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Chat room not initialized'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        setState(() => _isSending = false);
       }
       _scrollToBottom();
     } catch (e) {
@@ -225,7 +221,9 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
     }
   }
 
-  // ✅ Send audio message
+  // ============================================
+  // ✅ AUDIO MESSAGE
+  // ============================================
   Future<void> _sendAudioMessage(File audioFile, int duration) async {
     try {
       setState(() {
@@ -235,7 +233,6 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
 
       print('📤 Uploading audio...');
       final audioUrl = await ChatService.uploadAudio(audioFile, _senderId);
-      print('✅ Audio uploaded: $audioUrl');
 
       if (_chatRoomId > 0 && _recipientId > 0) {
         final request = SendMessageRequest(
@@ -275,6 +272,200 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
     }
   }
 
+  // ============================================
+  // ✅ FILE / DOCUMENT FLOW (Multiple Files)
+  // ============================================
+
+  // Step 1: Show attachment bottom sheet
+  void _showAttachmentSheet() {
+    AttachmentSheet.show(
+      context,
+      onDocument: _pickDocument,
+      onGallery: _pickFromGallery,
+      onCamera: _pickFromCamera,
+    );
+  }
+
+  // Step 2a: Pick multiple documents
+  Future<void> _pickDocument() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: true,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final files = <FilePreview>[];
+      for (final pf in result.files) {
+        if (pf.path == null) continue;
+        final file = File(pf.path!);
+        final size = await file.length();
+        if (size > 20 * 1024 * 1024) continue;
+
+        String ext = 'file';
+        if (pf.name.contains('.')) {
+          ext = pf.name.split('.').last.toLowerCase();
+        }
+        final isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(ext);
+
+        files.add(FilePreview(
+          file: file,
+          fileName: pf.name,
+          fileSize: size,
+          fileType: ext,
+          isImage: isImage,
+        ));
+      }
+
+      if (files.isEmpty) return;
+      setState(() => _pendingFiles = files);
+    } catch (e) {
+      print('❌ Document pick error: $e');
+    }
+  }
+
+  // Step 2b: Pick multiple images from gallery
+  Future<void> _pickFromGallery() async {
+    try {
+      final List<XFile> picked = await _imagePicker.pickMultiImage(
+        imageQuality: 85,
+      );
+
+      if (picked.isEmpty) return;
+
+      final files = <FilePreview>[];
+      for (final xFile in picked) {
+        final file = File(xFile.path);
+        final size = await file.length();
+        if (size > 20 * 1024 * 1024) continue;
+
+        String ext = 'jpg';
+        if (xFile.name.contains('.')) {
+          ext = xFile.name.split('.').last.toLowerCase();
+        }
+
+        files.add(FilePreview(
+          file: file,
+          fileName: xFile.name,
+          fileSize: size,
+          fileType: ext,
+          isImage: true,
+        ));
+      }
+
+      if (files.isEmpty) return;
+      setState(() => _pendingFiles = files);
+    } catch (e) {
+      print('❌ Gallery pick error: $e');
+    }
+  }
+
+  // Step 2c: Take single photo from camera
+  Future<void> _pickFromCamera() async {
+    try {
+      final XFile? picked = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+
+      final file = File(picked.path);
+      final size = await file.length();
+      if (size > 20 * 1024 * 1024) return;
+
+      String ext = 'jpg';
+      if (picked.name.contains('.')) {
+        ext = picked.name.split('.').last.toLowerCase();
+      }
+
+      setState(() {
+        _pendingFiles = [
+          FilePreview(
+            file: file,
+            fileName: picked.name,
+            fileSize: size,
+            fileType: ext,
+            isImage: true,
+          ),
+        ];
+      });
+    } catch (e) {
+      print('❌ Camera pick error: $e');
+    }
+  }
+
+  // Step 3: Send all pending files
+  Future<void> _sendPendingFiles() async {
+    if (_pendingFiles.isEmpty) return;
+
+    setState(() => _isUploadingFile = true);
+
+    try {
+      for (final preview in _pendingFiles) {
+        print('📤 Uploading: ${preview.fileName}');
+
+        final uploadData = await ChatService.uploadFile(
+          preview.file,
+          _senderId,
+        );
+
+        if (_chatRoomId > 0 && _recipientId > 0) {
+          final request = SendMessageRequest(
+            chatRoomId: _chatRoomId,
+            senderId: _senderId,
+            recipientId: _recipientId,
+            content: '📎 ${uploadData['fileName']}',
+            fileUrl: uploadData['fileUrl'],
+            fileName: uploadData['fileName'],
+            fileSize: uploadData['fileSize'],
+            fileType: uploadData['fileType'],
+          );
+
+          final message = await ChatService.sendMessage(request);
+
+          setState(() {
+            if (!_messageIds.contains(message.id)) {
+              _messageIds.add(message.id);
+              _messages.add(message);
+            }
+          });
+
+          WebSocketService.instance.sendMessage(message);
+        }
+      }
+
+      final unreadCount = await ChatService.getUnreadCount(_senderId);
+      UnreadCountService().updateUnreadCount(unreadCount);
+
+      setState(() {
+        _pendingFiles = [];
+        _isUploadingFile = false;
+      });
+
+      _scrollToBottom();
+    } catch (e) {
+      print('❌ File send error: $e');
+      setState(() => _isUploadingFile = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send files: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Step 4: Cancel pending files
+  void _cancelPendingFile() {
+    setState(() => _pendingFiles = []);
+  }
+
+  // ============================================
+  // ✅ DELETE
+  // ============================================
   Future<void> _deleteMessage(Message message) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -376,12 +567,6 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
     } catch (e) {
       print('Error deleting all messages: $e');
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to delete messages'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 
@@ -410,16 +595,13 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
     if (hour12 == 0) hour12 = 12;
     final timeStr = "$hour12:${minute.toString().padLeft(2, '0')} $amPm";
 
-    if (diff == 0) {
-      return timeStr;
-    } else if (diff == 1) {
-      return "Yesterday $timeStr";
-    } else if (diff < 7) {
+    if (diff == 0) return timeStr;
+    if (diff == 1) return "Yesterday $timeStr";
+    if (diff < 7) {
       final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       return "${weekdays[time.weekday - 1]} $timeStr";
-    } else {
-      return "${date.day}/${date.month}/${date.year} $timeStr";
     }
+    return "${date.day}/${date.month}/${date.year} $timeStr";
   }
 
   @override
@@ -551,6 +733,20 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
   Widget _buildMessageBubble(Message message, bool isMe) {
     final bool isAudio = message.audioUrl != null && message.audioUrl!.isNotEmpty;
 
+    final bool isImage = message.fileUrl != null &&
+        message.fileUrl!.isNotEmpty &&
+        (message.fileType?.toLowerCase() == 'jpg' ||
+            message.fileType?.toLowerCase() == 'jpeg' ||
+            message.fileType?.toLowerCase() == 'png' ||
+            message.fileType?.toLowerCase() == 'gif' ||
+            message.fileType?.toLowerCase() == 'webp');
+
+    final bool isFile = message.fileUrl != null &&
+        message.fileUrl!.isNotEmpty &&
+        !isImage;
+
+    final bool isSpecial = isAudio || isImage || isFile;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -563,8 +759,8 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
               children: [
                 Container(
                   padding: EdgeInsets.symmetric(
-                    horizontal: isAudio ? 4 : 14,
-                    vertical: isAudio ? 4 : 10,
+                    horizontal: isSpecial ? 4 : 14,
+                    vertical: isSpecial ? 4 : 10,
                   ),
                   constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width * 0.75,
@@ -584,6 +780,19 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
                     isMe: isMe,
                     durationInSeconds: message.audioDuration,
                     messageId: message.id,
+                  )
+                      : isImage
+                      ? ImageMessageWidget(
+                    imageUrl: message.fileUrl!,
+                    isMe: isMe,
+                  )
+                      : isFile
+                      ? FileMessageWidget(
+                    fileUrl: message.fileUrl!,
+                    fileName: message.fileName ?? 'file',
+                    fileSize: message.fileSize,
+                    fileType: message.fileType,
+                    isMe: isMe,
                   )
                       : Text(
                     message.content,
@@ -622,6 +831,16 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
   }
 
   Widget _buildMessageInput() {
+    // ✅ If files pending, show preview widget
+    if (_pendingFiles.isNotEmpty) {
+      return FilePreviewWidget(
+        previews: _pendingFiles,
+        isUploading: _isUploadingFile,
+        onCancel: _cancelPendingFile,
+        onSend: _sendPendingFiles,
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: const BoxDecoration(color: Colors.white),
@@ -630,7 +849,7 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
           margin: EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom == 0 ? 10 : 0,
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 15),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             color: const Color(0xFFF8F9FB),
             borderRadius: BorderRadius.circular(30),
@@ -647,6 +866,12 @@ class _TutorChatDetailsScreenState extends State<TutorChatDetailsScreen> {
           )
               : Row(
             children: [
+              // ✅ Attachment button
+              IconButton(
+                icon: const Icon(Icons.attach_file, color: Colors.black),
+                onPressed: _showAttachmentSheet,
+                tooltip: 'Attach',
+              ),
               // Mic button
               IconButton(
                 icon: const Icon(Icons.mic, color: Colors.black),

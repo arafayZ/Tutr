@@ -75,6 +75,10 @@ class Message {
   bool isOwn;
   final String? audioUrl;
   final int? audioDuration;
+  final String? fileUrl;
+  final String? fileName;
+  final int? fileSize;
+  final String? fileType;
 
   Message({
     required this.id,
@@ -90,6 +94,10 @@ class Message {
     this.isOwn = false,
     this.audioUrl,
     this.audioDuration,
+    this.fileUrl,
+    this.fileName,
+    this.fileSize,
+    this.fileType,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -107,6 +115,10 @@ class Message {
       isOwn: json['own'] ?? false,
       audioUrl: json['audioUrl'],
       audioDuration: json['audioDuration'],
+      fileUrl: json['fileUrl'],
+      fileName: json['fileName'],
+      fileSize: json['fileSize'],
+      fileType: json['fileType'],
     );
   }
 }
@@ -118,6 +130,10 @@ class SendMessageRequest {
   final String content;
   final String? audioUrl;
   final int? audioDuration;
+  final String? fileUrl;
+  final String? fileName;
+  final int? fileSize;
+  final String? fileType;
 
   SendMessageRequest({
     required this.chatRoomId,
@@ -126,6 +142,10 @@ class SendMessageRequest {
     required this.content,
     this.audioUrl,
     this.audioDuration,
+    this.fileUrl,
+    this.fileName,
+    this.fileSize,
+    this.fileType,
   });
 
   Map<String, dynamic> toJson() {
@@ -136,6 +156,10 @@ class SendMessageRequest {
       'content': content,
       if (audioUrl != null) 'audioUrl': audioUrl,
       if (audioDuration != null) 'audioDuration': audioDuration,
+      if (fileUrl != null) 'fileUrl': fileUrl,
+      if (fileName != null) 'fileName': fileName,
+      if (fileSize != null) 'fileSize': fileSize,
+      if (fileType != null) 'fileType': fileType,
     };
   }
 }

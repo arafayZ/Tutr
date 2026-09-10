@@ -215,4 +215,44 @@ class ChatService {
       throw Exception('Error uploading: ${e.toString()}');
     }
   }
+
+  // ✅ Upload file to server
+  static Future<Map<String, dynamic>> uploadFile(File file, int userId) async {
+    try {
+      print('📤 Uploading file: ${file.path}');
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.uploadFile}?userId=$userId'),
+      );
+
+      final headers = await _getHeaders();
+      headers.remove('Content-Type');
+      request.headers.addAll(headers);
+
+      request.files.add(
+        await http.MultipartFile.fromPath('file', file.path),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      print('📡 Upload status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return {
+          'fileUrl': data['fileUrl'],
+          'fileName': data['fileName'],
+          'fileSize': data['fileSize'],
+          'fileType': data['fileType'],
+        };
+      } else {
+        throw Exception('Upload failed: ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Upload error: $e');
+      throw Exception('Error uploading: ${e.toString()}');
+    }
+  }
 }

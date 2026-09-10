@@ -1,5 +1,6 @@
 // lib/services/chat_service.dart
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
@@ -174,6 +175,44 @@ class ChatService {
       }
     } catch (e) {
       return false;
+    }
+  }
+
+
+  // audio
+  // ✅ Upload audio file to server
+  static Future<String> uploadAudio(File audioFile, int userId) async {
+    try {
+      print('📤 Uploading audio: ${audioFile.path}');
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.uploadAudio}?userId=$userId'),
+      );
+
+      final headers = await _getHeaders();
+      headers.remove('Content-Type');
+      request.headers.addAll(headers);
+
+      request.files.add(
+        await http.MultipartFile.fromPath('file', audioFile.path),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      print('📡 Upload status: ${response.statusCode}');
+      print('📡 Upload response: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['audioUrl'];
+      } else {
+        throw Exception('Failed to upload audio: ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Upload error: $e');
+      throw Exception('Error uploading: ${e.toString()}');
     }
   }
 }

@@ -123,6 +123,7 @@ class ApiConfig {
   static const String deleteMessage = '/api/chat/messages'; // + /{messageId}
   static const String checkChatAvailable = '/api/chat/available'; // + /{connectionId}
   static const String getSharedChatRoom = '/api/chat/shared-room'; //?studentId={stduserid}&tutorId={tutoeuserid}&userId={senderid}
+  static const String uploadAudio = '/api/chat/upload/audio';
   // ============ HELPER METHODS ============
   static String getFullUrl(String endpoint) {
     return '$baseUrl$endpoint';

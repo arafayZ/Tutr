@@ -116,12 +116,16 @@ class SendMessageRequest {
   final int senderId;
   final int recipientId;
   final String content;
+  final String? audioUrl;
+  final int? audioDuration;
 
   SendMessageRequest({
     required this.chatRoomId,
     required this.senderId,
     required this.recipientId,
     required this.content,
+    this.audioUrl,
+    this.audioDuration,
   });
 
   Map<String, dynamic> toJson() {
@@ -130,6 +134,8 @@ class SendMessageRequest {
       'senderId': senderId,
       'recipientId': recipientId,
       'content': content,
+      if (audioUrl != null) 'audioUrl': audioUrl,
+      if (audioDuration != null) 'audioDuration': audioDuration,
     };
   }
 }

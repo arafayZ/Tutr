@@ -1,11 +1,14 @@
 // lib/student/chat_details_screen.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/chat_service.dart';
 import '../services/websocket_service.dart';
-import '../services/unread_count_service.dart'; // ✅ Add this
+import '../services/unread_count_service.dart';
 import '../models/chat_models.dart';
 import '../config/api_config.dart';
+import '../widgets/audio_player_widget.dart';
+import '../widgets/audio_recorder_widget.dart';
 
 class StudentChatDetailsScreen extends StatefulWidget {
   final String userName;
@@ -44,6 +47,7 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
   int _recipientId = 0;
   bool _isLoading = true;
   bool _isSending = false;
+  bool _showAudioRecorder = false;  // ✅ Add this
 
   @override
   void initState() {
@@ -137,7 +141,6 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
     try {
       final messages = await ChatService.getMessages(_chatRoomId, _senderId);
 
-      // ✅ Update unread count after loading messages
       final unreadCount = await ChatService.getUnreadCount(_senderId);
       UnreadCountService().updateUnreadCount(unreadCount);
 
@@ -169,6 +172,56 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
         }
       });
       _scrollToBottom();
+    }
+  }
+
+  // ✅ Send audio message
+  Future<void> _sendAudioMessage(File audioFile, int duration) async {
+    try {
+      setState(() {
+        _isSending = true;
+        _showAudioRecorder = false;
+      });
+
+      print('📤 Uploading audio...');
+      final audioUrl = await ChatService.uploadAudio(audioFile, _senderId);
+      print('✅ Audio uploaded: $audioUrl');
+
+      if (_chatRoomId > 0 && _recipientId > 0) {
+        final request = SendMessageRequest(
+          chatRoomId: _chatRoomId,
+          senderId: _senderId,
+          recipientId: _recipientId,
+          content: '🎵 Audio message',
+          audioUrl: audioUrl,
+          audioDuration: duration,
+        );
+        final message = await ChatService.sendMessage(request);
+
+        setState(() {
+          if (!_messageIds.contains(message.id)) {
+            _messageIds.add(message.id);
+            _messages.add(message);
+          }
+          _isSending = false;
+        });
+
+        WebSocketService.instance.sendMessage(message);
+
+        final unreadCount = await ChatService.getUnreadCount(_senderId);
+        UnreadCountService().updateUnreadCount(unreadCount);
+
+        _scrollToBottom();
+      }
+    } catch (e) {
+      print('❌ Error sending audio: $e');
+      setState(() => _isSending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to send audio'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -308,7 +361,6 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
 
       WebSocketService.instance.sendMessage(message);
 
-      // ✅ Update unread count after sending message
       final unreadCount = await ChatService.getUnreadCount(_senderId);
       UnreadCountService().updateUnreadCount(unreadCount);
 
@@ -485,7 +537,10 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
     );
   }
 
+  // ✅ Updated: Message bubble with audio support
   Widget _buildMessageBubble(Message message, bool isMe) {
+    final bool isAudio = message.audioUrl != null && message.audioUrl!.isNotEmpty;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -497,9 +552,12 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
               crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isAudio ? 4 : 14,
+                    vertical: isAudio ? 4 : 10,
+                  ),
                   constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.7,
+                    maxWidth: MediaQuery.of(context).size.width * 0.75,
                   ),
                   decoration: BoxDecoration(
                     color: isMe ? Colors.black : Colors.grey.shade200,
@@ -510,7 +568,14 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
                       bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
                     ),
                   ),
-                  child: Text(
+                  child: isAudio
+                      ?AudioPlayerWidget(
+                    audioUrl: message.audioUrl!,
+                    isMe: isMe,
+                    durationInSeconds: message.audioDuration,
+                    messageId: message.id,
+                  )
+                      : Text(
                     message.content,
                     style: TextStyle(
                       color: isMe ? Colors.white : Colors.black87,
@@ -546,6 +611,7 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
     );
   }
 
+  // ✅ Updated: Message input with audio recorder
   Widget _buildMessageInput() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -561,8 +627,24 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
             borderRadius: BorderRadius.circular(30),
             border: Border.all(color: Colors.grey.shade300),
           ),
-          child: Row(
+          child: _showAudioRecorder
+              ? AudioRecorderWidget(
+            onSend: (file, duration) async {
+              await _sendAudioMessage(file, duration);
+            },
+            onCancel: () {
+              setState(() => _showAudioRecorder = false);
+            },
+          )
+              : Row(
             children: [
+              // Mic button
+              IconButton(
+                icon: const Icon(Icons.mic, color: Colors.black),
+                onPressed: () {
+                  setState(() => _showAudioRecorder = true);
+                },
+              ),
               Expanded(
                 child: TextField(
                   controller: _messageController,

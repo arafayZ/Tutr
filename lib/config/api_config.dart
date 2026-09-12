@@ -125,6 +125,12 @@ class ApiConfig {
   static const String getSharedChatRoom = '/api/chat/shared-room'; //?studentId={stduserid}&tutorId={tutoeuserid}&userId={senderid}
   static const String uploadAudio = '/api/chat/upload/audio';
   static const String uploadFile = '/api/chat/upload/file';
+
+
+  // ============ NOTIFICATION APIS ============
+  static const String registerDeviceToken = '/api/notifications/register-token';
+  static const String removeDeviceToken = '/api/notifications/remove-token';
+
   // ============ HELPER METHODS ============
   static String getFullUrl(String endpoint) {
     return '$baseUrl$endpoint';

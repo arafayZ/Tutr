@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/notification_service.dart';
 import '../tutor/terms_conditions_screen.dart';
 import 'edit_profile_screen.dart';
 import '../tutor/security_screen.dart';
@@ -141,7 +142,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => isLoading = true);
 
     try {
-      // Call logout API
+      // ✅ Remove FCM token so this device stops receiving pushes
+      try {
+        await NotificationService.instance.removeToken();
+      } catch (e) {
+        debugPrint('⚠️ Token removal failed: $e');
+      }
       await AuthService.logout();
 
       // Navigate to login screen and remove all previous screens

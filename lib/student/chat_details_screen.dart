@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/chat_service.dart';
+import '../services/notification_service.dart';
 import '../services/websocket_service.dart';
 import '../services/unread_count_service.dart';
 import '../models/chat_models.dart';
@@ -162,8 +163,6 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
 
     try {
       final messages = await ChatService.getMessages(_chatRoomId, _senderId);
-      final unreadCount = await ChatService.getUnreadCount(_senderId);
-      UnreadCountService().updateUnreadCount(unreadCount);
 
       setState(() {
         _messages = messages.reversed.toList();
@@ -171,9 +170,27 @@ class _StudentChatDetailsScreenState extends State<StudentChatDetailsScreen> {
         _isLoading = false;
       });
       _scrollToBottom();
+
+      // ✅ Mark as read (fixes unread badge when opened via notification)
+      await _markRoomAsRead();
     } catch (e) {
       print('Error loading messages: $e');
       setState(() => _isLoading = false);
+    }
+  }
+
+  // ✅ Marks current room as read + refreshes global badge
+  Future<void> _markRoomAsRead() async {
+    try {
+      await ChatService.markAllAsRead(_chatRoomId, _senderId);
+
+      final newCount = await ChatService.getUnreadCount(_senderId);
+      UnreadCountService().updateUnreadCount(newCount);
+      await NotificationService.instance.updateBadge(newCount);
+
+      print('✅ Marked room $_chatRoomId as read — unread now $newCount');
+    } catch (e) {
+      print('❌ markAsRead failed: $e');
     }
   }
 

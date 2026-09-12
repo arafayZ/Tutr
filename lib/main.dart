@@ -1,6 +1,7 @@
 // Import Flutter material design package
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 // Importing different TUTOR screens
 import 'signup/splash_screen.dart';
@@ -29,7 +30,26 @@ import 'signup/onboarding_screen.dart';  // ADD THIS IMPORT
 import 'tutor/my_students_list_screen.dart';
 import 'tutor/student_profile_screen.dart';
 
-void main() {
+//  Push notifications
+import 'services/notification_service.dart';
+import 'package:my_first_app/services/push_navigation_service.dart';
+
+//  Global navigator key for notification tap routing
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  await Firebase.initializeApp();
+
+  // Initialize notifications
+  await NotificationService.instance.init();
+
+  // Register tap handler
+  NotificationService.instance.onNotificationTap =
+      PushNavigationService.handleNotificationTap;
+
   runApp(const TutrApp());
 }
 
@@ -39,6 +59,7 @@ class TutrApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'TUTR',
       theme: ThemeData(

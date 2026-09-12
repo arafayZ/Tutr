@@ -7,6 +7,7 @@ import 'forgot_password_screen.dart';
 import 'profile_creation_screen.dart';
 import 'tutor_verification_screen.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -70,6 +71,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // ✅ Save email for later use
       await prefs.setString('email', userData['email']);
+
+      // ✅ Register this device for push notifications
+      try {
+        await NotificationService.instance.registerToken(userData['id']);
+      } catch (e) {
+        debugPrint('⚠️ Token registration failed: $e');
+      }
 
       // ✅ For PENDING accounts, we'll fetch name from profile API in dashboard
       // No need to save name here as login response doesn't have it

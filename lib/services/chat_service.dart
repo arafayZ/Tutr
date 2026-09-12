@@ -255,4 +255,50 @@ class ChatService {
       throw Exception('Error uploading: ${e.toString()}');
     }
   }
+
+  // ============================================
+  // ✅ PUSH NOTIFICATIONS — Device Token
+  // ============================================
+
+  /// Register this device's FCM token with the backend
+  static Future<void> registerDeviceToken(
+      int userId,
+      String token,
+      String platform,
+      ) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.registerDeviceToken}'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'userId': userId,
+          'token': token,
+          'platform': platform,
+        }),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to register device token: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error: ${e.toString().replaceFirst('Exception: ', '')}');
+    }
+  }
+
+  /// Remove this device's FCM token (on logout)
+  static Future<void> removeDeviceToken(String token) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.removeDeviceToken}'),
+        headers: await _getHeaders(),
+        body: json.encode({'token': token}),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to remove device token: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error: ${e.toString().replaceFirst('Exception: ', '')}');
+    }
+  }
 }

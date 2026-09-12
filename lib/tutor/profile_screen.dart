@@ -6,6 +6,7 @@ import 'security_screen.dart';
 import 'unavailable_courses_screen.dart';
 import 'edit_profile_screen.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import '../config/api_config.dart';
 import '../utils/status_bar_config.dart';
 
@@ -113,7 +114,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => isLoading = true);
 
     try {
-      // Call logout API
+      // ✅ Remove FCM token so this device stops receiving pushes
+      try {
+        await NotificationService.instance.removeToken();
+      } catch (e) {
+        debugPrint('⚠️ Token removal failed: $e');
+      }
       await AuthService.logout();
 
       // // Clear SharedPreferences

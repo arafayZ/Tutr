@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "504085349794",
+    "project_id": "tutr-app-8b74f",
+    "storage_bucket": "tutr-app-8b74f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:504085349794:android:55b1d76460534f11649efb",
+        "android_client_info": {
+          "package_name": "com.tutr.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRXAE_w0vidkYAGRkabwQj4ZBgyqsKpHs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
